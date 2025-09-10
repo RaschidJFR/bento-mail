@@ -2,6 +2,17 @@
   "name": "bento-mail",
   "version": "0.1.0",
   "scripts": {
-    "test": "npm test"
+    "start": "node html-extractor.mjs 'samples/Wired Science.html' > result.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.21",
+    "@langchain/openai": "^0.3.12",
+    "dotenv": "^17.2.2",
+    "jsdom": "^26.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
   }
 }
