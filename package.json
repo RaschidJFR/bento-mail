@@ -2,12 +2,14 @@
   "name": "bento-mail",
   "version": "0.1.0",
   "scripts": {
-    "start": "node html-extractor.mjs 'samples/Wired Science.html' > result.json",
+    "extract": "node lib/ai-html-extractor.mjs 'samples/Wired Science.html' > results/articles.json",
+    "download": "node lib/html-downloader.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@langchain/core": "^0.3.21",
     "@langchain/openai": "^0.3.12",
+    "axios": "^1.7.0",
     "dotenv": "^17.2.2",
     "jsdom": "^26.1.0",
     "zod": "^3.23.8"

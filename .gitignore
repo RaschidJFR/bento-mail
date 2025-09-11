@@ -140,5 +140,8 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+#Mac system files
+.DS_Store
+
 samples/
-result.json
+results/
