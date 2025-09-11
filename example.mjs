@@ -132,7 +132,7 @@ export async function downloadArticles(articles, downloadDir = 'results/download
 
 // CLI usage
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const inputFilePath = process.argv[2] || 'results/articles.json';
+  const inputFilePath = process.argv[2] || 'samples/Wired Science.html';
   const downloadDir = process.argv[3] || 'results/downloads';
 
   if (!inputFilePath) {
@@ -156,6 +156,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       // Extract articles from the newsletter
       articles = await processNewsletterFile(inputFilePath);
       console.log(`Found ${articles.length} articles`);
+      // Save articles to JSON for reference
+      const articlesJsonPath = 'results/articles.json';
+      await writeFile(articlesJsonPath, JSON.stringify(articles, null, 2), 'utf-8');
+      console.log(`Extracted articles saved to: ${articlesJsonPath}`);
     } else {
       throw new Error(`Unsupported file type: ${fileExtension}. Please provide a .json or .html file.`);
     }
