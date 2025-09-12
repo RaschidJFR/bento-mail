@@ -1,4 +1,4 @@
-import { extractNewsletterArticles, extractWebArticle } from './lib/ai-html-extractor.mjs';
+import { extractArticlesFromNewsletter, extractWebArticleFullText, generateArticleSummaries } from './lib/ai-article-extractor.mjs';
 import { downloadHtml } from './lib/html-downloader.mjs';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
@@ -27,7 +27,7 @@ function sanitizeFilename(filename) {
 async function processNewsletterFile(htmlFilePath) {
   try {
     const htmlContent = await readFile(htmlFilePath, 'utf-8');
-    const articles = await extractNewsletterArticles(htmlContent);
+    const articles = await extractArticlesFromNewsletter(htmlContent);
 
     // Save to resuts directory
     await mkdir(RESULTS_DIR, { recursive: true });
@@ -198,16 +198,27 @@ async function processAll(inputFilePath = 'samples/Wired Science.html', download
         console.log(`Processing article content...`);
         console.log(file.filepath);
         const htmlContent = await readFile(file.filepath, 'utf-8');
-        const webArticle = await extractWebArticle(htmlContent, file.url);
-        extractedArticles.push(webArticle);
-        console.log(`✓ Extracted article data`);
+        const webArticle = await extractWebArticleFullText(htmlContent, file.url);
+        
+        // Generate summaries from the full text
+        console.log(`Generating article summaries...`);
+        const summaries = await generateArticleSummaries(webArticle.fullText);
+        
+        // Merge the summaries with the web article data
+        const enrichedArticle = {
+          ...webArticle,
+          ...summaries
+        };
+        
+        extractedArticles.push(enrichedArticle);
+        console.log(`✓ Extracted article data with summaries`);
       } catch (extractError) {
         console.error(`✗ Failed to extract article data: ${extractError.message}`);
       }
     }
 
     // Save extracted articles
-    const extractedPath = join(downloadDir, 'downloaded-articles.json');
+    const extractedPath = join(downloadDir, 'processed-articles.json');
     await writeFile(extractedPath, JSON.stringify(extractedArticles, null, 2), 'utf-8');
     console.log(`\nExtracted articles saved to: ${extractedPath}`);
   } catch (error) {
@@ -216,4 +227,7 @@ async function processAll(inputFilePath = 'samples/Wired Science.html', download
   }
 }
 
-await processAll();
+// run in cli mode
+if (import.meta.url === `file://${process.argv[1]}`) {
+  await processAll();
+}

@@ -8,6 +8,7 @@
     "start": "node example.mjs",
     "extract": "node lib/ai-html-extractor.mjs 'samples/Wired Science.html' > results/articles.json",
     "download": "node lib/html-downloader.mjs",
+    "postinstall": "[ ! -d samples ] && unzip -q samples.zip",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
@@ -20,6 +21,6 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0"
+    "@types/node": "^22.18.1"
   }
 }
