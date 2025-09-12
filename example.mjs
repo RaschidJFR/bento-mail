@@ -1,7 +1,11 @@
-import { extractArticlesFromNewsletter, extractWebArticleFullText, generateArticleSummaries } from './lib/ai-article-extractor.mjs';
+import {
+  extractArticlesFromNewsletter,
+  extractWebArticleFullText,
+  generateArticleSummaries,
+} from './lib/ai-article-extractor.mjs';
 import { downloadHtml } from './lib/html-downloader.mjs';
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { join, extname, dirname, basename } from 'node:path';
 
 const RESULTS_DIR = 'results';
 
@@ -28,12 +32,6 @@ async function processNewsletterFile(htmlFilePath) {
   try {
     const htmlContent = await readFile(htmlFilePath, 'utf-8');
     const articles = await extractArticlesFromNewsletter(htmlContent);
-
-    // Save to resuts directory
-    await mkdir(RESULTS_DIR, { recursive: true });
-    const outputFilePath = join(RESULTS_DIR, 'extracted-articles.json');
-    await writeFile(outputFilePath, JSON.stringify(articles, null, 2), 'utf-8');
-    console.log(`Extracted articles saved to: ${outputFilePath}`);
     return articles;
   } catch (error) {
     console.error('Error processing newsletter file:', error);
@@ -106,9 +104,6 @@ async function downloadArticles(articles, downloadDir = `${RESULTS_DIR}/download
     }
 
     // Create downloads directory if it doesn't exist
-    downloadDir = articlesWithUrls[0].sourceName
-      ? `${downloadDir}/${sanitizeFilename(articlesWithUrls[0].sourceName)}`
-      : downloadDir;
     await mkdir(downloadDir, { recursive: true });
 
     const downloadResults = [];
@@ -156,23 +151,29 @@ async function downloadArticles(articles, downloadDir = `${RESULTS_DIR}/download
   }
 }
 
-async function processAll(inputFilePath = 'samples/Wired Science.html', downloadDir = 'results') {
+async function processNewsletter(inputFilePath) {
   try {
     const fileExtension = extname(inputFilePath).toLowerCase();
     let articlesJsonPath = '';
+    let downloadDir = '';
 
     if (fileExtension === '.html') {
-      console.log(`Processing newsletter file: ${inputFilePath}`);
+      const filenameWithoutExt = basename(inputFilePath, '.html');
+      downloadDir = join(RESULTS_DIR, filenameWithoutExt);
+      await mkdir(downloadDir, { recursive: true });
+
       // Extract articles from the newsletter
+      console.log(`Processing newsletter file: ${inputFilePath}`);
       const articles = await processNewsletterFile(inputFilePath);
       console.log(`Found ${articles.length} articles`);
+
       // Save articles to JSON for reference
-      articlesJsonPath = `${RESULTS_DIR}/extracted-articles.json`;
-      await mkdir('results', { recursive: true });
+      articlesJsonPath = `${downloadDir}/extracted-articles.json`;
       await writeFile(articlesJsonPath, JSON.stringify(articles, null, 2), 'utf-8');
       console.log(`Extracted articles saved to: ${articlesJsonPath}`);
     } else if (fileExtension === '.json') {
       articlesJsonPath = inputFilePath;
+      downloadDir = dirname(articlesJsonPath);
     } else {
       throw new Error(`Unsupported file type: ${fileExtension}. Please provide a .json or .html file.`);
     }
@@ -188,46 +189,105 @@ async function processAll(inputFilePath = 'samples/Wired Science.html', download
 
     // Process html files to extract article content
     const extractedArticles = [];
+    const extractedPath = join(downloadDir, 'processed-articles.json');
     for (let i = 0; i < downloadResults.length; i++) {
-      
       // Skip failed downloads
       if (downloadResults[i].status !== 'success') continue;
 
       const file = downloadResults[i];
+      const article = articles.find((a) => a.url === file.url) || {};
       try {
         console.log(`Processing article content...`);
         console.log(file.filepath);
         const htmlContent = await readFile(file.filepath, 'utf-8');
         const webArticle = await extractWebArticleFullText(htmlContent, file.url);
-        
+
         // Generate summaries from the full text
         console.log(`Generating article summaries...`);
         const summaries = await generateArticleSummaries(webArticle.fullText);
-        
+
         // Merge the summaries with the web article data
         const enrichedArticle = {
           ...webArticle,
-          ...summaries
+          ...summaries,
+          coverImg: article.coverImg || webArticle.coverImg || '',
+          originalHeader: article.header || '',
+          originalAbstract: article.summary || '',
         };
-        
+
         extractedArticles.push(enrichedArticle);
         console.log(`✓ Extracted article data with summaries`);
       } catch (extractError) {
         console.error(`✗ Failed to extract article data: ${extractError.message}`);
       }
+
+      // Save extracted articles at every iteration
+      await writeFile(extractedPath, JSON.stringify(extractedArticles, null, 2), 'utf-8');
+      console.log(`\nExtracted articles saved to: ${extractedPath}\n`);
     }
 
-    // Save extracted articles
-    const extractedPath = join(downloadDir, 'processed-articles.json');
+    // Add articles left out (failed downloads) to the json save
+    const missingArticles = downloadResults
+      .filter((r) => !extractedArticles.find((a) => a.url === r.url))
+      .map((a) => ({
+        originalHeader: a.title,
+        originalAbstract: a.fullText,
+        sourceName: a.sourceName,
+      }));
+
+    console.log(`Adding ${missingArticles.length} articles that were not downloaded to the final JSON`);
+    extractedArticles.push(...missingArticles);
     await writeFile(extractedPath, JSON.stringify(extractedArticles, null, 2), 'utf-8');
-    console.log(`\nExtracted articles saved to: ${extractedPath}`);
+    console.log(`\nFinal extracted articles saved to: ${extractedPath}\n`);
   } catch (error) {
     console.error('Error:', error.message);
     process.exit(1);
   }
 }
 
+/**
+ * Processes all HTML newsletter files in a folder
+ * @param {string} folderPath - Path to the folder containing HTML files
+ * @param {string} baseOutputDir - Base directory for outputs (default: 'results')
+ * @returns {Promise<Array>} Array of processing results
+ */
+async function processNewsletterFolder(folderPath = 'samples', baseOutputDir = RESULTS_DIR) {
+  try {
+    console.log(`Processing all HTML files in folder: ${folderPath}`);
+
+    // Read directory contents
+    const files = await readdir(folderPath);
+
+    // Filter for HTML files
+    const htmlFiles = files.filter((file) => extname(file).toLowerCase() === '.html');
+
+    if (htmlFiles.length === 0) {
+      console.log('No HTML files found in the specified folder');
+      return [];
+    }
+
+    console.log(`Found ${htmlFiles.length} HTML files to process\n`);
+
+    // Process each HTML file
+    for (let i = 0; i < htmlFiles.length; i++) {
+      const htmlFile = htmlFiles[i];
+      const htmlFilePath = join(folderPath, htmlFile);
+
+      console.log(`\n=== Processing file ${i + 1}/${htmlFiles.length}: ${htmlFile} ===`);
+
+      try {
+        await processNewsletter(htmlFilePath);
+      } catch (error) {
+        console.error(`✗ Failed to process newsletter ${htmlFile}: ${error.message}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error processing newsletter folder:', error);
+    throw error;
+  }
+}
+
 // run in cli mode
 if (import.meta.url === `file://${process.argv[1]}`) {
-  await processAll();
+  await processNewsletterFolder();
 }
