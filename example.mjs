@@ -1,7 +1,9 @@
-import { processNewsletterFile } from './lib/ai-html-extractor.mjs';
+import { extractNewsletterArticles, extractWebArticle } from './lib/ai-html-extractor.mjs';
 import { downloadHtml } from './lib/html-downloader.mjs';
-import { mkdir, writeFile, readFile } from 'fs/promises';
-import { join, extname } from 'path';
+import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { join, extname } from 'node:path';
+
+const RESULTS_DIR = 'results';
 
 /**
  * Sanitizes a filename by removing invalid characters
@@ -18,12 +20,34 @@ function sanitizeFilename(filename) {
 }
 
 /**
+ * Reads an HTML newsletter file and extracts articles using AI
+ * @param {string} htmlFilePath - Path to the HTML file
+ * @returns {Promise<Array>} Array of extracted articles
+ */
+async function processNewsletterFile(htmlFilePath) {
+  try {
+    const htmlContent = await readFile(htmlFilePath, 'utf-8');
+    const articles = await extractNewsletterArticles(htmlContent);
+
+    // Save to resuts directory
+    await mkdir(RESULTS_DIR, { recursive: true });
+    const outputFilePath = join(RESULTS_DIR, 'extracted-articles.json');
+    await writeFile(outputFilePath, JSON.stringify(articles, null, 2), 'utf-8');
+    console.log(`Extracted articles saved to: ${outputFilePath}`);
+    return articles;
+  } catch (error) {
+    console.error('Error processing newsletter file:', error);
+    throw error;
+  }
+}
+
+/**
  * Downloads a single article and saves it to a file
  * @param {Object} article - Article object with header and url
  * @param {string} downloadDir - Directory to save the article
  * @returns {Promise<Object>} Download result object
  */
-export async function downloadArticle(article, downloadDir) {
+async function downloadArticle(article, downloadDir = `${RESULTS_DIR}/downloads`) {
   try {
     // Download HTML content
     const htmlContent = await downloadHtml(article.url, {
@@ -39,6 +63,7 @@ export async function downloadArticle(article, downloadDir) {
     const filepath = join(downloadDir, filename);
 
     // Save to file
+    await mkdir(downloadDir, { recursive: true });
     await writeFile(filepath, htmlContent, 'utf-8');
 
     const result = {
@@ -69,7 +94,7 @@ export async function downloadArticle(article, downloadDir) {
  * @param {string} downloadDir - Directory to save downloaded articles (default: 'downloads')
  * @returns {Promise<Array>} Array of download results
  */
-export async function downloadArticles(articles, downloadDir = 'results/downloads') {
+async function downloadArticles(articles, downloadDir = `${RESULTS_DIR}/downloads`) {
   try {
     // Filter articles that have URLs
     const articlesWithUrls = articles.filter((article) => article.url);
@@ -106,7 +131,7 @@ export async function downloadArticles(articles, downloadDir = 'results/download
 
       // Add small delay to be respectful to servers
       if (i < articlesWithUrls.length - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
 
@@ -123,6 +148,7 @@ export async function downloadArticles(articles, downloadDir = 'results/download
     const reportPath = join(downloadDir, 'download-report.json');
     await writeFile(reportPath, JSON.stringify(downloadResults, null, 2), 'utf-8');
     console.log(`\nDownload report saved to: ${reportPath}`);
+
     return downloadResults;
   } catch (error) {
     console.error('Error downloading articles:', error);
@@ -130,43 +156,64 @@ export async function downloadArticles(articles, downloadDir = 'results/download
   }
 }
 
-// CLI usage
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const inputFilePath = process.argv[2] || 'samples/Wired Science.html';
-  const downloadDir = process.argv[3] || 'results/downloads';
-
-  if (!inputFilePath) {
-    console.error('Usage: node article-downloader.mjs <input-file-path> [download-directory]');
-    console.error('Example: node article-downloader.mjs samples/newsletter.html downloads');
-    console.error('Example: node article-downloader.mjs samples/articles.json downloads');
-    process.exit(1);
-  }
-
+async function processAll(inputFilePath = 'samples/Wired Science.html', downloadDir = 'results') {
   try {
     const fileExtension = extname(inputFilePath).toLowerCase();
-    let articles;
+    let articlesJsonPath = '';
 
-    if (fileExtension === '.json') {
-      console.log(`Loading articles from JSON file: ${inputFilePath}`);
-      const jsonContent = await readFile(inputFilePath, 'utf-8');
-      articles = JSON.parse(jsonContent);
-      console.log(`Loaded ${articles.length} articles from JSON`);
-    } else if (fileExtension === '.html') {
+    if (fileExtension === '.html') {
       console.log(`Processing newsletter file: ${inputFilePath}`);
       // Extract articles from the newsletter
-      articles = await processNewsletterFile(inputFilePath);
+      const articles = await processNewsletterFile(inputFilePath);
       console.log(`Found ${articles.length} articles`);
       // Save articles to JSON for reference
-      const articlesJsonPath = 'results/articles.json';
+      articlesJsonPath = `${RESULTS_DIR}/extracted-articles.json`;
+      await mkdir('results', { recursive: true });
       await writeFile(articlesJsonPath, JSON.stringify(articles, null, 2), 'utf-8');
       console.log(`Extracted articles saved to: ${articlesJsonPath}`);
+    } else if (fileExtension === '.json') {
+      articlesJsonPath = inputFilePath;
     } else {
       throw new Error(`Unsupported file type: ${fileExtension}. Please provide a .json or .html file.`);
     }
 
-    await downloadArticles(articles, downloadDir);
+    // Load articles from JSON file
+    console.log(`Loading articles from JSON file: "${articlesJsonPath}"`);
+    const jsonContent = await readFile(articlesJsonPath, 'utf-8');
+    const articles = JSON.parse(jsonContent);
+    console.log(`Loaded ${articles.length} articles from JSON`);
+
+    // Download articles
+    const downloadResults = await downloadArticles(articles, `${downloadDir}/downloads`);
+
+    // Process html files to extract article content
+    const extractedArticles = [];
+    for (let i = 0; i < downloadResults.length; i++) {
+      
+      // Skip failed downloads
+      if (downloadResults[i].status !== 'success') continue;
+
+      const file = downloadResults[i];
+      try {
+        console.log(`Processing article content...`);
+        console.log(file.filepath);
+        const htmlContent = await readFile(file.filepath, 'utf-8');
+        const webArticle = await extractWebArticle(htmlContent, file.url);
+        extractedArticles.push(webArticle);
+        console.log(`✓ Extracted article data`);
+      } catch (extractError) {
+        console.error(`✗ Failed to extract article data: ${extractError.message}`);
+      }
+    }
+
+    // Save extracted articles
+    const extractedPath = join(downloadDir, 'downloaded-articles.json');
+    await writeFile(extractedPath, JSON.stringify(extractedArticles, null, 2), 'utf-8');
+    console.log(`\nExtracted articles saved to: ${extractedPath}`);
   } catch (error) {
     console.error('Error:', error.message);
     process.exit(1);
   }
 }
+
+await processAll();
