@@ -4,27 +4,44 @@ import { join, extname, basename } from 'node:path';
 
 const RESULTS_DIR = 'results';
 
-async function processNewsletter(inputFilePath) {
+async function processNewsletter(input, maxArticles = null) {
   try {
-    const fileExtension = extname(inputFilePath).toLowerCase();
+    let htmlContent;
+    let filenameWithoutExt;
+    
+    // Check if input is a URL or file path
+    if (input.startsWith('http://') || input.startsWith('https://')) {
+      console.log(`Processing newsletter from URL: ${input}`);
+      
+      // Extract a filename from URL for directory naming
+      const url = new URL(input);
+      filenameWithoutExt = url.hostname.replace(/\./g, '-');
+      
+      // Process URL directly with processNewsletterHtml
+      htmlContent = input;
+    } else {
+      const fileExtension = extname(input).toLowerCase();
 
-    if (fileExtension !== '.html') {
-      throw new Error(`Unsupported file type: ${fileExtension}. Please provide a .html file.`);
+      if (fileExtension !== '.html') {
+        throw new Error(`Unsupported file type: ${fileExtension}. Please provide a .html file or URL.`);
+      }
+
+      filenameWithoutExt = basename(input, '.html');
+      
+      // Read newsletter HTML content from file
+      console.log(`Processing newsletter file: ${input}`);
+      htmlContent = await readFile(input, 'utf-8');
     }
 
-    const filenameWithoutExt = basename(inputFilePath, '.html');
     const downloadDir = join(RESULTS_DIR, filenameWithoutExt);
     await mkdir(downloadDir, { recursive: true });
-
-    // Read newsletter HTML content
-    console.log(`Processing newsletter file: ${inputFilePath}`);
-    const htmlContent = await readFile(inputFilePath, 'utf-8');
 
     // Process newsletter using the new module
     const extractedArticles = await processNewsletterHtml(htmlContent, {
       concurrency: 3,
       timeout: 15000,
       delay: 500,
+      maxArticles,
     });
 
     console.log(`Processed ${extractedArticles.length} articles`);
@@ -82,5 +99,11 @@ async function processNewsletterFolder(folderPath = 'samples') {
 
 // run in cli mode
 if (import.meta.url === `file://${process.argv[1]}`) {
-  await processNewsletterFolder();
+  const url = process.argv[2];
+  const max = parseInt(process.argv[3]) || 5;
+  if (url) {
+    await processNewsletter(url, max);
+  } else {
+    await processNewsletterFolder();
+  }
 }
