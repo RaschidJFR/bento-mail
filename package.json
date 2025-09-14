@@ -13,15 +13,23 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.30",
     "@langchain/core": "^0.3.21",
     "@langchain/openai": "^0.3.12",
     "axios": "^1.7.0",
     "dotenv": "^17.2.2",
     "jsdom": "^26.1.0",
+    "llm-scraper": "^1.6.0",
+    "playwright": "^1.55.0",
     "turndown": "^7.2.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.18.1"
+  },
+  "overrides": {
+    "llm-scraper@^1.6.0": {
+      "ai": "^5.0.44"
+    }
   }
 }
