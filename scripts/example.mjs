@@ -1,4 +1,4 @@
-import { processNewsletterHtml } from './lib/newsletter-processor.mjs';
+import { processNewsletterHtml } from '../src/lib/newsletter-processor.mjs';
 import { mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { join, extname, basename } from 'node:path';
 

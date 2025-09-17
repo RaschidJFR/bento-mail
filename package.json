@@ -5,27 +5,39 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "start": "node example.mjs",
-    "extract": "node lib/ai-html-extractor.mjs 'samples/Wired Science.html' > results/articles.json",
-    "download": "node lib/html-downloader.mjs",
-    "unzip": "[ ! -d samples ] && unzip -q samples.zip",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "mail": "node src/email/server.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",
     "@langchain/core": "^0.3.21",
     "@langchain/openai": "^0.3.12",
+    "@typegoose/typegoose": "^12.19.0",
     "axios": "^1.7.0",
     "dotenv": "^17.2.2",
     "jsdom": "^26.1.0",
     "llm-scraper": "^1.6.0",
+    "maildev": "^2.2.1",
+    "mailparser": "^3.7.4",
+    "mongoose": "^8.18.1",
+    "next": "^15.5.3",
+    "nodemailer": "^7.0.6",
     "playwright": "^1.55.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "turndown": "^7.2.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^22.18.1"
+    "@types/node": "^22.18.1",
+    "@types/react": "^18.2.73",
+    "@types/react-dom": "^18.2.21",
+    "typescript": "5.9.2"
   },
   "overrides": {
     "llm-scraper@^1.6.0": {

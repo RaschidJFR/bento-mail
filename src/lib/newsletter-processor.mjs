@@ -1,7 +1,7 @@
 import {
   extractArticlesFromNewsletter,
-  extractWebArticleFullText,
-} from './ai-article-extractor.mjs';
+  extractArticleDetails,
+} from './ai-article-analyzer.ts';
 import { fetchHtmlContent } from './utils.mjs';
 
 /**
@@ -25,7 +25,7 @@ export async function processArticle(article, options = {}) {
     });
 
     // Extract article content with summaries included
-    const webArticle = await extractWebArticleFullText(htmlContent);
+    const webArticle = await extractArticleDetails(htmlContent);
 
     // Merge the web article data with original article data
     const enrichedArticle = {
