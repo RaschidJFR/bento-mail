@@ -78,6 +78,15 @@ web_modules/
 .next
 out
 
+# Next.js static export
+out/
+
+# Next.js cache
+.cache
+
+# Optional: Vercel deployment
+.vercel
+
 # Nuxt.js build / generate output
 .nuxt
 dist
