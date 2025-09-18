@@ -10,7 +10,7 @@
     "start": "next start",
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest",
     "mail": "node src/email/server.mjs"
   },
   "dependencies": {
@@ -37,7 +37,8 @@
     "@types/node": "^22.18.1",
     "@types/react": "^18.2.73",
     "@types/react-dom": "^18.2.21",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^3.2.4"
   },
   "overrides": {
     "llm-scraper@^1.6.0": {

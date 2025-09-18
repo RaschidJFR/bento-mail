@@ -1,6 +1,21 @@
 import { JSDOM, VirtualConsole } from 'jsdom';
 import TurndownService from 'turndown';
 import axios from 'axios';
+import crypto from 'crypto';
+
+/**
+ * Generates a SHA-256 hash of the given text
+ * @param {string} text - The input text to hash
+ * @returns {string} The SHA-256 hash in hexadecimal format
+ */
+export function hash(text) {
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    throw new Error('Input must be a non-empty string: ' + text);
+  }
+  text = text.trim();
+  const hash = crypto.createHash('sha256').update(text).digest('hex');
+  return hash;
+}
 
 /**
  * Downloads HTML content from a given URL
