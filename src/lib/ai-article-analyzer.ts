@@ -9,9 +9,9 @@ const model = new ChatOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export type ArticleDataProps = Omit<IArticleProps, '_id' | 'content'>;
+export type ArticleDataProps = Omit<IArticleProps, '_id'>;
 export type ArticleDetailsProps = Pick<ArticleDataProps, 'date' | 'summaries' | 'coverImg'>;
-export type BasicArticleProps = Omit<ArticleDataProps, keyof ArticleDetailsProps>;
+export type BasicArticleProps = Omit<ArticleDataProps, 'summaries'> & { content: string };
 export type NewsletterDataProps = Omit<INewsletterProps, '_id' | 'content' | 'articles'> & {
   articles: BasicArticleProps[];
 };
@@ -36,7 +36,10 @@ const ComplementaryArticleSchema = z.object({
     .optional()
     .default('')
     .describe('URL to the cover image of the article. Empty string if not found.'),
-  date: z.string().optional().describe('Date when the article was created (yyyy-mm-dd numbers). Empty string if not found.'),
+  date: z
+    .string()
+    .optional()
+    .describe('Date when the article was created (yyyy-mm-dd numbers). Empty string if not found.'),
   summaries: z.object({
     oneliner: z.string().describe('The most accurate header/title for the article in one line'),
     overview: z.string().describe('Complete conclusion and key takeaways in less than 200 characters'),

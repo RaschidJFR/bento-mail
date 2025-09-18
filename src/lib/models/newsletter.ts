@@ -1,16 +1,8 @@
-import crypto from 'crypto';
-import { prop, pre, getModelForClass, DocumentType, modelOptions, Ref, isDocument } from '@typegoose/typegoose';
+import { hash } from '@lib/utils.mjs';
+import { prop, getModelForClass, modelOptions, Ref, pre } from '@typegoose/typegoose';
+import type { DocumentType } from '@typegoose/typegoose';
 import { Article, ArticleClass } from './article';
 import { extractArticlesFromNewsletter } from '@lib/ai-article-analyzer';
-
-function getHash(textContent: string) {
-  if (!textContent || typeof textContent !== 'string' || !textContent.trim()) {
-    throw new Error('Content must be a non-empty string: ' + textContent);
-  }
-  textContent = textContent.trim();
-  const hash = crypto.createHash('sha256').update(textContent).digest('hex');
-  return hash;
-}
 
 export interface INewsletterProps {
   _id: string;
@@ -20,37 +12,53 @@ export interface INewsletterProps {
   name: string;
 }
 
+function generateId(this: DocumentType<NewsletterClass>) {
+  if (!this.content) {
+    throw new Error('Content is required to generate _id');
+  }
+  return hash(this.content as string);
+}
+
 @pre<NewsletterClass>('save', async function () {
-  try {
-    console.log(`Pre-save hook: Processing and saving articles for newsletter ${this._id}...`);
-    const promises =
-      this.articles
-        ?.filter((a) => !!(isDocument(a) && a.isNew))
-        .map((a) => isDocument(a) && a.process().then(() => a.save())) || [];
-    await Promise.all(promises);
-  } catch (error) {
-    console.error('Error saving articles in newsletter pre-save hook:', error);
-    throw error;
+  // Save any new Article instances in this.articles before saving the newsletter
+  if (this.articles?.length > 0) {
+    console.log(`Pre-save hook: Syncing related articles for newsletter ${this._id}...`);
+    let cntNew = 0;
+    let cntFound = 0;
+    for (let i = 0; i < this.articles.length; i++) {
+      const article = this.articles[i];
+      if (article instanceof Article) {
+        // Use _id (hash of content) to check for existing article
+        const existing = await Article.findById(article._id);
+        if (existing) {
+          this.articles[i] = existing;
+          cntFound++;
+        } else if (article.isNew) {
+          await article.save();
+          cntNew++;
+        }
+      }
+    }
+    console.log(`${cntNew} new articles created. ${cntFound} existing articles linked.`);
   }
 })
 @modelOptions({ options: { allowMixed: 0 } })
 class NewsletterClass implements INewsletterProps {
-  @prop({
-    default: function (this: DocumentType<NewsletterClass>) {
-      return getHash(this.content as string);
-    },
-  })
+  @prop({ default: generateId, type: String })
   public readonly _id!: string;
-  @prop()
+  @prop({ default: '', type: String })
   public content?: string;
-  @prop({ ref: () => ArticleClass, type: () => String, default: [] })
+  @prop({ ref: () => ArticleClass, type: [String], default: [] })
   public articles: Ref<ArticleClass>[] = [];
-  @prop()
+  @prop({ default: '', type: String })
   public date?: string;
-  @prop()
+  @prop({ default: '', type: String })
   public name: string = '';
 
   public async process(this: DocumentType<NewsletterClass>, text?: string) {
+    if (this.articles && this.articles.length > 0) {
+      return;
+    }
     this.content = this.content || text || '';
     const data = await extractArticlesFromNewsletter(this.content);
     const articles = data.articles.map((a) => new Article(a));
@@ -62,4 +70,4 @@ class NewsletterClass implements INewsletterProps {
 }
 
 const NewsletterModel = getModelForClass(NewsletterClass);
-export const NewsLetter = NewsletterModel;
+export const Newsletter = NewsletterModel;

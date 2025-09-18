@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { NewsLetter, Article } from '@lib/models';
+import { Newsletter, Article } from '@lib/models';
 import { isArticleOrNewsletter } from '@lib/ai-article-analyzer';
 import { htmlToMarkdown } from '@lib/utils.mjs';
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     const contentText = format == 'html' ? htmlToMarkdown(content) : content;
     const article = new Article({ content: contentText });
-    const newsletter = new NewsLetter({ content: contentText });
+    const newsletter = new Newsletter({ content: contentText });
 
     const existent = await findExistent([article, newsletter]);
     if (existent) {
