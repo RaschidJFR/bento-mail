@@ -64,4 +64,5 @@ export class ArticleClass implements IArticleProps {
 }
 
 const ArticleModel = getModelForClass(ArticleClass);
-export const Article = ArticleModel;
+export { ArticleModel as Article };
+export type Article = DocumentType<ArticleClass>;

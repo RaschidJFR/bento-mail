@@ -43,7 +43,7 @@ function generateId(this: DocumentType<NewsletterClass>) {
   }
 })
 @modelOptions({ options: { allowMixed: 0 } })
-class NewsletterClass implements INewsletterProps {
+export class NewsletterClass implements INewsletterProps {
   @prop({ default: generateId, type: String })
   public readonly _id!: string;
   @prop({ default: '', type: String })
@@ -71,3 +71,9 @@ class NewsletterClass implements INewsletterProps {
 
 const NewsletterModel = getModelForClass(NewsletterClass);
 export const Newsletter = NewsletterModel;
+export type Newsletter = DocumentType<NewsletterClass>;
+
+/**
+ * Alias for `DocumentType<NewsletterClass>`
+ */
+export type DNewsletter = DocumentType<NewsletterClass>;
