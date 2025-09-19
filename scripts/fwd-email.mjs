@@ -9,6 +9,7 @@ import 'dotenv/config';
 import fs from 'node:fs';
 import nodemailer from 'nodemailer';
 import { simpleParser } from 'mailparser';
+import { error } from 'node:console';
 
 const SMTP_PORT = process.env.SMTP_PORT || 1025;
 const SMTP_HOST = process.env.SMTP_HOST || 'localhost';
@@ -67,8 +68,12 @@ async function fwdEmail() {
     attachments: parsed.attachments,
   };
 
-  await transporter.sendMail(mailOptions);
-  console.log(`Email forwarded to '${MAIL_RCPT}': "${newSubject}"`);
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      return console.error(error);
+    }
+    console.log(`Email forwarded to '${MAIL_RCPT}': "${newSubject}"`);
+  });
 }
 
 await fwdEmail();

@@ -19,7 +19,9 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@lib/*": ["src/lib/*"]
+      "@lib/*": ["src/lib/*"],
+      "@app/*": ["src/app/*"],
+      "@email/*": ["src/email/*"],
     },
     "plugins": [
       {
@@ -27,6 +29,6 @@
       }
     ]
   },
-  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts", "_vitest.config.ts_"],
+  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

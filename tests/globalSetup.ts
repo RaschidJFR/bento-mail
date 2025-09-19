@@ -9,7 +9,7 @@ export async function setup() {
   process.env.OPENAI_API_KEY = 'mocked-key';
 
   const connectionString = process.env.MONGODB_URI || '';
-  console.log(`Connecting to test database: ${connectionString}...`);
+  console.log(`Connecting to test database...`);
   await mongoose.connect(connectionString, { dbName: TEST_DATABASE_NAME });
   console.log('Connected to test database.');
 }
