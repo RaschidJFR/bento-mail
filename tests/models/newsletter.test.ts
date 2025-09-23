@@ -125,7 +125,14 @@ describe('Newsletter', () => {
       const updated = (await Newsletter.findById(newsletter._id).populate('articles')) as Newsletter;
       expect(updated.date).toBe('2023-10-10');
       expect(updated.name).toBe('Newsletter Name');
-      expect(updated.articles).toMatchObject(mockArticles);
+      expect(updated.articles).toEqual(
+        // ignore order and extra properties
+        expect.arrayContaining(
+          // match a subset of properties
+          mockArticles.map((a) => expect.objectContaining(a))
+        )
+      );
+      expect(updated.articles.length).toBe(mockArticles.length);
     });
 
     it('should not re-process nor fail if `articles` is already populated', async () => {

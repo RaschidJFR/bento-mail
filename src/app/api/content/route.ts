@@ -40,24 +40,22 @@ export async function POST(req: NextRequest) {
     }
 
     const contentText = format == 'html' ? htmlToMarkdown(content) : content;
-    const article = new Article({ content: contentText });
-    const newsletter = new Newsletter({ content: contentText });
+    const article = new Article({ content: contentText }) as Article;
+    const newsletter = new Newsletter({ content: contentText }) as Newsletter;
 
     const [existentArticle, existentNewsletter] = await findExistent([article, newsletter]);
-    if (existentArticle || existentNewsletter) {
-      if (existentArticle) {
-        console.warn(`An article already exists with id ${existentArticle._id}`);
-        return Response.json(
-          { error: `An article with the same content already exists`, result: existentArticle, type: 'article' },
-          { status: 409 }
-        );
-      } else {
-        console.warn(`A newsletter already exists with id ${existentNewsletter._id}`);
-        return Response.json(
-          { error: `An article with the same content already exists`, result: existentNewsletter, type: 'newsletter' },
-          { status: 409 }
-        );
-      }
+    if (existentArticle) {
+      console.warn(`An article already exists with id ${existentArticle._id}`);
+      return Response.json(
+        { error: `An article with the same content already exists`, result: existentArticle, type: 'article' },
+        { status: 409 }
+      );
+    } else if (existentNewsletter) {
+      console.warn(`A newsletter already exists with id ${existentNewsletter._id}`);
+      return Response.json(
+        { error: `An article with the same content already exists`, result: existentNewsletter, type: 'newsletter' },
+        { status: 409 }
+      );
     }
 
     const contentType = await isArticleOrNewsletter(contentText);
@@ -82,6 +80,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function findExistent(items: any[]) {
-  return Promise.all(items.map((it) => it.model().findOne({ _id: it._id }).select('_id').lean()));
+async function findExistent(items: (Article | Newsletter)[]) {
+  // @ts-ignore
+  return Promise.all(items.map((it) => it.model().findById(it._id).lean()));
 }
