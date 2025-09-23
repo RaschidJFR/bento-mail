@@ -1,10 +1,11 @@
-import { hash } from '@lib/utils.mjs';
+import { hash, applyInBatches } from '@lib/utils';
 import { prop, getModelForClass, modelOptions, Ref, pre } from '@typegoose/typegoose';
-import type { DocumentType } from '@typegoose/typegoose';
+import type { DocumentType, ReturnModelType } from '@typegoose/typegoose';
 import { Article, ArticleClass } from './article';
 import { extractArticlesFromNewsletter } from '@lib/ai-article-analyzer';
+import { clearModelInDevelopment } from './utils';
 
-export interface INewsletterProps {
+export interface INewsletter {
   _id: string;
   content?: string;
   articles: Ref<ArticleClass>[];
@@ -22,28 +23,21 @@ function generateId(this: DocumentType<NewsletterClass>) {
 @pre<NewsletterClass>('save', async function () {
   // Save any new Article instances in this.articles before saving the newsletter
   if (this.articles?.length > 0) {
-    console.log(`Pre-save hook: Syncing related articles for newsletter ${this._id}...`);
-    let cntNew = 0;
-    let cntFound = 0;
     for (let i = 0; i < this.articles.length; i++) {
       const article = this.articles[i];
-      if (article instanceof Article) {
-        // Use _id (hash of content) to check for existing article
-        const existing = await Article.findById(article._id);
-        if (existing) {
-          this.articles[i] = existing;
-          cntFound++;
-        } else if (article.isNew) {
-          await article.save();
-          cntNew++;
-        }
+      let id = article instanceof Article ? article._id : article;
+
+      const existing = await Article.exists({ _id: id });
+      if (existing) {
+        this.articles[i] = existing._id;
+      } else {
+        throw new Error(`Articles must be saved before being added to a newsletter.`);
       }
     }
-    console.log(`${cntNew} new articles created. ${cntFound} existing articles linked.`);
   }
 })
 @modelOptions({ options: { allowMixed: 0 } })
-export class NewsletterClass implements INewsletterProps {
+export class NewsletterClass implements INewsletter {
   @prop({ default: generateId, type: String })
   public readonly _id!: string;
   @prop({ default: '', type: String })
@@ -55,25 +49,81 @@ export class NewsletterClass implements INewsletterProps {
   @prop({ default: '', type: String })
   public name: string = '';
 
-  public async process(this: DocumentType<NewsletterClass>, text?: string) {
-    if (this.articles && this.articles.length > 0) {
-      return;
+  /**
+   * Extract articles from the newsletter content, save them, and link them to this newsletter.
+   * If `articles` is already populated, the method does nothing.
+   * @return Number of errors encountered
+   */
+  public async extractArticles(this: DocumentType<NewsletterClass>) {
+    // Ensure the article is pristine
+    const existing = (await NewsletterModel.findById(this._id)) as Newsletter;
+    let content = existing?.content || this.content || '';
+    if ((existing && this.isModified()) || !existing) {
+      throw new Error('You must save any changes to this object before processing');
     }
-    this.content = this.content || text || '';
-    const data = await extractArticlesFromNewsletter(this.content);
-    const articles = data.articles.map((a) => new Article(a));
-    this.set({
-      ...data,
-      articles,
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('Content is empty or invalid');
+    }
+    if (existing.articles && existing.articles.length > 0) {
+      console.warn(`Newsletter ${this._id} already has articles, skipping extraction.`);
+      return 0;
+    }
+
+    const data = await extractArticlesFromNewsletter(content);
+
+    // Save articles and link them to this newsletter
+    let errCount = 0;
+    const articles: Article[] = [];
+    await applyInBatches(data.articles, async (a) => {
+      try {
+        const art = new Article(a);
+        const exArt = await Article.findById({ _id: art._id });
+        articles.push(exArt! || (await art.save()));
+      } catch (error: any) {
+        console.error(`Failed to save article:`);
+        console.error(error.stack, '\n');
+        errCount++;
+      }
     });
+    await existing.set({ ...data, articles }).save();
+    this.set(existing.toObject())
+    return errCount;
+  }
+
+  /**
+   * Extract articles for multiple newsletters, saving and linking their articles.
+   * @returns Number of errors encountered
+   */
+  public static async extractArticles(newsletters: Newsletter[], opts?: { pulsecheck?: () => {} }): Promise<number>;
+  public static async extractArticles(newsletterIds: string[], opts?: { pulsecheck?: () => {} }): Promise<number>;
+  public static async extractArticles(
+    this: ReturnModelType<typeof NewsletterClass>,
+    newsletters: DocumentType<NewsletterClass>[] | string[],
+    { pulsecheck = () => {} } = {}
+  ) {
+    // Convert all elements to Class instances
+    const items = (newsletters || []).map((nl) =>
+      typeof nl === 'string' ? NewsletterModel.hydrate({ _id: nl }) : (nl as Newsletter)
+    );
+
+    // Process newsletters
+    let errCount = 0;
+    await applyInBatches(
+      items,
+      async (nl) => {
+        errCount += await nl.extractArticles().catch((error: Error) => {
+          console.error(`[extractArticles] Error processing newsletter ${nl._id}:`);
+          console.error(error.stack, '\n');
+          return 1;
+        });
+      },
+      { pulsecheck }
+    );
+    return errCount;
   }
 }
-
+clearModelInDevelopment('NewsletterClass');
 const NewsletterModel = getModelForClass(NewsletterClass);
+
 export const Newsletter = NewsletterModel;
 export type Newsletter = DocumentType<NewsletterClass>;
-
-/**
- * Alias for `DocumentType<NewsletterClass>`
- */
-export type DNewsletter = DocumentType<NewsletterClass>;

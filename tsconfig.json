@@ -21,7 +21,7 @@
     "paths": {
       "@lib/*": ["src/lib/*"],
       "@app/*": ["src/app/*"],
-      "@email/*": ["src/email/*"],
+      "@services/*": ["src/services/*"]
     },
     "plugins": [
       {
@@ -29,6 +29,11 @@
       }
     ]
   },
-  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "src",
+    "tests",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["src/lib"]
 }

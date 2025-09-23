@@ -9,7 +9,6 @@ import 'dotenv/config';
 import fs from 'node:fs';
 import nodemailer from 'nodemailer';
 import { simpleParser } from 'mailparser';
-import { error } from 'node:console';
 
 const SMTP_PORT = process.env.SMTP_PORT || 1025;
 const SMTP_HOST = process.env.SMTP_HOST || 'localhost';
@@ -18,11 +17,11 @@ const MAIL_RCPT = 'test-server@localhost';
 
 const emlPath = process.argv[2];
 if (!emlPath) {
-  console.error('Usage: send-sample-email.mjs <path-to-eml-file>');
+  console.error('Usage: send-sample-email.mjs <path-to-eml-file-or-folder>');
   process.exit(1);
 }
 
-async function fwdEmail() {
+async function fwdEmail(emlFilePath) {
   const transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT),
@@ -30,7 +29,7 @@ async function fwdEmail() {
     tls: { rejectUnauthorized: false },
   });
 
-  const emlContent = fs.readFileSync(emlPath, 'utf8');
+  const emlContent = fs.readFileSync(emlFilePath, 'utf8');
   const parsed = await simpleParser(emlContent);
 
   // Prepend 'Fwd: ' to subject if not already present
@@ -70,10 +69,24 @@ async function fwdEmail() {
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
-      return console.error(error);
+      return console.error(`Error forwarding ${emlFilePath}:`, error);
     }
-    console.log(`Email forwarded to '${MAIL_RCPT}': "${newSubject}"`);
+    console.log(`Email forwarded to '${MAIL_RCPT}': "${newSubject}" from file ${emlFilePath}\n`);
   });
 }
 
-await fwdEmail();
+const stat = fs.statSync(emlPath);
+if (stat.isDirectory()) {
+  const files = fs.readdirSync(emlPath)
+    .filter(f => f.toLowerCase().endsWith('.eml'))
+    .map(f => `${emlPath}/${f}`);
+  if (files.length === 0) {
+    console.error('No .eml files found in directory:', emlPath);
+    process.exit(1);
+  }
+  for (const file of files) {
+    await fwdEmail(file);
+  }
+} else {
+  await fwdEmail(emlPath);
+}

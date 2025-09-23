@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { afterEach } from 'vitest';
+import { afterEach, vi } from 'vitest';
 
 afterEach(async () => {
   const collections = mongoose.connection.collections;

@@ -8,7 +8,7 @@ import crypto from 'crypto';
  * @param {string} text - The input text to hash
  * @returns {string} The SHA-256 hash in hexadecimal format
  */
-export function hash(text) {
+export function hash(text: string) {
   if (!text || typeof text !== 'string' || !text.trim()) {
     throw new Error('Input must be a non-empty string: ' + text);
   }
@@ -23,7 +23,7 @@ export function hash(text) {
  * @param {object} options - Optional configuration
  * @returns {Promise<string>} The HTML content as a string
  */
-export async function fetchHtmlContent(url, options = {}) {
+export async function fetchHtmlContent(url: string, options: any = {}) {
   try {
     const config = {
       timeout: options.timeout || 10000,
@@ -38,7 +38,7 @@ export async function fetchHtmlContent(url, options = {}) {
 
     const response = await axios.get(url, config);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     if (error.response) {
       throw new Error(`HTTP ${error.response.status}: ${error.response.statusText} for URL: ${url}`);
     } else if (error.request) {
@@ -54,7 +54,7 @@ export async function fetchHtmlContent(url, options = {}) {
  * @param {string} htmlContent - The HTML content to convert
  * @returns {string} Markdown content
  */
-export function htmlToMarkdown(htmlContent) {
+export function htmlToMarkdown(htmlContent: string) {
   // Filter HTML content to remove non-renderable elements
   const virtualConsole = new VirtualConsole();
   virtualConsole.on('error', () => {});
@@ -73,4 +73,26 @@ export function htmlToMarkdown(htmlContent) {
 
   const filteredHtml = bodyElement.innerHTML;
   return new TurndownService().turndown(filteredHtml);
+}
+
+/**
+ * Processes an array of items in batches with a specified concurrency limit.
+ * @param items - Array of items to process
+ * @param fn - Async function to process each item
+ * @param concurrency - Number of items to process concurrently (default: 5)
+ * @returns Promise that resolves when all items have been processed
+ */
+export async function applyInBatches<T = any, U = any>(
+  items: T[],
+  fn: (item: T) => Promise<U>,
+  { concurrency = 5, pulsecheck = () => {} } = {}
+): Promise<U[]> {
+  const arr = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    const results = await Promise.all(batch.map((item) => fn(item)));
+    arr.push(...results);
+    pulsecheck?.();
+  }
+  return arr;
 }

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Article } from '@lib/models';
 import type { ArticleDetailsProps } from '@lib/ai-article-analyzer';
-import { hash } from '@lib/utils.mjs';
+import { hash } from '@lib/utils';
 
 describe('Article', () => {
   describe('_id generation', () => {
@@ -40,13 +40,20 @@ describe('Article', () => {
   });
 
   describe('process()', () => {
-    it('should not call process() on save', async () => {
-      const article = new Article({ url: 'https://example.com', content: 'foo' });
-      // Spy on process
-      article.process = vi.fn();
-      await article.save();
-      expect(article.process).not.toHaveBeenCalled();
+    beforeEach(async () => {
+      // Mock ai-article-analyzer
+      const analyzer = await import('@lib/ai-article-analyzer');
+      vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue({
+        summaries: {
+          oneliner: 'Mocked oneliner',
+          overview: 'Mocked overview',
+          details: 'Mocked details',
+        },
+        coverImg: 'mocked-image.jpg',
+        date: '2023-01-01',
+      });
     });
+
     it('should generate summaries from url if provided', async () => {
       const mockHtml = '<p>Some content</p>';
       const mockSummaries: ArticleDetailsProps = {
@@ -60,23 +67,24 @@ describe('Article', () => {
       };
 
       // Mock fetchHtmlContent and htmlToMarkdown
-      const utils = await import('@lib/utils.mjs');
+      const utils = await import('@lib/utils');
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(utils, 'fetchHtmlContent').mockResolvedValue(mockHtml);
       vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockSummaries);
 
-      const article = new Article({ url: 'https://example.com' });
+      const article = await Article.create({ url: 'https://example.com' });
       await article.process();
+      const updated = await Article.findById(article._id).lean();
 
       expect(utils.fetchHtmlContent).toHaveBeenCalledWith('https://example.com');
-      expect(article.content).toBe('Some content');
-      expect(article.summaries).toMatchObject({
+      expect(updated?.content).toBe('Some content');
+      expect(updated?.summaries).toMatchObject({
         oneliner: 'Summary one',
         overview: 'Summary overview',
         details: 'Summary details',
       });
-      expect(article.coverImg).toBe('img.jpg');
-      expect(article.date).toBe('2023-10-10');
+      expect(updated?.coverImg).toBe('img.jpg');
+      expect(updated?.date).toBe('2023-10-10');
     });
 
     it('should generate summaries from `content` if `url` is falsy', async () => {
@@ -93,34 +101,48 @@ describe('Article', () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockSummaries);
 
-      const article = new Article({ content: 'Some content' });
+      const article = await Article.create({ content: 'Some content' });
       await article.process();
+      const updated = await Article.findById(article._id).lean();
 
       expect(analyzer.extractArticleDetails).toHaveBeenCalledWith('Some content');
-      expect(article.summaries).toMatchObject({
+      expect(updated?.summaries).toMatchObject({
         oneliner: 'Summary one',
         overview: 'Summary overview',
         details: 'Summary details',
       });
-      expect(article.coverImg).toBe('img.jpg');
-      expect(article.date).toBe('2023-10-10');
+      expect(updated?.coverImg).toBe('img.jpg');
+      expect(updated?.date).toBe('2023-10-10');
     });
 
-    it('should not re-process if summaries already exist', async () => {
+    it('should not re-process nor fail if summaries already exist', async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       const extractArticleDetails = vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue({} as any);
 
-      const article = new Article({
+      const article = await new Article({
         content: 'Some content',
         summaries: {
           oneliner: 'Already summarized',
           overview: 'Already summarized',
           details: 'Already summarized',
         },
-      });
+      }).save();
 
       await article.process();
       expect(extractArticleDetails).not.toHaveBeenCalled();
+    });
+
+    it('reject if pending changes', async () => {
+      const article = new Article({ content: 'Initial content' });
+      await article.save();
+
+      // Modify content
+      article.content = 'Modified content';
+      await expect(article.process()).rejects.toThrow(/save any changes/i);
+
+      // Save. Now should work
+      await article.save();
+      await expect(article.process()).resolves.not.toThrow();
     });
   });
 });
