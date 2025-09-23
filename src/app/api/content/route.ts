@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
-import { Newsletter, Article, IArticleProps, INewsletterProps } from '@lib/models';
+import { Newsletter, Article, IArticle, INewsletter } from '@lib/models';
 import { isArticleOrNewsletter } from '@lib/ai-article-analyzer';
-import { htmlToMarkdown } from '@lib/utils.mjs';
+import { htmlToMarkdown } from '@lib/utils';
 
 interface RequestBody {
   content: string;
@@ -10,7 +10,7 @@ interface RequestBody {
 
 export interface ResponseData {
   type: 'article' | 'newsletter';
-  result: IArticleProps | INewsletterProps;
+  result: IArticle | INewsletter;
 }
 
 function validateRequestBody(body: RequestBody) {
@@ -48,13 +48,13 @@ export async function POST(req: NextRequest) {
       if (existentArticle) {
         console.warn(`An article already exists with id ${existentArticle._id}`);
         return Response.json(
-          { error: `An article with the same content already exists`, result: existentArticle },
+          { error: `An article with the same content already exists`, result: existentArticle, type: 'article' },
           { status: 409 }
         );
       } else {
         console.warn(`A newsletter already exists with id ${existentNewsletter._id}`);
         return Response.json(
-          { error: `An article with the same content already exists`, result: existentNewsletter },
+          { error: `An article with the same content already exists`, result: existentNewsletter, type: 'newsletter' },
           { status: 409 }
         );
       }
@@ -77,8 +77,7 @@ export async function POST(req: NextRequest) {
 
     return Response.json(responseBody, { status: 201 });
   } catch (error: any) {
-    console.error(error);
-    console.error(error.stack);
+    console.error(error.stack, '\n');
     return Response.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

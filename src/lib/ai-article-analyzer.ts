@@ -2,17 +2,17 @@ import { ChatOpenAI } from '@langchain/openai';
 import { SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import 'dotenv/config';
-import type { IArticleProps, INewsletterProps } from './models';
+import type { IArticle, INewsletter } from './models';
 
 const model = new ChatOpenAI({
   modelName: 'gpt-5-mini',
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export type ArticleDataProps = Omit<IArticleProps, '_id'>;
+export type ArticleDataProps = Omit<IArticle, '_id'>;
 export type ArticleDetailsProps = Pick<ArticleDataProps, 'date' | 'summaries' | 'coverImg'>;
 export type BasicArticleProps = Omit<ArticleDataProps, 'summaries'> & { content: string };
-export type NewsletterDataProps = Omit<INewsletterProps, '_id' | 'content' | 'articles'> & {
+export type NewsletterDataProps = Omit<INewsletter, '_id' | 'content' | 'articles'> & {
   articles: BasicArticleProps[];
 };
 
@@ -61,7 +61,9 @@ const ArticleOrNewsletterSchema = z.object({
  * @returns Array of article objects
  */
 export async function extractArticlesFromNewsletter(textContent: string) {
-  // Check if API key is available
+  if (!textContent || textContent.trim().length === 0) {
+    throw new Error('Text content is empty or invalid.');
+  }
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
@@ -100,7 +102,9 @@ ${textContent}
  * @param textContent - The Markdown content of a single article
  */
 export async function extractArticleDetails(textContent: string) {
-  // Check if API key is available
+  if (!textContent || textContent.trim().length === 0) {
+    throw new Error('Text content is empty or invalid.');
+  }
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
@@ -130,19 +134,16 @@ ${textContent}
 \`\`\`
 `;
 
-  try {
-    const result: ArticleDetailsProps = await model
-      .withStructuredOutput(ComplementaryArticleSchema)
-      .invoke([new SystemMessage(prompt)]);
-    return result;
-  } catch (error: any) {
-    console.error('Error extracting article:', error);
-    console.error(error.stack);
-    throw new Error(`Failed to extract article: ${error.message}`);
-  }
+  const result: ArticleDetailsProps = await model
+    .withStructuredOutput(ComplementaryArticleSchema)
+    .invoke([new SystemMessage(prompt)]);
+  return result;
 }
 
-export async function isArticleOrNewsletter(text: string) {
+export async function isArticleOrNewsletter(textContent: string) {
+  if (!textContent || textContent.trim().length === 0) {
+    throw new Error('Text content is empty or invalid.');
+  }
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
@@ -162,7 +163,7 @@ Respond with a JSON object with a single key "type" whose value is either "artic
 Text:
 
 \`\`\`markdown
-${text}
+${textContent}
 \`\`\`
 `;
 
@@ -170,8 +171,8 @@ ${text}
     const result = await model.withStructuredOutput(ArticleOrNewsletterSchema).invoke([new SystemMessage(prompt)]);
     return result.type;
   } catch (error: any) {
-    console.error('Error classifying text: ', error.message);
-    console.error(error.stack);
+    console.error('[ai-article-analyzer] Error classifying text:');
+    console.error(error.stack, '\n');
     return 'unknown';
   }
 }

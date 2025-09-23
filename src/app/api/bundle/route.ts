@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import { Bundle, IBundle } from '@lib/models';
-import { User } from '@lib/models';
+import { Bundle, IBundle, User } from '@lib/models';
 
 export interface RequestBody {
   email: string;
@@ -38,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Find user by email
-    const user = await User.findOne({ email: email.trim() });
+    const user = await User.findOne({ email: email.trim() }).lean();
     if (!user) {
       return Response.json({ error: 'User not found.' }, { status: 404 });
     }
@@ -66,8 +65,7 @@ export async function POST(req: NextRequest) {
       return Response.json({ result: bundle } as ResponseData, { status: 201 });
     }
   } catch (error: any) {
-    console.error(error);
-    console.error(error.stack);
+    console.error(error.stack, '\n');
     return Response.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

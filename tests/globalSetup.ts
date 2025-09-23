@@ -2,7 +2,7 @@ import mongoose from 'mongoose';
 import 'dotenv/config';
 
 export async function setup() {
-  const TEST_DATABASE_NAME = 'Bento-test';
+  const TEST_DATABASE_NAME = '_test';
   process.env.DATABASE_NAME = TEST_DATABASE_NAME;
 
   // Clear API keys to prevent accidental usage during tests

@@ -1,21 +1,24 @@
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import MailDev from 'maildev';
-import 'dotenv/config';
 import { z } from 'zod';
 
-if (process.env.NODE_ENV !== 'production') {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+interface Mail {
+  id?: string;
+  envelope?: {
+    from?: {
+      address: string;
+      name?: string;
+    };
+  };
+  subject?: string;
+  text?: string;
+  html?: string;
 }
 
-const maildev = new MailDev();
-
-maildev.listen({
-  smtp: process.env.SMTP_PORT || 1025,
-});
-
+const maildev = new MailDev({});
 maildev.on('new', processNewEmail);
 
-export async function processNewEmail(email) {
+export async function processNewEmail(email: Mail) {
   try {
     const userEmail = email.envelope?.from?.address;
     console.log(`Processing email received from ${userEmail}: "${email.subject}"...`);
@@ -31,7 +34,7 @@ export async function processNewEmail(email) {
       const { result: user } = response?.data || {};
       console.log(`User created with id '${user._id}'`);
     } catch (err) {
-      if (!(err instanceof AxiosError) || err?.code != 409) {
+      if (!axios.isAxiosError(err) || err.response?.status != 409) {
         throw err;
       }
     }
@@ -40,7 +43,7 @@ export async function processNewEmail(email) {
     let objectType = '';
     let object = null;
     try {
-      const response = await axios.post(`${process.env.APP_URL}/api/newsletter`, {
+      const response = await axios.post(`${process.env.APP_URL}/api/content`, {
         content: email.text || email.html,
         format: email.text ? 'text' : 'html',
       });
@@ -49,7 +52,7 @@ export async function processNewEmail(email) {
       objectType = type;
       object = result;
     } catch (err) {
-      if (err instanceof AxiosError && err.code == 409) {
+      if (axios.isAxiosError(err) && err.response?.status == 409) {
         const { result, type } = err.response?.data || {};
         console.log(`${type} already exists. id: '${result._id}'`);
         objectType = type;
@@ -66,9 +69,15 @@ export async function processNewEmail(email) {
       articles: objectType === 'article' ? [object._id] : [],
     });
     const { result: bundle } = (await bundleRes.data) || {};
-    console.log(`${objectType} '${object?._id}' added to bundle '${bundle._id}' for '${userEmail}'`);
-  } catch (error) {
-    console.error(error.message);
-    console.error(error.stack);
+    console.log(`Bundle '${bundle._id}' updated with ${objectType} '${object?._id}'\n`);
+  } catch (error: any) {
+    if (axios.isAxiosError(error)) {
+      console.error(
+        `[email] ${error.message} – ${error.response?.data?.error || error.response?.statusText || error.code}`
+      );
+    }
+    console.error(error.stack, '\n');
   }
 }
+
+export default maildev;

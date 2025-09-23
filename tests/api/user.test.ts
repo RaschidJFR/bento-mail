@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { POST } from '../../src/app/api/user/route';
+import { POST } from '@app/api/user/route';
 import { User } from '@lib/models';
 import type { NextRequest } from 'next/server';
 

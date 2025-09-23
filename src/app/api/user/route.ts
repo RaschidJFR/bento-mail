@@ -25,13 +25,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
-    let user = await User.findOne({ email }).select('_id');
-    if (user) {
-      return Response.json({ error: 'User already exists.', result: user }, { status: 409 });
+    const exists = await User.findOne({ email }).select('_id').lean();
+    if (exists) {
+      return Response.json({ error: 'User already exists.', result: exists }, { status: 409 });
     }
 
     // Create new user
-    user = new User({ email });
+    const user = new User({ email });
     await user.save();
     return Response.json({ result: user }, { status: 201 });
   } catch (error: any) {

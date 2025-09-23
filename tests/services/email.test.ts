@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { processNewEmail } from '@email/server.mjs';
-import { _ } from 'vitest/dist/chunks/reporters.d.BFLkQcL6';
+import { processNewEmail } from '@services/email';
 import { AxiosError } from 'axios';
 
 function getMockEmailData({ from = 'user@example.com', subject = 'Test Subject', text = 'Test Content' }) {
@@ -16,6 +15,8 @@ function getMockEmailData({ from = 'user@example.com', subject = 'Test Subject',
 }
 
 describe('Email processing', () => {
+  it('ignore emails without from address', async () => {});
+
   it('creates newsletter and adds to bundle', async () => {
     const user = { email: 'user@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };
@@ -25,7 +26,7 @@ describe('Email processing', () => {
     vi.spyOn(axios, 'post')
       // User already exists
       .mockImplementationOnce(async (url, data) => {
-        throw new AxiosError('', '409', undefined, null, { data: { result: { id: user._id } } } as any);
+        throw new AxiosError('', '', undefined, null, { status: 409, data: { result: { id: user._id } } } as any);
       })
       // Create newsletter
       .mockImplementationOnce(async (url, data) => {
@@ -40,7 +41,7 @@ describe('Email processing', () => {
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/user'), {
       email: user.email,
     });
-    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/content'), {
       content: 'Test newsletter content',
       format: 'text',
     });
@@ -60,11 +61,12 @@ describe('Email processing', () => {
     vi.spyOn(axios, 'post')
       // Attempt to create user
       .mockImplementationOnce(async () => {
-        throw new AxiosError('', '409', undefined, null, { data: { result: { id: user._id } } } as any);
+        throw new AxiosError('', '', undefined, null, { status: 409, data: { result: { id: user._id } } } as any);
       })
       // Attempt to create newsletter, but it already exists
       .mockImplementationOnce(async () => {
-        throw new AxiosError('', '409', undefined, null, {
+        throw new AxiosError('', '', undefined, null, {
+          status: 409,
           data: { result: { _id: newsletter._id }, type: 'newsletter' },
         } as any);
       })
@@ -74,7 +76,7 @@ describe('Email processing', () => {
       });
 
     await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));
-    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/content'), {
       content: 'Test newsletter content',
       format: 'text',
     });
@@ -94,7 +96,7 @@ describe('Email processing', () => {
     vi.spyOn(axios, 'post')
       // Create user
       .mockImplementationOnce(async () => {
-        throw new AxiosError('', '409', undefined, null, { data: { result: { id: user._id } } } as any);
+        throw new AxiosError('', '', undefined, null, { status: 409, data: { result: { id: user._id } } } as any);
       })
       // Create newsletter
       .mockImplementationOnce(async () => {
@@ -109,7 +111,7 @@ describe('Email processing', () => {
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/user'), {
       email: user.email,
     });
-    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/content'), {
       content: 'Test newsletter content',
       format: 'text',
     });

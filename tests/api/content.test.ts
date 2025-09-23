@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { POST } from '@app/api/newsletter/route';
-import { Newsletter } from '@lib/models';
+import { describe, it, expect, vi } from 'vitest';
+import { POST } from '@app/api/content/route';
+import { Newsletter, Article } from '@lib/models';
 
 function mockReq(body: any) {
   return {
@@ -8,7 +8,7 @@ function mockReq(body: any) {
   };
 }
 
-describe('api/user POST', () => {
+describe('api/content POST', () => {
   it('should return 400 if parameters are missing', async () => {
     let req = mockReq({});
     let res = await POST(req as any);
@@ -30,20 +30,45 @@ describe('api/user POST', () => {
     // Create newsletter directly in DB
     const existing = await Newsletter.create({ content });
 
+    const analyzer = await import('@lib/ai-article-analyzer');
+    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+
     // Try to create again via API
     const req = mockReq({ content, format });
     const res = await POST(req as any);
     expect(res.status).toBe(409);
-    const { data } = await res.json();
-    expect(data.result._id).toBe(existing._id);
 
-    const { result } = await res.json();
+    const { result, type } = await res.json();
     expect(result._id).toStrictEqual(existing._id);
+    expect(type).toBe('newsletter');
+  });
+
+  it('should return 409 if article already exists', async () => {
+    const content = 'Unique newsletter content';
+    const format = 'text';
+
+    // Create newsletter directly in DB
+    const existing = await Article.create({ content });
+
+    const analyzer = await import('@lib/ai-article-analyzer');
+    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('article');
+
+    // Try to create again via API
+    const req = mockReq({ content, format });
+    const res = await POST(req as any);
+    expect(res.status).toBe(409);
+
+    const { result, type } = await res.json();
+    expect(result._id).toStrictEqual(existing._id);
+    expect(type).toBe('article');
   });
 
   it('should create newsletter and return 201', async () => {
     const content = 'Brand new newsletter content';
     const format = 'text';
+
+    const analyzer = await import('@lib/ai-article-analyzer');
+    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
 
     const req = mockReq({ content, format });
     const res = await POST(req as any);
@@ -53,8 +78,9 @@ describe('api/user POST', () => {
     expect(type).toBe('newsletter');
     expect(result.content).toBe(content);
 
-    const created = await Newsletter.findById(result._id);
+    const created = await Newsletter.findById(result._id).lean();
     expect(created).toBeTruthy();
+    expect(created?.content).toBe('Brand new newsletter content');
     expect(result).toMatchObject(created!);
   });
 });

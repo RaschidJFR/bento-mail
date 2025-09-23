@@ -2,7 +2,7 @@ import {
   extractArticlesFromNewsletter,
   extractArticleDetails,
 } from './ai-article-analyzer.ts';
-import { fetchHtmlContent } from './utils.mjs';
+import { fetchHtmlContent } from './utils';
 
 /**
  * Downloads and processes a single article
