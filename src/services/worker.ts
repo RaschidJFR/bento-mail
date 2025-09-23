@@ -7,6 +7,10 @@ export const JobNames = Object.freeze({
   },
 });
 
+/**
+ * Initializes and configures an Agenda job scheduler.
+ * @returns Agenda instance with defined jobs and event listeners
+ */
 export function init() {
   const agenda = new Agenda();
 
@@ -28,8 +32,6 @@ export function init() {
     console.error(error.stack, '\n');
   });
 
-  // TODO: Create a unique index for name, data.type and data.id
-  // https://www.npmjs.com/package/agenda#uniqueproperties-options
   agenda.define(JobNames.Bundle.process, { shouldSaveResult: true }, async (job: Job<{ id: string }>) => {
     const id = job.attrs.data?.id;
     if (!id) {
@@ -53,14 +55,6 @@ export function init() {
   });
 
   return agenda;
-}
-
-function BundleProcess(agenda: Agenda, bundleId: string) {
-  return agenda
-    .create(JobNames.Bundle.process, { id: bundleId })
-    .schedule('now')
-    .unique({ 'data.id': bundleId }, { insertOnly: true })
-    .save();
 }
 
 export default init;

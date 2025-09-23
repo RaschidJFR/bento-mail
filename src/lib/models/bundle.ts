@@ -1,4 +1,4 @@
-import { getModelForClass, getName, pre, prop } from '@typegoose/typegoose';
+import { getModelForClass, getName, pre, prop, index } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
 import type { ObjectId } from 'mongoose';
 import { UserClass, User } from './user';
@@ -35,6 +35,7 @@ enum ProcessingStagesEnum {
     }
   }
 })
+@index({ processingStage: 1, sendOn: 1, user: 1, _id: -1 }, { unique: true }) // Optimized for findNextToSend
 export class BundleClass implements IBundle {
   public _id!: ObjectId;
   @prop({ type: Date })
