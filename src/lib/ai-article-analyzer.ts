@@ -34,7 +34,7 @@ const NewsletterSchema = z.object({
 });
 
 const ComplementaryArticleSchema = z.object({
-  coverImg: z// TODO: ignore the author's avatar images
+  coverImg: z
     .string()
     .optional()
     .default('')
@@ -116,7 +116,8 @@ export async function extractArticleDetails(textContent: string) {
   const prompt = `
 Analyze the provided Markdown content extracted from a web article and extract the article information:
 
-1. **coverImg**: Look for the main article image (markdown image syntax ![alt](url))
+1. **coverImg**: Look for the main article image (markdown image syntax ![alt](url)). 
+  Ignore the author's avatar image (you can recognize it by its small size or placement near the author name).
 2. **date**: Extract the publication date if mentioned in the content (yyyy-mm-dd numbers)
 
 Create three different summaries
