@@ -3,7 +3,7 @@ import 'dotenv/config';
 
 export async function setup() {
   // Clear API keys to prevent accidental usage during tests
-  process.env.OPENAI_API_KEY = 'mocked-key';
+  process.env.OPENAI_API_KEY = '';
 
   // Use a separate test database (used by @models/index.ts)
   process.env.DATABASE_NAME = '_test';

@@ -1,4 +1,4 @@
-import { prop, getModelForClass, DocumentType, modelOptions } from '@typegoose/typegoose';
+import { prop, getModelForClass, DocumentType, modelOptions, index } from '@typegoose/typegoose';
 import { extractArticleDetails } from '@lib/ai-article-analyzer';
 import { fetchHtmlContent, htmlToMarkdown, hash } from '@lib/utils';
 import { clearModelInDevelopment } from './utils';
@@ -10,7 +10,7 @@ export interface IArticle {
   url?: string;
   date?: string;
   coverImg?: string;
-  sourceName: string;
+  sourceName?: string;
   summaries: {
     oneliner: string;
     overview: string;
@@ -27,6 +27,7 @@ function generateId(article: DocumentType<ArticleClass>) {
 }
 
 @modelOptions({ options: { allowMixed: 0 } })
+@index({ lastError: 1, sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
 export class ArticleClass implements IArticle {
   @prop({ type: String, default: generateId })
   public _id: string = '';

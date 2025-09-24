@@ -3,12 +3,15 @@ import { SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import 'dotenv/config';
 import type { IArticle, INewsletter } from './models';
-import { a } from 'vitest/dist/chunks/suite.d.FvehnV49';
 
 const model = new ChatOpenAI({
   modelName: 'gpt-5-mini',
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || 'mock-api-key',
 });
+
+if (!process.env.OPENAI_API_KEY) {
+  console.warn('Warning: OPENAI_API_KEY environment variable is not set. Using mock API key.');
+}
 
 export type ArticleDataProps = Omit<IArticle, '_id'>;
 export type ArticleDetailsProps = Pick<ArticleDataProps, 'date' | 'summaries' | 'coverImg'>;

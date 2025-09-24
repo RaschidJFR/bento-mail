@@ -38,4 +38,8 @@ export async function ensureIndexes(mongoose: mongoose.Mongoose): Promise<void> 
 }
 
 // Connect to the database when this module is imported
-await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.DATABASE_NAME || 'development' });
+if (process.env.MONGODB_URI) {
+  await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.DATABASE_NAME || 'development' });
+} else {
+  console.warn('MONGODB_URI not set. Skipping database connection for models.');
+}

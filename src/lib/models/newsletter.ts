@@ -91,7 +91,10 @@ export class NewsletterClass implements INewsletter {
         try {
           let art = new Article(a);
           const artExists = await Article.findById({ _id: art._id });
-          art = artExists || await art.save();
+          art = artExists || art;
+          art.sourceName = art.sourceName || existing.name || '';
+          art.date = art.date || existing.date || '';
+          await art.save();
           articles.push(art);
         } catch (error: any) {
           console.error(`Failed to save article:`);
