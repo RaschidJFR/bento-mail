@@ -144,5 +144,21 @@ describe('Article', () => {
       await article.save();
       await expect(article.process()).resolves.not.toThrow();
     });
+
+    it('save error message if processing fails, clear if succeeds', async () => {
+      const analyzer = await import('@lib/ai-article-analyzer');
+      vi.spyOn(analyzer, 'extractArticleDetails').mockRejectedValueOnce(new Error('Fail reason here!'));
+
+      let article = new Article({ content: 'Article with errors' });
+      await article.save();
+
+      await expect(article.process()).rejects.toThrow('Fail reason here');
+      article = (await Article.findById(article._id)) as Article;
+      expect(article?.lastError).toMatch('Fail reason here');
+
+      await article.process();
+      article = (await Article.findById(article._id)) as Article;
+      expect(article?.lastError).toBeFalsy();
+    });
   });
 });

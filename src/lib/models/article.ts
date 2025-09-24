@@ -16,6 +16,7 @@ export interface IArticle {
     overview: string;
     details: string;
   };
+  lastError?: string;
 }
 
 function generateId(article: DocumentType<ArticleClass>) {
@@ -44,6 +45,12 @@ export class ArticleClass implements IArticle {
   @prop({ default: {}, type: Object })
   public summaries: IArticle['summaries'] = {} as IArticle['summaries'];
 
+  /**
+   * Error message from the last processing attempt, if any.
+   */
+  @prop({ type: String })
+  public lastError?: string;
+
   public async process(this: DocumentType<ArticleClass>) {
     const existing = (await ArticleModel.findById(this._id)) as Article;
     if ((existing && this.isModified()) || !existing) {
@@ -54,20 +61,27 @@ export class ArticleClass implements IArticle {
       return;
     }
 
-    if (existing.url) {
-      const html = await fetchHtmlContent(existing.url);
-      this.content = existing.content = htmlToMarkdown(html);
-    }
+    try {
+      if (existing.url) {
+        const html = await fetchHtmlContent(existing.url);
+        this.content = existing.content = htmlToMarkdown(html);
+      }
 
-    if (typeof existing.content !== 'string' || !existing.content.trim()) {
-      throw new Error('Content is empty or invalid');
-    }
+      if (typeof existing.content !== 'string' || !existing.content.trim()) {
+        throw new Error('Content is empty or invalid');
+      }
 
-    const data = await extractArticleDetails(existing.content);
-    await this.set({
-      ...data,
-      coverImg: existing?.coverImg || data.coverImg,
-    }).save();
+      const data = await extractArticleDetails(existing.content);
+      await this.set({
+        ...data,
+        coverImg: existing?.coverImg || data.coverImg,
+        lastError: '',
+      }).save();
+    } catch (error: any) {
+      this.lastError = error.message || String(error);
+      await this.save();
+      throw error;
+    }
   }
 }
 

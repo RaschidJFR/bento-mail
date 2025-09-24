@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { Article, Newsletter } from '@lib/models';
 import { hash } from '@lib/utils';
 import type { BasicArticleProps, NewsletterDataProps } from '@lib/ai-article-analyzer';
+import { error } from 'console';
 
 describe('Newsletter', () => {
   it('should link existing articles with identical content on creation', async () => {
@@ -49,6 +50,7 @@ describe('Newsletter', () => {
   });
 
   describe('extractArticles()', () => {
+
     it('should not call `Article.process()`', async () => {
       const mockArticles: BasicArticleProps[] = [
         { header: 'Article 1', content: 'Content 1', sourceName: 'Newsletter Name' },
@@ -167,6 +169,41 @@ describe('Newsletter', () => {
       // Modify content
       newsletter.content = 'Modified content';
       await expect(newsletter.extractArticles()).rejects.toThrow(/save any changes/i);
+    });
+
+    it('update error property accordingly', async () => {
+      const analyzer = await import('@lib/ai-article-analyzer');
+      vi.spyOn(analyzer, 'extractArticlesFromNewsletter')
+        .mockRejectedValueOnce(new Error('AI service error'))
+        .mockResolvedValue({ articles: [], name: '', date: '' });
+
+      let newsletter = await Newsletter.create({ content: 'Initial content' });
+
+      await expect(newsletter.extractArticles()).rejects.toThrow('AI service error');
+      newsletter = (await Newsletter.findById(newsletter._id)) as Newsletter;
+      expect(newsletter.error).toBe('AI service error');
+
+      // Delete error and retry
+      await newsletter.set({ error: '' }).save();
+      await newsletter.extractArticles();
+      newsletter = (await Newsletter.findById(newsletter._id)) as Newsletter;
+      expect(newsletter.error).toBeFalsy();
+    });
+
+    it('skip if previous error exists', async () => {
+      const analyzer = await import('@lib/ai-article-analyzer');
+      const extractArticlesFromNewsletter = vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue({
+        articles: [],
+        name: '',
+        date: '',
+      });
+      
+      const newsletter = await Newsletter.create({
+        content: 'Previously Failed Newsletter',
+        error: 'Something terrible',
+      });
+      await newsletter.extractArticles();
+      expect(extractArticlesFromNewsletter).not.toHaveBeenCalled();
     });
   });
 });

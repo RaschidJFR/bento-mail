@@ -3,6 +3,7 @@ import { SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import 'dotenv/config';
 import type { IArticle, INewsletter } from './models';
+import { a } from 'vitest/dist/chunks/suite.d.FvehnV49';
 
 const model = new ChatOpenAI({
   modelName: 'gpt-5-mini',
@@ -21,7 +22,6 @@ const BasicArticleSchema = z.object({
   url: z.string().default('').describe('External link to the original article. Empty string if not found.'),
   coverImg: z.string().default('').describe('URL to the cover image of the article. Empty string if not found.'),
   content: z.string().describe('Abstract or full text of the article'),
-  sourceName: z.string().describe('The name of the newsletter. Empty string if not found.'),
 });
 
 const NewsletterSchema = z.object({
@@ -60,7 +60,7 @@ const ArticleOrNewsletterSchema = z.object({
  * @param textContent - The Markdown content of the newsletter
  * @returns Array of article objects
  */
-export async function extractArticlesFromNewsletter(textContent: string) {
+export async function extractArticlesFromNewsletter(textContent: string): Promise<NewsletterDataProps> {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -91,10 +91,11 @@ ${textContent}
 \`\`\`
 `;
 
-  const data: NewsletterDataProps = await model
-    .withStructuredOutput(NewsletterSchema)
-    .invoke([new SystemMessage(prompt)]);
-  return data;
+  const data = await model.withStructuredOutput(NewsletterSchema).invoke([new SystemMessage(prompt)]);
+  return {
+    ...data,
+    articles: data.articles.map((a) => ({ ...a, sourceName: data.name })),
+  };
 }
 
 /**
