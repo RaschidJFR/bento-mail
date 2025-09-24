@@ -34,7 +34,7 @@ const NewsletterSchema = z.object({
 });
 
 const ComplementaryArticleSchema = z.object({
-  coverImg: z
+  coverImg: z// TODO: ignore the author's avatar images
     .string()
     .optional()
     .default('')
