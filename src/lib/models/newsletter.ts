@@ -11,6 +11,7 @@ export interface INewsletter {
   articles: Ref<ArticleClass>[];
   date?: string;
   name: string;
+  error?: string;
 }
 
 function generateId(this: DocumentType<NewsletterClass>) {
@@ -50,13 +51,19 @@ export class NewsletterClass implements INewsletter {
   public name: string = '';
 
   /**
+   * Error message from the last extraction attempt, if any.
+   */
+  @prop({ type: String })
+  public error?: string;
+
+  /**
    * Extract articles from the newsletter content, save them, and link them to this newsletter.
    * If `articles` is already populated, the method does nothing.
    * @return Number of errors encountered
    */
   public async extractArticles(this: DocumentType<NewsletterClass>) {
     // Ensure the article is pristine
-    const existing = (await NewsletterModel.findById(this._id)) as Newsletter;
+    const existing = (await NewsletterModel.findById(this._id)) as Newsletter | null;
     let content = existing?.content || this.content || '';
     if ((existing && this.isModified()) || !existing) {
       throw new Error('You must save any changes to this object before processing');
@@ -68,26 +75,40 @@ export class NewsletterClass implements INewsletter {
       console.warn(`Newsletter ${this._id} already has articles, skipping extraction.`);
       return 0;
     }
+    if(existing.error) {
+      console.warn(`Newsletter ${this._id} previously failed (${existing.error}). Skipping extraction.`);
+      return 1;
+    }
 
-    const data = await extractArticlesFromNewsletter(content);
+    try {
+      console.log(`Extracting articles for newsletter ${this._id}...`);
+      const data = await extractArticlesFromNewsletter(content);
 
-    // Save articles and link them to this newsletter
-    let errCount = 0;
-    const articles: Article[] = [];
-    await applyInBatches(data.articles, async (a) => {
-      try {
-        const art = new Article(a);
-        const exArt = await Article.findById({ _id: art._id });
-        articles.push(exArt! || (await art.save()));
-      } catch (error: any) {
-        console.error(`Failed to save article:`);
-        console.error(error.stack, '\n');
-        errCount++;
-      }
-    });
-    await existing.set({ ...data, articles }).save();
-    this.set(existing.toObject())
-    return errCount;
+      // Save articles and link them to this newsletter
+      let errCount = 0;
+      const articles: Article[] = [];
+      await applyInBatches(data.articles, async (a) => {
+        try {
+          let art = new Article(a);
+          const artExists = await Article.findById({ _id: art._id });
+          art = artExists || await art.save();
+          articles.push(art);
+        } catch (error: any) {
+          console.error(`Failed to save article:`);
+          console.error(error.stack, '\n');
+          errCount++;
+        }
+      });
+      existing.set({ ...data, articles, error: '' });
+      await this.set(existing.toObject()).save();
+      console.log(`Extracted and saved ${articles.length} articles for newsletter ${this._id} with ${errCount} errors.`);
+      return errCount;
+    } catch (error: any) {
+      console.error(`Error extracting articles for newsletter ${this._id}:`);
+      console.error(error.stack, '\n');
+      await this.set({ error: error.message || String(error) }).save();
+      throw error;
+    }
   }
 
   /**
