@@ -12,8 +12,8 @@
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
     "test": "vitest",
-    "mail": "node scripts/start-mail-server.mjs",
-    "worker": "node scripts/start-worker.mjs",
+    "mail": "npx nodemon --watch ./dist/services --exec node scripts/start-mail-server.mjs",
+    "worker": "npx nodemon --watch ./dist/services --exec node scripts/start-worker.mjs",
     "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\""
   },
   "dependencies": {
@@ -43,6 +43,7 @@
     "llm-scraper": "^1.6.0",
     "mailparser": "^3.7.4",
     "nodemailer": "^7.0.6",
+    "nodemon": "^3.1.10",
     "playwright": "^1.55.0",
     "tsup": "^8.5.0",
     "typescript": "5.9.2",

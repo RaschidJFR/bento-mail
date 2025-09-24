@@ -12,7 +12,7 @@ import { simpleParser } from 'mailparser';
 
 const SMTP_PORT = process.env.SMTP_PORT || 1025;
 const SMTP_HOST = process.env.SMTP_HOST || 'localhost';
-const MAIL_FROM = 'random-user@example.com';
+const MAIL_FROM = process.argv[3] || 'random-user@example.com';
 const MAIL_RCPT = 'test-server@localhost';
 
 const emlPath = process.argv[2];
@@ -32,36 +32,15 @@ async function fwdEmail(emlFilePath) {
   const emlContent = fs.readFileSync(emlFilePath, 'utf8');
   const parsed = await simpleParser(emlContent);
 
-  // Prepend 'Fwd: ' to subject if not already present
-  let newSubject = parsed.subject || '';
-  if (!/^fwd:/i.test(newSubject)) {
-    newSubject = 'Fwd: ' + newSubject;
-  }
-
+  let subject = parsed.subject || '';
   let txtBody = parsed.text || '(no plain text available)';
   let htmlBody = parsed.html || `<pre>${txtBody}</pre>`;
-
-  txtBody = `---------- Forwarded message ---------
-  From: ${parsed.from?.text}
-  Date: ${parsed.date}
-  Subject: ${parsed.subject}
-  To: ${parsed.to?.text}
-  
-  ${txtBody}`;
-
-  htmlBody = `<p>---------- Forwarded message ---------</p>
-  <p><strong>From:</strong> ${parsed.from?.html}</p>
-  <p><strong>Date:</strong> ${parsed.date}</p>
-  <p><strong>Subject:</strong> ${parsed.subject}</p>
-  <p><strong>To:</strong> ${parsed.to?.html}</p>
-  <br/>
-  ${htmlBody}`;
 
   // Rebuild the message with the new subject
   const mailOptions = {
     from: MAIL_FROM,
     to: MAIL_RCPT,
-    subject: newSubject,
+    subject,
     text: txtBody,
     html: htmlBody,
     attachments: parsed.attachments,
@@ -71,21 +50,23 @@ async function fwdEmail(emlFilePath) {
     if (error) {
       return console.error(`Error forwarding ${emlFilePath}:`, error);
     }
-    console.log(`Email forwarded to '${MAIL_RCPT}': "${newSubject}" from file ${emlFilePath}\n`);
+    console.log(`Email forwarded to '${MAIL_RCPT}': "${subject}" from file ${emlFilePath}\n`);
   });
 }
 
 const stat = fs.statSync(emlPath);
 if (stat.isDirectory()) {
-  const files = fs.readdirSync(emlPath)
-    .filter(f => f.toLowerCase().endsWith('.eml'))
-    .map(f => `${emlPath}/${f}`);
+  const files = fs
+    .readdirSync(emlPath)
+    .filter((f) => f.toLowerCase().endsWith('.eml'))
+    .map((f) => `${emlPath}/${f}`);
   if (files.length === 0) {
     console.error('No .eml files found in directory:', emlPath);
     process.exit(1);
   }
   for (const file of files) {
     await fwdEmail(file);
+    await new Promise((r) => setTimeout(r, 500)); // slight delay between emails
   }
 } else {
   await fwdEmail(emlPath);

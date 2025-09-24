@@ -21,7 +21,7 @@ function validateRequestBody(body: RequestBody) {
   }
 
   if (format !== 'html' && format !== 'text') {
-    return { error: 'Missing or invalid "userEmail" property in request body.' };
+    return { error: 'Missing or invalid "format" property in request body.' };
   }
 
   return null;
@@ -30,14 +30,15 @@ function validateRequestBody(body: RequestBody) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const responseBody = {} as ResponseData;
-    const { content, format }: RequestBody = body;
-    console.log(`Received content for newsletter/article...`);
 
     const validationError = validateRequestBody(body);
     if (validationError) {
       return Response.json(validationError, { status: 400 });
     }
+
+    const { content, format }: RequestBody = body;
+    const responseBody = {} as ResponseData;
+    console.log(`Received content for newsletter/article...`);
 
     const contentText = format == 'html' ? htmlToMarkdown(content) : content;
     const article = new Article({ content: contentText }) as Article;

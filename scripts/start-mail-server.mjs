@@ -3,7 +3,7 @@ import 'dotenv/config';
 
 let server;
 try {
-  server = await import('../dist/services/email.mjs');
+  server = (await import('../dist/services/email.mjs')).default;
 } catch (err) {
   console.error("Failed to load mail server module 'email.mjs'. Have you built the project?: `npm run build:services`\n");
   console.error(err.stack);
@@ -16,6 +16,18 @@ if (process.env.NODE_ENV !== 'production') {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
-server.default.listen({
+server.on('ready', () => {
+  console.log('Press Ctrl+C to stop the server');
+});
+
+process.on('SIGINT', () => {
+  console.log('Stopping mail server...');
+  server.close(() => {
+    console.log('Mail server stopped.');
+    process.exit(0);
+  });
+});
+
+server.listen({
   smtp: process.env.SMTP_PORT || 1025,
 });
