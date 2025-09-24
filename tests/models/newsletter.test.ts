@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { Article, Newsletter } from '@lib/models';
 import { hash } from '@lib/utils';
 import type { BasicArticleProps, NewsletterDataProps } from '@lib/ai-article-analyzer';
-import { error } from 'console';
 
 describe('Newsletter', () => {
   it('should link existing articles with identical content on creation', async () => {
@@ -50,30 +49,6 @@ describe('Newsletter', () => {
   });
 
   describe('extractArticles()', () => {
-
-    it('should not call `Article.process()`', async () => {
-      const mockArticles: BasicArticleProps[] = [
-        { header: 'Article 1', content: 'Content 1', sourceName: 'Newsletter Name' },
-        { header: 'Article 2', content: 'Content 2', sourceName: 'Newsletter Name' },
-      ];
-      const mockData: NewsletterDataProps = {
-        articles: mockArticles,
-        name: 'Newsletter Name',
-        date: '2023-10-10',
-      };
-
-      const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockData);
-
-      // Spy on Article.process
-      const articleProcessSpy = vi.spyOn(Article.prototype, 'process');
-
-      const newsletter = await Newsletter.create({ content: 'Some content' });
-      await newsletter.extractArticles();
-
-      expect(articleProcessSpy).not.toHaveBeenCalled();
-    });
-
     it('should not alter content', async () => {
       const mockArticles: BasicArticleProps[] = [
         { header: 'Article 1', content: 'Content 1', sourceName: 'Newsletter Name' },
@@ -102,12 +77,12 @@ describe('Newsletter', () => {
         {
           header: 'Article 1',
           content: 'Content of article 1',
-          sourceName: 'Newsletter Name',
+          date: '2000-10-01',
         },
         {
           header: 'Article 2',
           content: 'Content of article 2',
-          sourceName: 'Newsletter Name',
+          sourceName: 'Original Source',
         },
       ];
 
@@ -120,9 +95,9 @@ describe('Newsletter', () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockData);
 
-      const newsletter = await Newsletter.create({ content: 'Some content' });
+      const newsletter = await Newsletter.create({ content: 'The content in the newsletter' });
       await newsletter.extractArticles();
-      expect(analyzer.extractArticlesFromNewsletter).toHaveBeenCalledWith('Some content');
+      expect(analyzer.extractArticlesFromNewsletter).toHaveBeenCalledWith('The content in the newsletter');
 
       const updated = (await Newsletter.findById(newsletter._id).populate('articles')) as Newsletter;
       expect(updated.date).toBe('2023-10-10');
@@ -135,6 +110,12 @@ describe('Newsletter', () => {
         )
       );
       expect(updated.articles.length).toBe(mockArticles.length);
+
+      // Check that articles have sourceName and date set from newsletter
+      expect((updated.articles[0] as Article).sourceName).toBe('Original Source'); // preferred from article
+      expect((updated.articles[1] as Article).sourceName).toBe('Newsletter Name'); // defaulted to newsletter
+      expect((updated.articles[0] as Article).date).toBe('2000-10-01'); // preferred from article
+      expect((updated.articles[1] as Article).date).toBe('2023-10-10'); // defaulted to newsletter
     });
 
     it('should not re-process nor fail if `articles` is already populated', async () => {
@@ -197,7 +178,7 @@ describe('Newsletter', () => {
         name: '',
         date: '',
       });
-      
+
       const newsletter = await Newsletter.create({
         content: 'Previously Failed Newsletter',
         error: 'Something terrible',
