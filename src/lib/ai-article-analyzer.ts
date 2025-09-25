@@ -1,4 +1,4 @@
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatOpenAI, DallEAPIWrapper, OpenAI } from '@langchain/openai';
 import { SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import 'dotenv/config';
@@ -30,14 +30,11 @@ const BasicArticleSchema = z.object({
 const NewsletterSchema = z.object({
   articles: z.array(BasicArticleSchema),
   name: z.string().describe('The name of the newsletter. Empty string if not found.'),
-  date: z.string().optional().describe('The date of the newsletter (yyyy-mm-dd numbers). Empty string if not found.'),
+  date: z.string().default('').describe('The date of the newsletter (yyyy-mm-dd numbers). Empty string if not found.'),
 });
 
 const ComplementaryArticleSchema = z.object({
-  coverImg: z
-    .string()
-    .default('')
-    .describe('URL to the cover image of the article. Empty string if not found.'),
+  coverImg: z.string().default('').describe('URL to the cover image of the article. Empty string if not found.'),
   date: z
     .string()
     .default('')
@@ -101,6 +98,37 @@ ${textContent}
 }
 
 /**
+ * Generates a cover image for an article using DALL·E
+ * @param textContent - The Markdown content of a single article
+ * @returns Base64-encoded cover image URL
+ */
+export async function generateCoverImage(textContent: string) {
+  const prompt = `
+Create a realistic, editorial-style cover image for a news article.
+
+Guidelines:
+- Visual style: realistic, photographic, professional, and modern (avoid illustration or cartoon styles)
+- Composition: strong central subject or metaphor, generous negative space for layout flexibility
+- Mood: newsworthy, eye-catching
+- Do not include any text, logos, or watermarks in the image
+- Aspect ratio: 16:9
+
+Article:
+
+\`\`\`markdown
+${textContent}
+\`\`\``;
+
+  const dalle = new DallEAPIWrapper({
+    size: '1792x1024',
+    dallEResponseFormat: 'b64_json',
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  const b64str = await dalle.invoke(prompt);
+  return `data:image/png;base64, ${b64str}`;
+}
+
+/**
  * Extracts article details from Markdown content using AI
  * @param textContent - The Markdown content of a single article
  */
@@ -110,6 +138,12 @@ export async function extractArticleDetails(textContent: string) {
   }
   if (!process.env.OPENAI_API_KEY) {
     throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  }
+
+  // First ensure this is an article
+  const type = await isArticleOrNewsletter(textContent);
+  if (type !== 'article') {
+    throw new Error(`[ai-analyzer] Content is not a single article (detected type: ${type})`);
   }
 
   const prompt = `
@@ -158,7 +192,7 @@ Given the following text from a newsletter content, determine if it represents:
   Even if it has subsections or links to other articles, it should focus on one main topic.
 - A "newsletter" (a list or collection of suggested articles to read, possibly with summaries).
   This focuses on multiple distinct articles or topics.
-- "unknown" if it is neither or unclear.
+- "unknown" if it is neither or unclear. Watch out for advertisements, error messages, captchas, or unrelated content.
 
 If you are unsure or the text does not clearly fit either category, respond with "unknown".
 

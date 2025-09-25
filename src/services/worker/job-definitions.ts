@@ -41,8 +41,9 @@ export function defineJobs(agenda: Agenda) {
 
   // Define job to extract articles from newsletter
   // This job will extract the newsletter's articles and queue article processing jobs
-  agenda.define(JobNames.Newsletter.processArticles, { shouldSaveResult: true }, async (job: Job<{ id: string }>) => {
+  agenda.define(JobNames.Newsletter.processArticles, { shouldSaveResult: true }, async (job: Job<{ id: string, force?: boolean }>) => {
     const newsletterId = job.attrs.data?.id;
+    const force = job.attrs.data?.force;
     if (!newsletterId) {
       throw new Error('Missing id');
     }
@@ -52,13 +53,13 @@ export function defineJobs(agenda: Agenda) {
     }
 
     try {
-      const errors = await newsletter.extractArticles();
+      const errors = await newsletter.extractArticles({ force });
 
       // Queue article processing jobs
       await applyInBatches(newsletter.articles || [], (articleId) => {
         articleId = typeof articleId === 'string' ? articleId : articleId._id?.toString();
         return agenda
-          .create(JobNames.Article.process, { id: articleId })
+          .create(JobNames.Article.process, { id: articleId, force })
           .schedule('now')
           .unique({ 'data.id': articleId }, { insertOnly: true }) // Prevent duplicate jobs
           .save();
@@ -72,8 +73,10 @@ export function defineJobs(agenda: Agenda) {
   });
 
   // Define job to process article
-  agenda.define(JobNames.Article.process, { shouldSaveResult: true }, async (job: Job<{ id: string }>) => {
+  agenda.define(JobNames.Article.process, { shouldSaveResult: true }, async (job: Job<{ id: string, force?: boolean }>) => {
     const id = job.attrs.data?.id;
+    const force = job.attrs.data?.force;
+
     if (!id) {
       throw new Error('Missing id');
     }
@@ -83,7 +86,7 @@ export function defineJobs(agenda: Agenda) {
     }
 
     try {
-      await article.process();
+      await article.process({ force });
       return { processed: article.isProcessed() };
     } catch (err: any) {
       console.error(`[worker] Error processing article ${id}:`, err.message);

@@ -1,10 +1,10 @@
-import Agenda, { type Job } from 'agenda';
+import Agenda, { Job } from 'agenda';
 import { defineJobs } from './job-definitions';
 export { JobNames } from './job-definitions';
 
 /**
  * Initializes and configures an Agenda job scheduler instance.
- * 
+ *
  * @returns Agenda ready instance with defined jobs.
  * @example
  * const agenda = await init();
@@ -32,9 +32,18 @@ export async function init(): Promise<Agenda> {
   });
 
   defineJobs(agenda);
-  
-  agenda.database(process.env.MONGODB_URI!, process.env.AGENDA_COLLECTION);
-  await new Promise((resolve) => agenda.on('ready', () => resolve(agenda)));
+
+  if (process.env.MONGODB_URI) {
+    agenda.database(process.env.MONGODB_URI!, process.env.AGENDA_COLLECTION);
+    await new Promise((resolve) => agenda.on('ready', () => resolve(agenda)));
+  } else if (process.env.NODE_ENV !== 'production') {
+    // In non-production environments, allow running without DB for testing
+    console.warn('Env var MONGODB_URI not set. Skipping Agenda database connection. Jobs will not persist.');
+    (agenda.saveJob as any) = async function (this: Agenda, job: Job) {
+      console.warn('Skipping job save %o since MONGODB_URI is not set.', job.attrs?.name);
+      return job;
+    };
+  }
   return agenda;
 }
 

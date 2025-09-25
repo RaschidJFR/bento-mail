@@ -1,5 +1,5 @@
 import { prop, getModelForClass, DocumentType, modelOptions, index } from '@typegoose/typegoose';
-import { extractArticleDetails } from '@lib/ai-article-analyzer';
+import { extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';
 import { fetchHtmlContent, htmlToMarkdown, hash } from '@lib/utils';
 import { clearModelInDevelopment } from './utils';
 
@@ -71,13 +71,13 @@ export class ArticleClass implements IArticle {
    * If `summaries` already exist, the method will not re-process the article.
    * If a previous processing attempt failed, it will retry.
    */
-  public async process(this: DocumentType<ArticleClass>) {
+  public async process(this: DocumentType<ArticleClass>, { force = false } = {}) {
     let existing = (await ArticleModel.findById(this._id)) as Article;
     if ((existing && this.isModified()) || !existing) {
       throw new Error('You must save any changes to this object before processing');
     }
     // Prevent re-processing if summaries already exist
-    if (this.isProcessed()) {
+    if (this.isProcessed() && !force) {
       return;
     }
 
@@ -98,10 +98,22 @@ export class ArticleClass implements IArticle {
 
       const data = await extractArticleDetails(existing.content);
 
+      let coverImg = existing?.coverImg || data.coverImg || '';
+      if (!coverImg) {
+        console.warn(`No cover image found for article %o. Attempting to generate.`, this._id);
+        try {
+          const { oneliner, overview, details } = data.summaries!;
+          coverImg = await generateCoverImage(`Oneliner: ${oneliner}\nOverview: ${overview}\nDetails: ${details}`);
+        } catch (err: any) {
+          console.warn(`Failed to generate cover image for article %o:`, this._id, err.message);
+          console.warn(err);
+        }
+      }
+
       // Check again if it was processed in the meantime
       existing = (await ArticleModel.findById(this._id)) as Article;
-      if (existing.isProcessed()) {
-        console.warn(`Article ${this._id} was processed in the meantime, skipping update`);
+      if (existing.isProcessed() && !force) {
+        console.warn(`Article %o was processed in the meantime, skipping update`, this._id);
         // Update props and unmark as modified
         this.set(existing.toObject());
         this.modifiedPaths().forEach((path) => this.unmarkModified(path));
@@ -110,7 +122,7 @@ export class ArticleClass implements IArticle {
 
       await this.set({
         ...data,
-        coverImg: existing?.coverImg || data.coverImg,
+        coverImg,
         lastError: '',
       }).save();
     } catch (error: any) {
