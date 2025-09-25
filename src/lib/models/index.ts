@@ -15,6 +15,9 @@ export type { IUser } from './user';
 export { Bundle } from './bundle';
 export type { IBundle } from './bundle';
 
+/**
+ * @deprecated This should be already addressed by Typegoose in each model.
+ */
 export async function ensureIndexes(mongoose: mongoose.Mongoose): Promise<void> {
   // Throw an error if not connected
   if (mongoose.connection.readyState !== 1) {

@@ -63,7 +63,7 @@ export class NewsletterClass implements INewsletter {
    * If a previous extraction error exists, it will retry.
    * @return Number of errors encountered while saving articles
    */
-  public async extractArticles(this: Newsletter) {
+  public async extractArticles(this: Newsletter, { force = false } = {}): Promise<number> {
     // Ensure the article is pristine
     const existing = (await Newsletter.findById(this._id)) as Newsletter | null;
     let content = existing?.content || this.content || '';
@@ -73,17 +73,17 @@ export class NewsletterClass implements INewsletter {
     if (typeof content !== 'string' || !content.trim()) {
       throw new Error('Content is empty or invalid');
     }
-    if (existing.articles && existing.articles.length > 0) {
+    if (existing?.articles?.length > 0 && !force) {
       console.warn(`Newsletter ${this._id} already has articles, skipping extraction.`);
       return 0;
     }
-    if (existing.error) {
-      console.warn(`Newsletter ${this._id} previously failed (${existing.error}). Skipping extraction.`);
+    if (existing.error && !force) {
+      console.warn(`Newsletter %o previously failed. Skipping extraction. Error: (${existing.error})`, this._id);
       return 1;
     }
 
     try {
-      console.log(`Extracting articles for newsletter ${this._id}...`);
+      console.log(`Extracting articles for newsletter %o...`, this._id);
       const data = await extractArticlesFromNewsletter(content);
 
       // Save articles and link them to this newsletter
@@ -109,11 +109,12 @@ export class NewsletterClass implements INewsletter {
       existing.set({ ...data, articles, error: '' });
       await this.set(existing.toObject()).save();
       console.log(
-        `Extracted and saved ${articles.length} articles for newsletter ${this._id} with ${errCount} errors.`
+        `Extracted and saved ${articles.length} articles for newsletter %o with ${errCount} errors.\n`,
+        this._id
       );
       return errCount;
     } catch (error: any) {
-      console.error(`Error extracting articles for newsletter ${this._id}:`);
+      console.error(`Error extracting articles for newsletter %o`, this._id);
       console.error(error.stack, '\n');
 
       // Save the error message
