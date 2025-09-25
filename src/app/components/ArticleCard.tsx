@@ -4,6 +4,9 @@ import { Card } from '@components/ui/card';
 import { Badge } from '@components/ui/badge';
 import { Calendar, ExternalLink, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { formatDate } from './utils';
+
+const devEnv = process.env.NODE_ENV !== 'production';
 
 interface ArticleCardProps {
   article: IArticle;
@@ -17,16 +20,6 @@ function isProcessed(article: IArticle) {
 
 export const ArticleCard = ({ article }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
 
   return (
     <Card className="relative overflow-hidden bg-surface-elevated border-border hover:border-brand-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-brand-primary/10 group">
@@ -97,15 +90,18 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
       {/* Read Full Article Link */}
       {article.url && (
         <div className="p-2 pr-6 pl-6 border-t border-border/50">
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm w-full"
-          >
-            <ExternalLink className="w-4 h-4" />
-            <div>Read full article</div>
-          </a>
+          <div className="flex items-center w-full">
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <div>Read full article</div>
+            </a>
+            {devEnv && <div className="ml-auto text-xs text-muted-foreground">{article._id}</div>}
+          </div>
         </div>
       )}
     </Card>
