@@ -77,12 +77,14 @@ describe('Newsletter', () => {
         {
           header: 'Article 1',
           content: 'Content of article 1',
+          sourceName: '', // To be defaulted to newsletter name
           date: '2000-10-01',
         },
         {
           header: 'Article 2',
           content: 'Content of article 2',
           sourceName: 'Original Source',
+          date: '', // To be defaulted to newsletter date
         },
       ];
 
@@ -96,26 +98,21 @@ describe('Newsletter', () => {
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockData);
 
       const newsletter = await Newsletter.create({ content: 'The content in the newsletter' });
+
       await newsletter.extractArticles();
       expect(analyzer.extractArticlesFromNewsletter).toHaveBeenCalledWith('The content in the newsletter');
 
       const updated = (await Newsletter.findById(newsletter._id).populate('articles')) as Newsletter;
       expect(updated.date).toBe('2023-10-10');
       expect(updated.name).toBe('Newsletter Name');
-      expect(updated.articles).toEqual(
-        // ignore order and extra properties
-        expect.arrayContaining(
-          // match a subset of properties
-          mockArticles.map((a) => expect.objectContaining(a))
-        )
-      );
-      expect(updated.articles.length).toBe(mockArticles.length);
 
-      // Check that articles have sourceName and date set from newsletter
-      expect((updated.articles[0] as Article).sourceName).toBe('Original Source'); // preferred from article
-      expect((updated.articles[1] as Article).sourceName).toBe('Newsletter Name'); // defaulted to newsletter
-      expect((updated.articles[0] as Article).date).toBe('2000-10-01'); // preferred from article
-      expect((updated.articles[1] as Article).date).toBe('2023-10-10'); // defaulted to newsletter
+      // Check that articles have sourceName and date set correctly
+      const article1 = updated.articles.find((a) => (a as Article).header === 'Article 1') as Article;
+      const article2 = updated.articles.find((a) => (a as Article).header === 'Article 2') as Article;
+      expect(article1.sourceName).toBe('Newsletter Name'); // defaulted to newsletter's
+      expect(article1.date).toBe('2000-10-01'); // preferred from article
+      expect(article2.sourceName).toBe('Original Source'); // preferred from article
+      expect(article2.date).toBe('2023-10-10'); // defaulted to newsletter's
     });
 
     it('should not re-process nor fail if `articles` is already populated', async () => {

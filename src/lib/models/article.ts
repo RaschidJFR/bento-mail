@@ -65,6 +65,12 @@ export class ArticleClass implements IArticle {
     );
   }
 
+  /**
+   * Process the article to extract details and summaries.
+   *
+   * If `summaries` already exist, the method will not re-process the article.
+   * If a previous processing attempt failed, it will retry.
+   */
   public async process(this: DocumentType<ArticleClass>) {
     let existing = (await ArticleModel.findById(this._id)) as Article;
     if ((existing && this.isModified()) || !existing) {
@@ -76,9 +82,14 @@ export class ArticleClass implements IArticle {
     }
 
     try {
-      if (existing.url) {
-        const html = await fetchHtmlContent(existing.url);
-        this.content = existing.content = htmlToMarkdown(html);
+      try {
+        if (existing.url) {
+          const html = await fetchHtmlContent(existing.url);
+          this.content = existing.content = htmlToMarkdown(html);
+        }
+      } catch (fetchError: any) {
+        console.warn(`Failed to fetch HTML content for article ${this._id}: ${fetchError.message}`);
+        console.warn('Using existing content for processing');
       }
 
       if (typeof existing.content !== 'string' || !existing.content.trim()) {

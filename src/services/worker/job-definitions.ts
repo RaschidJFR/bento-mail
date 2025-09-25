@@ -8,7 +8,7 @@ export const JobNames = Object.freeze({
     process: 'bundle.process',
   },
   Newsletter: {
-    processArticles: 'newsletter.extractArticles',
+    processArticles: 'newsletter.processArticles',
   },
   Article: {
     process: 'article.process',
@@ -42,31 +42,31 @@ export function defineJobs(agenda: Agenda) {
   // Define job to extract articles from newsletter
   // This job will extract the newsletter's articles and queue article processing jobs
   agenda.define(JobNames.Newsletter.processArticles, { shouldSaveResult: true }, async (job: Job<{ id: string }>) => {
-    const id = job.attrs.data?.id;
-    if (!id) {
+    const newsletterId = job.attrs.data?.id;
+    if (!newsletterId) {
       throw new Error('Missing id');
     }
-    const newsletter = await Newsletter.findById({ _id: id });
+    const newsletter = await Newsletter.findById({ _id: newsletterId });
     if (!newsletter) {
-      throw new Error(`Newsletter not found: ${id}`);
+      throw new Error(`Newsletter not found: ${newsletterId}`);
     }
 
     try {
       const errors = await newsletter.extractArticles();
 
       // Queue article processing jobs
-      await applyInBatches(newsletter.articles || [], (id) => {
-        id = typeof id === 'string' ? id : id._id?.toString();
+      await applyInBatches(newsletter.articles || [], (articleId) => {
+        articleId = typeof articleId === 'string' ? articleId : articleId._id?.toString();
         return agenda
-          .create(JobNames.Article.process, { id })
+          .create(JobNames.Article.process, { id: articleId })
           .schedule('now')
-          .unique({ 'data.id': id }, { insertOnly: true }) // Prevent duplicate jobs
+          .unique({ 'data.id': articleId }, { insertOnly: true }) // Prevent duplicate jobs
           .save();
       });
 
       return { errors };
     } catch (err) {
-      console.error(`[worker] Error extracting articles in newsletter ${id}:`, err);
+      console.error(`[worker] Error extracting articles in newsletter ${newsletterId}:`, err);
       throw err;
     }
   });
@@ -85,8 +85,8 @@ export function defineJobs(agenda: Agenda) {
     try {
       await article.process();
       return { processed: article.isProcessed() };
-    } catch (err) {
-      console.error(`[worker] Error processing article ${id}:`, err);
+    } catch (err: any) {
+      console.error(`[worker] Error processing article ${id}:`, err.message);
       throw err;
     }
   });

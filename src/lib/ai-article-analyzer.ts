@@ -36,12 +36,11 @@ const NewsletterSchema = z.object({
 const ComplementaryArticleSchema = z.object({
   coverImg: z
     .string()
-    .optional()
     .default('')
     .describe('URL to the cover image of the article. Empty string if not found.'),
   date: z
     .string()
-    .optional()
+    .default('')
     .describe('Date when the article was created (yyyy-mm-dd numbers). Empty string if not found.'),
   summaries: z.object({
     oneliner: z.string().describe('The most accurate header/title for the article in one line'),

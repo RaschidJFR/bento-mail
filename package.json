@@ -16,9 +16,9 @@
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
     "test": "vitest",
-    "mail": "npx nodemon --watch ./dist/services --exec node scripts/start-mail-server.mjs",
-    "worker": "npx nodemon --watch ./dist/services --exec node scripts/start-worker.mjs",
-    "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\""
+    "mail": "npx nodemon --watch ./dist/services --watch scripts/start-mail-server.mjs --exec node scripts/start-mail-server.mjs",
+    "worker": "npx nodemon --watch ./dist/services --watch ./scripts/start-worker.mjs --exec node scripts/start-worker.mjs",
+    "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\" -p 3001"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",

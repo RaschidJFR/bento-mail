@@ -1,5 +1,5 @@
 import { JobNames } from '@services/worker';
-import { Bundle } from '@lib/models';
+import { Bundle, Newsletter } from '@lib/models';
 import Agenda from 'agenda';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
@@ -123,6 +123,29 @@ describe('Worker', () => {
 
       // The processContent function should have been called only once
       expect(processContent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Newsletter.processArticles', () => {
+    it('creates article processing jobs', async () => {
+      const extractArticles = vi.fn().mockResolvedValue(0);
+      vi.spyOn(Newsletter, 'findById').mockResolvedValue({
+        extractArticles,
+        articles: ['articleId1', 'articleId2'],
+      });
+
+      // Stop the worker to prevent automatic processing of jobs
+      worker.stop();
+      await agenda.create(JobNames.Newsletter.processArticles, { id: 'someNewsletterId' }).run();
+      // Wait for this job to create the sub-jobs
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // get all jobs in the collection and verify there are two article processing jobs
+      const collection = worker._collection.collectionName;
+      const jobs = await worker._mdb.collection(collection).find({ name: JobNames.Article.process }).toArray();
+      const idsInJobs = jobs.map((job) => job.data.id).sort();
+      expect(jobs.length).toBe(2);
+      expect(idsInJobs).toEqual(['articleId1', 'articleId2'].sort());
     });
   });
 });
