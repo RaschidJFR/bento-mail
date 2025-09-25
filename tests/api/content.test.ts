@@ -83,4 +83,58 @@ describe('api/content POST', () => {
     expect(created?.content).toBe('Brand new newsletter content');
     expect(result).toMatchObject(created!);
   });
+
+  it('triggers job to process new newsletter/articles', async () => {
+    const content = 'Some new content for job trigger';
+    const format = 'text';
+
+    // Mock analyzer to return 'newsletter'
+    const analyzer = await import('@lib/ai-article-analyzer');
+    const isArticleOrNewsletter = vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+
+    // Mock agenda and its chain methods
+    const agendaMock = {
+      create: vi.fn(() => agendaMock),
+      unique: vi.fn(() => agendaMock),
+      schedule: vi.fn(() => agendaMock),
+      save: vi.fn().mockResolvedValue({}),
+    };
+
+    const workerModule = await import('@services/worker');
+    vi.spyOn(workerModule, 'default').mockResolvedValue(agendaMock as any);
+
+    // Make the API call to create content
+    const req = mockReq({ content, format });
+    await POST(req as any);
+
+    // Verify that agenda methods were called correctly
+    expect(agendaMock.create).toHaveBeenCalledWith(
+      workerModule.JobNames.Newsletter.processArticles,
+      expect.objectContaining({ id: expect.any(String) })
+    );
+    expect(agendaMock.schedule).toHaveBeenCalledWith('now');
+    expect(agendaMock.unique).toHaveBeenCalledWith(expect.objectContaining({ 'data.id': expect.any(String) }), {
+      insertOnly: true,
+    });
+    expect(agendaMock.save).toHaveBeenCalledOnce();
+
+    // Reset mock to test 'article' path
+    vi.clearAllMocks();
+    isArticleOrNewsletter.mockResolvedValue('article');
+
+    // Make the API call to create an article
+    const req2 = mockReq({ content: content + ' article', format });
+    await POST(req2 as any);
+
+    // Verify that agenda methods were called correctly for article
+    expect(agendaMock.create).toHaveBeenCalledWith(
+      workerModule.JobNames.Article.process,
+      expect.objectContaining({ id: expect.any(String) })
+    );
+    expect(agendaMock.schedule).toHaveBeenCalledWith('now');
+    expect(agendaMock.unique).toHaveBeenCalledWith(expect.objectContaining({ 'data.id': expect.any(String) }), {
+      insertOnly: true,
+    });
+    expect(agendaMock.save).toHaveBeenCalledOnce(); // Called twice now
+  });
 });

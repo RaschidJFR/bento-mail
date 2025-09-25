@@ -160,5 +160,7 @@ describe('Article', () => {
       article = (await Article.findById(article._id)) as Article;
       expect(article?.lastError).toBeFalsy();
     });
+
+    it('generate cover image if missing', async () => {});
   });
 });

@@ -60,7 +60,7 @@ export async function processNewEmail(email: Mail) {
   try {
     await saveEmailSample(email);
     const userEmail = email.envelope?.from?.address;
-    console.log(`Processing email received from ${userEmail}: "${email.subject}"...`);
+    console.log(`Processing email received from %o: "${email.subject}"...`, userEmail);
 
     // Zod email validation
     z.string().email().parse(userEmail); // Throws if invalid email
@@ -71,7 +71,7 @@ export async function processNewEmail(email: Mail) {
         email: userEmail,
       });
       const { result: user } = response?.data || {};
-      console.log(`User created with id '${user._id}'`);
+      console.log(`User created with id %o`, user._id);
     } catch (err) {
       if (!axios.isAxiosError(err) || err.response?.status != 409) {
         throw err;
@@ -87,13 +87,13 @@ export async function processNewEmail(email: Mail) {
         format: email.text ? 'text' : 'html',
       });
       const { result, type } = response?.data || {};
-      console.log(`${type} created with id '${result._id}'`);
+      console.log(`${type} created with id %o`, result._id);
       objectType = type;
       object = result;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status == 409) {
         const { result, type } = err.response?.data || {};
-        console.log(`${type} already exists. id: '${result._id}'`);
+        console.log(`${type} already exists: %o`, result._id);
         objectType = type;
         object = result;
       } else {
@@ -108,7 +108,7 @@ export async function processNewEmail(email: Mail) {
       articles: objectType === 'article' ? [object._id] : [],
     });
     const { result: bundle } = (await bundleRes.data) || {};
-    console.log(`Bundle '${bundle._id}' updated with ${objectType} '${object?._id}'\n`);
+    console.log(`Bundle %o updated with ${objectType} %o\n`, bundle._id, object?._id);
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
       console.error(

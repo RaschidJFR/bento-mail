@@ -7,6 +7,7 @@ export async function setup() {
 
   // Use a separate test database (used by @models/index.ts)
   process.env.DATABASE_NAME = '_test';
+  process.env.AGENDA_COLLECTION = 'agenda_test';
 
   await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.DATABASE_NAME });
 }

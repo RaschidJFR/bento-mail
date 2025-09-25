@@ -36,12 +36,11 @@ const NewsletterSchema = z.object({
 const ComplementaryArticleSchema = z.object({
   coverImg: z
     .string()
-    .optional()
     .default('')
     .describe('URL to the cover image of the article. Empty string if not found.'),
   date: z
     .string()
-    .optional()
+    .default('')
     .describe('Date when the article was created (yyyy-mm-dd numbers). Empty string if not found.'),
   summaries: z.object({
     oneliner: z.string().describe('The most accurate header/title for the article in one line'),
@@ -116,7 +115,8 @@ export async function extractArticleDetails(textContent: string) {
   const prompt = `
 Analyze the provided Markdown content extracted from a web article and extract the article information:
 
-1. **coverImg**: Look for the main article image (markdown image syntax ![alt](url))
+1. **coverImg**: Look for the main article image (markdown image syntax ![alt](url)). 
+  Ignore the author's avatar image (you can recognize it by its small size or placement near the author name).
 2. **date**: Extract the publication date if mentioned in the content (yyyy-mm-dd numbers)
 
 Create three different summaries
