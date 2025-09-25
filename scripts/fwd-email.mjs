@@ -50,7 +50,7 @@ async function fwdEmail(emlFilePath) {
     if (error) {
       return console.error(`Error forwarding ${emlFilePath}:`, error);
     }
-    console.log(`Email forwarded to '${MAIL_RCPT}': "${subject}" from file ${emlFilePath}\n`);
+    console.log(`Email forwarded from %o to %o: %o from file ${emlFilePath}\n`, MAIL_FROM, MAIL_RCPT, subject);
   });
 }
 

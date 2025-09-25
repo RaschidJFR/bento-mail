@@ -2,38 +2,68 @@
 import type { IArticle } from '@lib/models';
 import { Card } from '@components/ui/card';
 import { Badge } from '@components/ui/badge';
-import { Calendar, ExternalLink } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, ExternalLink, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import io from 'socket.io-client';
+import { formatDate } from './utils';
+
+const devEnv = process.env.NODE_ENV !== 'production';
 
 interface ArticleCardProps {
   article: IArticle;
 }
 
+function isProcessed(article: IArticle) {
+  return (
+    !!article.summaries?.oneliner && !!article.summaries?.overview && !!article.summaries?.details && !article.lastError
+  );
+}
+
 export const ArticleCard = ({ article }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [liveArticle, setLiveArticle] = useState(article);
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+  useEffect(() => {
+    // Only connect if not processed
+    if (isProcessed(liveArticle)) return;
+
+    const socket = io(process.env.SOCKET_URL || 'http://localhost:4001');
+    socket.on('articleUpdated', (data: Partial<IArticle>) => {
+      if (data._id === article._id) {
+        setLiveArticle((prev) => {
+          const updated = { ...prev, ...data };
+          // If now processed, disconnect socket
+          if (isProcessed(updated)) {
+            socket.disconnect();
+          }
+          return updated;
+        });
+      }
     });
-  };
+    return () => {
+      socket.disconnect();
+    };
+    // Depend on liveArticle._id so we reconnect if article changes
+  }, [liveArticle._id]);
 
   return (
-    <Card className="overflow-hidden bg-surface-elevated border-border hover:border-brand-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-brand-primary/10 group">
+    <Card className="relative overflow-hidden bg-surface-elevated border-border hover:border-brand-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-brand-primary/10 group">
+      {/* Processing overlay */}
+      {!isProcessed(liveArticle) && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
+          <div className="flex items-center gap-2 text-brand-primary">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span className="text-sm font-medium">This article is being processed...</span>
+          </div>
+        </div>
+      )}
+
       {/* Clickable area to toggle details */}
-      <div className="cursor-pointer" onClick={() => setIsDetailsOpen(!isDetailsOpen)}>
+      <div className={isDetailsOpen ? '' : 'cursor-pointer'} onClick={() => setIsDetailsOpen(true)}>
         {/* Cover Image */}
-        {article.coverImg && (
-          <div className="aspect-video w-full overflow-hidden">
-            <img
-              src={article.coverImg}
-              alt={article.header}
-              className="w-full h-full object-cover"
-            />
+        {liveArticle.coverImg && (
+          <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
+            <img src={liveArticle.coverImg} alt={liveArticle.header} className="w-full h-full object-contain" />
           </div>
         )}
 
@@ -41,19 +71,19 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
           {/* Header */}
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-text-headline leading-tight group-hover:text-brand-primary transition-colors duration-200">
-              {article.summaries.oneliner || article.header}
+              {liveArticle.summaries?.oneliner || liveArticle.header}
             </h2>
 
             <div className="flex items-center gap-3 text-sm text-text-meta">
-              {article.sourceName && (
+              {liveArticle.sourceName && (
                 <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary border-brand-primary/20">
-                  {article.sourceName}
+                  {liveArticle.sourceName}
                 </Badge>
               )}
-              {article.date && (
+              {liveArticle.date && (
                 <div className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
-                  <span>{formatDate(article.date)}</span>
+                  <span>{formatDate(liveArticle.date)}</span>
                 </div>
               )}
             </div>
@@ -63,7 +93,9 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
           <div className="transition-all duration-300 hover:text-brand-primary/80">
             {/* Overview with fade effect when collapsed */}
             <div className="relative">
-              <p className="text-text-body leading-relaxed transition-all duration-300">{article.summaries.overview}</p>
+              <p className="text-text-body leading-relaxed transition-all duration-300">
+                {liveArticle.summaries?.overview || ''}
+              </p>
             </div>
 
             {/* Details with smooth animation */}
@@ -73,7 +105,7 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
               }`}
             >
               <div className="pt-3 border-t border-border/50">
-                <p className="text-text-meta text-sm leading-relaxed">{article.summaries.details}</p>
+                <p className="text-text-meta text-sm leading-relaxed">{liveArticle.summaries?.details || ''}</p>
               </div>
             </div>
           </div>
@@ -81,17 +113,20 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
       </div>
 
       {/* Read Full Article Link */}
-      {article.url && (
+      {liveArticle.url && (
         <div className="p-2 pr-6 pl-6 border-t border-border/50">
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm w-full"
-          >
-            <ExternalLink className="w-4 h-4" />
-            <div>Read full article</div>
-          </a>
+          <div className="flex items-center w-full">
+            <a
+              href={liveArticle.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <div>Read full article</div>
+            </a>
+            {devEnv && <div className="ml-auto text-xs text-muted-foreground">{liveArticle._id}</div>}
+          </div>
         </div>
       )}
     </Card>

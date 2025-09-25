@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { Newsletter, Article, IArticle, INewsletter } from '@lib/models';
 import { isArticleOrNewsletter } from '@lib/ai-article-analyzer';
 import { htmlToMarkdown } from '@lib/utils';
+import init, { JobNames } from '@services/worker';
 
 interface RequestBody {
   content: string;
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // Validate request body
     const validationError = validateRequestBody(body);
     if (validationError) {
       return Response.json(validationError, { status: 400 });
@@ -40,39 +42,51 @@ export async function POST(req: NextRequest) {
     const responseBody = {} as ResponseData;
     console.log(`Received content for newsletter/article...`);
 
+    // Convert HTML to Markdown if necessary
     const contentText = format == 'html' ? htmlToMarkdown(content) : content;
     const article = new Article({ content: contentText }) as Article;
     const newsletter = new Newsletter({ content: contentText }) as Newsletter;
 
+    // Check for existing article or newsletter with the same ID
     const [existentArticle, existentNewsletter] = await findExistent([article, newsletter]);
     if (existentArticle) {
-      console.warn(`An article already exists with id ${existentArticle._id}`);
+      console.warn(`An article already exists with id %o`, existentArticle._id);
       return Response.json(
         { error: `An article with the same content already exists`, result: existentArticle, type: 'article' },
         { status: 409 }
       );
     } else if (existentNewsletter) {
-      console.warn(`A newsletter already exists with id ${existentNewsletter._id}`);
+      console.warn(`A newsletter already exists with id %o`, existentNewsletter._id);
       return Response.json(
         { error: `An article with the same content already exists`, result: existentNewsletter, type: 'newsletter' },
         { status: 409 }
       );
     }
 
+    // Determine if content is an article or a newsletter and save accordingly
     const contentType = await isArticleOrNewsletter(contentText);
     if (contentType == 'article') {
       responseBody.result = article;
       responseBody.type = 'article';
-      console.log('Creating new Article with id:', article._id);
+      console.log('Creating new Article with id: %o', article._id);
       await article.save();
     } else if (contentType == 'newsletter') {
       responseBody.result = newsletter;
       responseBody.type = 'newsletter';
-      console.log('Creating new Newsletter with id:', newsletter._id);
+      console.log('Creating new Newsletter with id: %o', newsletter._id);
       await newsletter.save();
     } else {
       return Response.json({ error: 'Could not determine if content is an article or a newsletter.' }, { status: 400 });
     }
+
+    // Trigger worker to process the bundle
+    const id = responseBody.result._id;
+    const agenda = await init();
+    await agenda
+      .create(contentType === 'article' ? JobNames.Article.process : JobNames.Newsletter.processArticles, { id })
+      .schedule('now')
+      .unique({ 'data.id': id }, { insertOnly: true }) // Prevent duplicate jobs
+      .save();
 
     return Response.json(responseBody, { status: 201 });
   } catch (error: any) {

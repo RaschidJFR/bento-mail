@@ -7,10 +7,10 @@ import { clearModelInDevelopment } from './utils';
 
 export interface INewsletter {
   _id: string;
-  content?: string;
+  content: string;
   articles: Ref<ArticleClass>[];
   date?: string;
-  name: string;
+  name?: string;
   error?: string;
 }
 
@@ -42,13 +42,13 @@ export class NewsletterClass implements INewsletter {
   @prop({ default: generateId, type: String })
   public readonly _id!: string;
   @prop({ default: '', type: String })
-  public content?: string;
+  public content: string = '';
   @prop({ ref: () => ArticleClass, type: [String], default: [] })
   public articles: Ref<ArticleClass>[] = [];
   @prop({ default: '', type: String })
   public date?: string;
   @prop({ default: '', type: String })
-  public name: string = '';
+  public name?: string = '';
 
   /**
    * Error message from the last extraction attempt, if any.
@@ -58,12 +58,14 @@ export class NewsletterClass implements INewsletter {
 
   /**
    * Extract articles from the newsletter content, save them, and link them to this newsletter.
+   *
    * If `articles` is already populated, the method does nothing.
-   * @return Number of errors encountered
+   * If a previous extraction error exists, it will retry.
+   * @return Number of errors encountered while saving articles
    */
-  public async extractArticles(this: DocumentType<NewsletterClass>) {
+  public async extractArticles(this: Newsletter) {
     // Ensure the article is pristine
-    const existing = (await NewsletterModel.findById(this._id)) as Newsletter | null;
+    const existing = (await Newsletter.findById(this._id)) as Newsletter | null;
     let content = existing?.content || this.content || '';
     if ((existing && this.isModified()) || !existing) {
       throw new Error('You must save any changes to this object before processing');
@@ -75,7 +77,7 @@ export class NewsletterClass implements INewsletter {
       console.warn(`Newsletter ${this._id} already has articles, skipping extraction.`);
       return 0;
     }
-    if(existing.error) {
+    if (existing.error) {
       console.warn(`Newsletter ${this._id} previously failed (${existing.error}). Skipping extraction.`);
       return 1;
     }
@@ -92,8 +94,8 @@ export class NewsletterClass implements INewsletter {
           let art = new Article(a);
           const artExists = await Article.findById({ _id: art._id });
           art = artExists || art;
-          art.sourceName = art.sourceName || existing.name || '';
-          art.date = art.date || existing.date || '';
+          art.sourceName = art.sourceName || data.name || existing.name || '';
+          art.date = art.date || data.date || existing.date || '';
           await art.save();
           articles.push(art);
         } catch (error: any) {
@@ -102,13 +104,19 @@ export class NewsletterClass implements INewsletter {
           errCount++;
         }
       });
+
+      // Update newsletter with articles and clear any previous error
       existing.set({ ...data, articles, error: '' });
       await this.set(existing.toObject()).save();
-      console.log(`Extracted and saved ${articles.length} articles for newsletter ${this._id} with ${errCount} errors.`);
+      console.log(
+        `Extracted and saved ${articles.length} articles for newsletter ${this._id} with ${errCount} errors.`
+      );
       return errCount;
     } catch (error: any) {
       console.error(`Error extracting articles for newsletter ${this._id}:`);
       console.error(error.stack, '\n');
+
+      // Save the error message
       await this.set({ error: error.message || String(error) }).save();
       throw error;
     }

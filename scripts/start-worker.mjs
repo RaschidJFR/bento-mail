@@ -13,15 +13,13 @@
 
 import 'dotenv/config';
 let worker;
-const collectionName = process.argv[2];
+process.env.AGENDA_COLLECTION = process.argv[2] || process.env.AGENDA_COLLECTION || '';
 const interval = process.env.WORKER_PROCESSING_INTERVAL || '1 hour';
 
 try {
-  const instantiate = (await import('../dist/services/worker.mjs')).default;
-  worker = instantiate()
-    .database(process.env.MONGODB_URI, collectionName || '')
-    .processEvery(interval);
-  await new Promise((resolve) => worker.once('ready', resolve));
+  const instantiate = (await import('../dist/services/worker/index.mjs')).default;
+  worker = await instantiate()
+  worker.processEvery(interval);
 } catch (err) {
   console.error("Failed to load worker module 'worker.mjs'. Have you built the project?: `npm run build:services`\n");
   console.error(err.stack);
@@ -30,7 +28,8 @@ try {
 
 console.log('Starting worker...');
 worker.start();
-console.log(`Worker started, polling jobs at intervals of ${interval}. \nPress Ctrl+C to stop.\n`);
+const collectionName = worker._collection.collectionName;
+console.log(`Worker started, polling jobs at intervals of ${interval} from ${collectionName}. \nPress Ctrl+C to stop.\n`);
 
 // Gracefully handle shutdown signals
 const shutdown = async () => {

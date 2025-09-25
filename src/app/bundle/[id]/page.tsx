@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation';
 import { Bundle, IArticle, INewsletter } from '@lib/models';
-import { NewsletterHeader } from '@components/NewsletterHeader';
-import { ArticleCard } from '@components/ArticleCard';
+import { NewsletterDisplay } from '@components/NewsletterDisplay';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,7 +49,16 @@ async function getBundleArticles(id: string) {
     console.warn('Database not connected, using mock bundle articles');
     return {
       count: mockArticles.length,
-      articles: mockArticles,
+      newsletters: [
+        {
+          _id: 'mock-newsletter-1',
+          name: 'Mock Newsletter',
+          date: '2024-06-01',
+          articles: mockArticles,
+          error: '',
+          content: '',
+        },
+      ],
     };
   }
 
@@ -90,9 +98,17 @@ async function getBundleArticles(id: string) {
       }
     });
 
+  // Filter newsletter articles by deduped ids
+  const newsletters = ((bundle.newsletters || []) as INewsletter[])
+    .filter((nl) => nl.articles?.length)
+    .map((nl) => ({
+      ...nl,
+      articles: ((nl.articles as IArticle[]) || []).filter((a: IArticle) => byId.has(String(a._id))),
+    }));
+
   return {
     count: byId.size,
-    articles: Array.from(byId.values()),
+    newsletters,
   };
 }
 
@@ -104,12 +120,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <NewsletterHeader />
-
         <main>
-          <div className="space-y-6">
-            {(data?.articles || []).map((article) => (
-              <ArticleCard key={article._id} article={article} />
+          <div className="space-y-12">
+            {(data?.newsletters || []).map((newsletter) => (
+              <NewsletterDisplay key={newsletter._id} newsletter={newsletter as any} />
             ))}
           </div>
         </main>

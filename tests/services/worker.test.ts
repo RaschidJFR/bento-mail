@@ -1,5 +1,5 @@
 import { JobNames } from '@services/worker';
-import { Bundle } from '@lib/models';
+import { Bundle, Newsletter } from '@lib/models';
 import Agenda from 'agenda';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
@@ -10,13 +10,10 @@ describe('Worker', () => {
     const instantiate = (await import('@services/worker')).default;
 
     // Create an Agenda instance for scheduling jobs
-    agenda = instantiate();
-    agenda.database(process.env.MONGODB_URI!, 'agenda_test');
-    await new Promise((resolve) => agenda.once('ready', resolve));
+    agenda = await instantiate();
 
     // Create a worker instance to process jobs
-    worker = instantiate();
-    worker.database(process.env.MONGODB_URI!, 'agenda_test');
+    worker = await instantiate();
     worker.processEvery('.1 seconds');
     await worker.start();
   });
@@ -57,7 +54,7 @@ describe('Worker', () => {
     it('fail if bundle has already been processed', async () => {
       const id = 'bundleId';
 
-      function mockBundle(stage: Bundle.ProcessingStages) {
+      function mockAndReset(stage: Bundle.ProcessingStages) {
         processContent.mockClear();
         vi.spyOn(Bundle, 'findById').mockReturnValue({
           processingStage: stage,
@@ -66,37 +63,37 @@ describe('Worker', () => {
       }
 
       // Should not process
-      mockBundle(Bundle.ProcessingStages.SENT);
+      mockAndReset(Bundle.ProcessingStages.SENT);
       await agenda.now(JobNames.Bundle.process, { id });
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(processContent).not.toHaveBeenCalled();
 
       // Should not process
-      mockBundle(Bundle.ProcessingStages.CONTENT_PROCESSED);
+      mockAndReset(Bundle.ProcessingStages.CONTENT_PROCESSED);
       await agenda.now(JobNames.Bundle.process, { id });
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(processContent).not.toHaveBeenCalled();
 
       // Should proceed with processing
-      mockBundle(Bundle.ProcessingStages.COMPLETED_WITH_ERRORS);
+      mockAndReset(Bundle.ProcessingStages.COMPLETED_WITH_ERRORS);
       await agenda.now(JobNames.Bundle.process, { id });
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(processContent).toHaveBeenCalled();
 
       // Should not process
-      mockBundle(Bundle.ProcessingStages.PROCESSING_CONTENT);
+      mockAndReset(Bundle.ProcessingStages.PROCESSING_CONTENT);
       await agenda.now(JobNames.Bundle.process, { id });
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(processContent).not.toHaveBeenCalled();
 
       // Should proceed with processing
-      mockBundle(Bundle.ProcessingStages.ERROR);
+      mockAndReset(Bundle.ProcessingStages.ERROR);
       await agenda.now(JobNames.Bundle.process, { id });
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(processContent).toHaveBeenCalled();
 
       // Should proceed with processing
-      mockBundle(Bundle.ProcessingStages.NOT_STARTED);
+      mockAndReset(Bundle.ProcessingStages.NOT_STARTED);
       await agenda.now(JobNames.Bundle.process, { id });
       await new Promise((resolve) => setTimeout(resolve, 500));
       expect(processContent).toHaveBeenCalled();
@@ -104,29 +101,51 @@ describe('Worker', () => {
 
     it('Can schedule a unique job', async () => {
       // Simulate a long processing time to ensure the second job is attempted while the first is still running
-      processContent.mockImplementation(async () => {
-        console.log('called processContent');
-        await new Promise((resolve) => setTimeout(() => resolve(0), 10000));
-        console.log('finished processContent');
-        return 0;
-      });
+      processContent.mockResolvedValue(0);
 
+      await worker.stop();
       await agenda
         .create(JobNames.Bundle.process, { id: 'uniqueBundle' })
         .unique({ 'data.id': 'uniqueBundle' }, { insertOnly: true })
+        .schedule('in 1 hr')
         .save();
 
+      // If not unique, this would either run immediately or overwrite the first job to run immediately
       await agenda
         .create(JobNames.Bundle.process, { id: 'uniqueBundle' })
         .unique({ 'data.id': 'uniqueBundle' }, { insertOnly: true })
-        .schedule('in 1 hour')
+        .schedule('now')
         .save();
 
       // Wait enough time to ensure the second job would have run if it wasn't unique
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await worker.start();
+      await new Promise((resolve) => setTimeout(resolve, 500));
 
       // The processContent function should have been called only once
-      expect(processContent).toHaveBeenCalledTimes(1);
+      expect(processContent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Newsletter.processArticles', () => {
+    it('creates article processing jobs', async () => {
+      const extractArticles = vi.fn().mockResolvedValue(0);
+      vi.spyOn(Newsletter, 'findById').mockResolvedValue({
+        extractArticles,
+        articles: ['articleId1', 'articleId2'],
+      });
+
+      // Stop the worker to prevent automatic processing of jobs
+      worker.stop();
+      await agenda.create(JobNames.Newsletter.processArticles, { id: 'someNewsletterId' }).run();
+      // Wait for this job to create the sub-jobs
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // get all jobs in the collection and verify there are two article processing jobs
+      const collection = worker._collection.collectionName;
+      const jobs = await worker._mdb.collection(collection).find({ name: JobNames.Article.process }).toArray();
+      const idsInJobs = jobs.map((job) => job.data.id).sort();
+      expect(jobs.length).toBe(2);
+      expect(idsInJobs).toEqual(['articleId1', 'articleId2'].sort());
     });
   });
 });

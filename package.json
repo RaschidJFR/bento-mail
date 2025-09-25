@@ -6,15 +6,20 @@
   },
   "scripts": {
     "start": "next start",
-    "dev": "next dev & npm run build:services -- --watch --no-minify",
+    "preview": "next start",
+    "dev": "next dev",
+    "dev:services": "npm run build:services -- --watch --no-minify",
+    "build:dev": "next build",
     "build": "next build",
     "build:services": "tsup src/services --clean --format esm --out-dir dist/services --tsconfig tsconfig.services.json",
+    "lint": "next lint",
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
     "test": "vitest",
-    "mail": "npx nodemon --watch ./dist/services --exec node scripts/start-mail-server.mjs",
-    "worker": "npx nodemon --watch ./dist/services --exec node scripts/start-worker.mjs",
-    "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\""
+    "mail": "npx nodemon --watch ./dist/services --watch scripts/start-mail-server.mjs --exec node scripts/start-mail-server.mjs",
+    "worker": "npx nodemon --watch ./dist/services --watch ./scripts/start-worker.mjs --exec node scripts/start-worker.mjs",
+    "rtdb": "npx nodemon --watch ./dist/services --watch ./scripts/start-rtbd.mjs --exec node scripts/start-rtdb.mjs",
+    "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\" -p 3001"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",
@@ -33,6 +38,9 @@
     "next": "^15.5.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "tailwind-merge": "^3.3.1",
     "turndown": "^7.2.1",
     "zod": "^3.25.76"
@@ -45,6 +53,8 @@
     "@types/react-dom": "^18.2.21",
     "@types/turndown": "^5.0.5",
     "autoprefixer": "^10.4.20",
+    "eslint": "9.36.0",
+    "eslint-config-next": "15.5.4",
     "llm-scraper": "^1.6.0",
     "mailparser": "^3.7.4",
     "nodemailer": "^7.0.6",
