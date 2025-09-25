@@ -31,7 +31,6 @@ console.log(`Enqueueing job '${jobName}' with args:`, jobArgs);
 let agenda;
 try {
   agenda = (await import(`../dist/services/worker.mjs`)).init();
-  agenda.database(process.env.MONGODB_URI);
   await new Promise((resolve) => agenda.once('ready', resolve));
 } catch (err) {
   console.error(`Failed to load job module 'worker'. Have you built the project?: \`npm run build:jobs\`\n`);

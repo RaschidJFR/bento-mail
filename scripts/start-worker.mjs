@@ -14,13 +14,12 @@
 import 'dotenv/config';
 let worker;
 const collectionName = process.argv[2];
+process.env.AGENDA_COLLECTION = collectionName;
 const interval = process.env.WORKER_PROCESSING_INTERVAL || '1 hour';
 
 try {
   const instantiate = (await import('../dist/services/worker.mjs')).default;
-  worker = instantiate()
-    .database(process.env.MONGODB_URI, collectionName || '')
-    .processEvery(interval);
+  worker = instantiate().processEvery(interval);
   await new Promise((resolve) => worker.once('ready', resolve));
 } catch (err) {
   console.error("Failed to load worker module 'worker.mjs'. Have you built the project?: `npm run build:services`\n");
