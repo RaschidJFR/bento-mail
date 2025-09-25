@@ -104,7 +104,8 @@ async function getBundleArticles(id: string) {
     .map((nl) => ({
       ...nl,
       articles: ((nl.articles as IArticle[]) || []).filter((a: IArticle) => byId.has(String(a._id))),
-    }));
+    }))
+    .sort((a, b) => (a.date && b.date ? (a.date > b.date ? -1 : a.date < b.date ? 1 : 0) : 0));
 
   return {
     count: byId.size,

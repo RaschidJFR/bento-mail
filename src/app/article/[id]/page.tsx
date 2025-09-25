@@ -39,10 +39,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-gray-600">{article.summaries?.oneliner || article.header || ''}</h1>
-      </header>
-
       <ArticleCard article={article} />
     </div>
   );

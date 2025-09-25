@@ -14,9 +14,7 @@ interface ArticleCardProps {
 }
 
 function isProcessed(article: IArticle) {
-  return (
-    !!article.summaries?.oneliner && !!article.summaries?.overview && !!article.summaries?.details && !article.lastError
-  );
+  return !!article.summaries?.oneliner && !!article.summaries?.overview && !!article.summaries?.details;
 }
 
 export const ArticleCard = ({ article }: ArticleCardProps) => {
@@ -113,9 +111,9 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
       </div>
 
       {/* Read Full Article Link */}
-      {liveArticle.url && (
-        <div className="p-2 pr-6 pl-6 border-t border-border/50">
-          <div className="flex items-center w-full">
+      <div className="p-2 pr-6 pl-6 border-t border-border/50">
+        <div className="flex items-center w-full">
+          {liveArticle.url && (
             <a
               href={liveArticle.url}
               target="_blank"
@@ -125,10 +123,10 @@ export const ArticleCard = ({ article }: ArticleCardProps) => {
               <ExternalLink className="w-4 h-4" />
               <div>Read full article</div>
             </a>
-            {devEnv && <div className="ml-auto text-xs text-muted-foreground">{liveArticle._id}</div>}
-          </div>
+          )}
+          {devEnv && <div className="ml-auto text-xs text-muted-foreground">{liveArticle._id}</div>}
         </div>
-      )}
+      </div>
     </Card>
   );
 };
