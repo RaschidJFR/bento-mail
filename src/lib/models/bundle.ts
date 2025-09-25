@@ -8,6 +8,30 @@ import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
 import { warn } from 'console';
 
+enum ReactionsEnum {
+  /**
+   * A problem occurred while processing the article (e.g., extraction failure).
+   */
+  PROBLEM = -2,
+  /**
+   * The user disliked the article.
+   */
+  NEGATIVE = -1,
+  /**
+   * The user has seen the article but has not expressed a clear preference.
+   */
+  ACKNOWLEDGED = 1,
+  /**
+   * The user liked the article.
+   */
+  POSITIVE = 2,
+}
+
+interface IReactions {
+  article: string;
+  reaction: ReactionsEnum;
+}
+
 export interface IBundle {
   _id: ObjectId;
   sendOn?: Date;
@@ -15,6 +39,7 @@ export interface IBundle {
   newsletters?: Ref<NewsletterClass>[];
   articles?: Ref<ArticleClass>[];
   processingStage: ProcessingStagesEnum;
+  reactions?: IReactions[];
 }
 
 enum ProcessingStagesEnum {
@@ -48,6 +73,8 @@ export class BundleClass implements IBundle {
   public articles?: Ref<ArticleClass>[];
   @prop({ type: Number, enum: ProcessingStagesEnum, default: ProcessingStagesEnum.NOT_STARTED })
   public processingStage: ProcessingStagesEnum = ProcessingStagesEnum.NOT_STARTED;
+  @prop({ type: Array })
+  public reactions?: IBundle['reactions'];
 
   /**
    * Adds one or more newsletter IDs or Newsletter documents to the bundle, preventing duplicates.
