@@ -18,6 +18,7 @@
     "test": "vitest",
     "mail": "npx nodemon --watch ./dist/services --watch scripts/start-mail-server.mjs --exec node scripts/start-mail-server.mjs",
     "worker": "npx nodemon --watch ./dist/services --watch ./scripts/start-worker.mjs --exec node scripts/start-worker.mjs",
+    "rtdb": "npx nodemon --watch ./dist/services --watch ./scripts/start-rtbd.mjs --exec node scripts/start-rtdb.mjs",
     "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\" -p 3001"
   },
   "dependencies": {
@@ -38,6 +39,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "tailwind-merge": "^3.3.1",
     "turndown": "^7.2.1",
     "zod": "^3.25.76"
