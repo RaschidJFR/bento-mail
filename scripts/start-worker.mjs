@@ -16,20 +16,24 @@ let worker;
 process.env.AGENDA_COLLECTION = process.argv[2] || process.env.AGENDA_COLLECTION || '';
 const interval = process.env.WORKER_PROCESSING_INTERVAL || '1 hour';
 
+let initWorker;
 try {
-  const instantiate = (await import('../dist/services/worker/index.mjs')).default;
-  worker = await instantiate()
-  worker.processEvery(interval);
+  initWorker = (await import('../dist/services/worker/index.mjs')).default;
 } catch (err) {
   console.error("Failed to load worker module 'worker.mjs'. Have you built the project?: `npm run build:services`\n");
   console.error(err.stack);
   process.exit(1);
 }
 
+worker = await initWorker();
+worker.processEvery(interval);
 console.log('Starting worker...');
-worker.start();
-const collectionName = worker._collection.collectionName;
-console.log(`Worker started, polling jobs at intervals of ${interval} from ${collectionName}. \nPress Ctrl+C to stop.\n`);
+worker.start().then(() => {
+  const collectionName = worker._collection?.collectionName;
+  console.log(
+    `Worker started, polling jobs at intervals of ${interval} from ${collectionName}. \nPress Ctrl+C to stop.\n`
+  );
+});
 
 // Gracefully handle shutdown signals
 const shutdown = async () => {

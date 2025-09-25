@@ -1,6 +1,6 @@
 import { JobNames } from '@services/worker';
 import { Bundle, Newsletter } from '@lib/models';
-import Agenda from 'agenda';
+import Agenda, { Job } from 'agenda';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 describe('Worker', () => {
@@ -29,6 +29,28 @@ describe('Worker', () => {
     await worker.close();
     await agenda.close();
     console.log('Agenda database cleaned up.');
+  });
+
+  it('Job.save() is bypassed when no MONGODB_URI is unset in non-production environment', async () => {
+    vi.stubEnv('MONGODB_URI', '');
+    vi.stubEnv('NODE_ENV', 'notproduction');
+
+    let instantiate = (await import('@services/worker')).default;
+    let localAgenda = await instantiate();
+    await expect(localAgenda.create('someJob', {}).save()).resolves.not.toThrow();
+  });
+
+  it('Job.save() should not be bypassed in production', async () => {
+    vi.stubEnv('MONGODB_URI', '');
+    vi.stubEnv('NODE_ENV', 'production');
+    const Job = (await import('agenda/dist/job')).Job;
+    const originalSave = vi.spyOn(Job.prototype, 'save');
+
+    let instantiate = (await import('@services/worker')).default;
+    let localAgenda = await instantiate();
+
+    // expect error from missing MONGODB_URI
+    await expect(localAgenda.create('someJob', {}).save()).rejects.toThrow();
   });
 
   describe('Bundle.process', () => {

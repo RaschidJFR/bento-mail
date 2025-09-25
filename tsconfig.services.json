@@ -6,4 +6,5 @@
     "outDir": "dist"
   },
   "include": ["src/services"],
+  "exclude": ["src/app"],
 }

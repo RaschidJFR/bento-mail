@@ -11,7 +11,7 @@
     "dev:services": "npm run build:services -- --watch --no-minify",
     "build:dev": "next build",
     "build": "next build",
-    "build:services": "tsup src/services --clean --format esm --out-dir dist/services --tsconfig tsconfig.services.json",
+    "build:services": "tsup src/services --format esm --out-dir dist/services --tsconfig tsconfig.services.json",
     "lint": "next lint",
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
