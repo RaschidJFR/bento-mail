@@ -1,4 +1,4 @@
-import { INewsletter, IArticle } from '@lib/models';
+import type { INewsletter, IArticle } from '@lib/models';
 import { NewsletterHeader } from '@components/NewsletterHeader';
 import { ArticleCard } from '@components/ArticleCard';
 
