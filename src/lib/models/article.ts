@@ -2,6 +2,8 @@ import { prop, getModelForClass, DocumentType, modelOptions, index } from '@type
 import { extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';
 import { fetchHtmlContent, htmlToMarkdown, hash } from '@lib/utils';
 import { clearModelInDevelopment } from './utils';
+import { Reaction, ReactionsEnum } from './reaction';
+import { Types } from 'mongoose';
 
 export interface IArticle {
   _id: string;
@@ -129,6 +131,29 @@ export class ArticleClass implements IArticle {
       this.lastError = error.message || String(error);
       await this.save();
       throw error;
+    }
+  }
+
+  /**
+   * Add or update a user's reaction to this article.
+   * Each user can have only one reaction per article.
+   */
+  public async addReaction(this: DocumentType<ArticleClass>, reaction: ReactionsEnum, userId: string | Types.ObjectId) {
+    const existingReaction = await Reaction.findOne({ user: userId, article: this._id });
+    if (existingReaction) {
+      if (existingReaction.reaction === reaction) {
+        // No change needed
+        return;
+      }
+      existingReaction.reaction = reaction;
+      await existingReaction.save();
+    } else {
+      const newReaction = new Reaction({
+        user: userId,
+        article: this._id,
+        reaction: reaction,
+      });
+      await newReaction.save();
     }
   }
 }

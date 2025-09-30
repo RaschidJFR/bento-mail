@@ -6,7 +6,6 @@ import { Newsletter, NewsletterClass } from './newsletter';
 import { Article, ArticleClass } from './article';
 import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
-import { warn } from 'console';
 
 enum ReactionsEnum {
   /**
@@ -230,7 +229,7 @@ export class BundleClass implements IBundle {
     }
 
     if ((existing.processingStage || ProcessingStagesEnum.NOT_STARTED) != ProcessingStagesEnum.NOT_STARTED) {
-      warn(
+      console.warn(
         `[Bundle.processArticles] Bundle ${this._id} has been previously processed (${
           ProcessingStagesEnum[existing.processingStage]
         }). Processing again...`

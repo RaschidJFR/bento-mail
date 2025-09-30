@@ -5,6 +5,7 @@ import { Newsletter } from './newsletter';
 import { Article } from './article';
 import { User } from './user';
 import { Bundle } from './bundle';
+import { Reaction } from './reaction';
 
 export { Newsletter } from './newsletter';
 export type { INewsletter } from './newsletter';
@@ -14,31 +15,8 @@ export { User } from './user';
 export type { IUser } from './user';
 export { Bundle } from './bundle';
 export type { IBundle } from './bundle';
-
-/**
- * @deprecated This should be already addressed by Typegoose in each model.
- */
-export async function ensureIndexes(mongoose: mongoose.Mongoose): Promise<void> {
-  // Throw an error if not connected
-  if (mongoose.connection.readyState !== 1) {
-    throw new Error('Mongoose is not connected. Please connect before ensuring indexes.');
-  }
-
-  const modelList: ReturnModelType<any>[] = [Newsletter, Article, User, Bundle];
-
-  for (const model of modelList) {
-    if (model && typeof model.ensureIndexes === 'function') {
-      console.log(`Ensuring indexes for ${model.modelName}...`);
-      try {
-        await model.ensureIndexes();
-      } catch (error) {
-        console.error(`Error ensuring indexes for ${model.modelName}:`, error);
-      }
-    }
-  }
-
-  console.log('All indexes ensured.');
-}
+export { Reaction } from './reaction';
+export type { IReaction } from './reaction';
 
 // Connect to the database when this module is imported
 if (process.env.MONGODB_URI) {
