@@ -1,7 +1,6 @@
 import { getModelForClass, getName, prop, index, queryMethod } from '@typegoose/typegoose';
 import type { DocumentType, Ref, types } from '@typegoose/typegoose';
 import { clearModelInDevelopment } from './utils';
-import { Article, User } from '.';
 import { UserClass } from './user';
 import { ArticleClass } from './article';
 import { Types } from 'mongoose';
@@ -22,11 +21,11 @@ export interface IReaction {
   reaction: ReactionsEnum;
 }
 
-function findByUser(this: types.QueryHelperThis<typeof Reaction, QueryHelpers>, user: string | Types.ObjectId) {
+function findByUser(this: types.QueryHelperThis<typeof ReactionClass, QueryHelpers>, user: string | Types.ObjectId) {
   return this.find({ user });
 }
 
-function findByArticle(this: types.QueryHelperThis<typeof Reaction, QueryHelpers>, article: string | Types.ObjectId) {
+function findByArticle(this: types.QueryHelperThis<typeof ReactionClass, QueryHelpers>, article: string | Types.ObjectId) {
   return this.find({ article });
 }
 
@@ -34,10 +33,10 @@ function findByArticle(this: types.QueryHelperThis<typeof Reaction, QueryHelpers
 @queryMethod(findByArticle) // adds the "findByArticle" method to the model
 @index({ user: 1, article: 1 }, { unique: true })
 export class ReactionClass implements IReaction {
-  @prop({ ref: () => User, required: true })
+  @prop({ ref: () => UserClass, required: true })
   public user!: Ref<UserClass>;
-  @prop({ ref: () => Article, type: String, required: true })
-  public article!: Ref<Article>;
+  @prop({ ref: () => UserClass, type: String, required: true })
+  public article!: Ref<ArticleClass>;
   @prop({ type: Number, enum: ReactionsEnum, required: true })
   public reaction!: ReactionsEnum;
 }

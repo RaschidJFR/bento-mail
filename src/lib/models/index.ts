@@ -1,11 +1,5 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
-import { ReturnModelType } from '@typegoose/typegoose';
-import { Newsletter } from './newsletter';
-import { Article } from './article';
-import { User } from './user';
-import { Bundle } from './bundle';
-import { Reaction } from './reaction';
 
 export { Newsletter } from './newsletter';
 export type { INewsletter } from './newsletter';

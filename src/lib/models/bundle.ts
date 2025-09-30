@@ -1,11 +1,12 @@
-import { getModelForClass, getName, pre, prop, index } from '@typegoose/typegoose';
+import { getModelForClass, getName, pre, prop, index, isDocument } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
 import type { ObjectId } from 'mongoose';
-import { UserClass, User } from './user';
-import { Newsletter, NewsletterClass } from './newsletter';
-import { Article, ArticleClass } from './article';
+import { UserClass } from './user';
+import { NewsletterClass } from './newsletter';
+import { ArticleClass } from './article';
 import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
+import { Reaction, Article, User, Newsletter } from '.';
 
 enum ReactionsEnum {
   /**
@@ -74,6 +75,18 @@ export class BundleClass implements IBundle {
   public processingStage: ProcessingStagesEnum = ProcessingStagesEnum.NOT_STARTED;
   @prop({ type: Array })
   public reactions?: IBundle['reactions'];
+
+  /**
+   * Retrieves a map of article IDs to the user's reactions for quick lookup.
+   */
+  public async getReactionMap(this: DocumentType<BundleClass>) {
+    const reactions = await Reaction.find().findByUser(this.user._id).exec();
+    const map = new Map<string, ReactionsEnum>();
+    reactions.forEach(({ article, reaction }) => {
+      map.set(article.toString(), reaction);
+    });
+    return map;
+  }
 
   /**
    * Adds one or more newsletter IDs or Newsletter documents to the bundle, preventing duplicates.
@@ -286,6 +299,20 @@ export class BundleClass implements IBundle {
     }
   }
   public static ProcessingStages = ProcessingStagesEnum;
+
+  /**
+   * Get all articles in this bundle, including those from newsletters.
+   */
+  public allArticles(this: DocumentType<BundleClass>): string[] {
+    if (!this.articles || !this.newsletters) {
+      throw new Error('Please populate both articles and newsletters before calling allArticles()');
+    }
+
+    const newsletters = this.newsletters || [];
+    const articles = newsletters.map((nl) => (nl as Newsletter).articles).flat();
+    const result = articles.concat(this.articles).map((a) => isDocument(a) ? a.id : a);
+    return result;
+  }
 }
 
 clearModelInDevelopment(getName(BundleClass));
