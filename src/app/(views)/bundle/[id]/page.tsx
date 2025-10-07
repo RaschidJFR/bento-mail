@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
-import { Bundle, IArticle, INewsletter } from '@lib/models';
+import { Bundle, IArticle, IBundle, INewsletter } from '@lib/models';
 import { NewsletterDisplay } from '@components/NewsletterDisplay';
+import type { ReactionsEnum } from '@lib/models/enums';
 
 export const dynamic = 'force-dynamic';
 
@@ -49,6 +50,8 @@ async function getBundleArticles(id: string) {
     console.warn('Database not connected, using mock bundle articles');
     return {
       count: mockArticles.length,
+      userId: '',
+      reactionMap: new Map<string, ReactionsEnum>(),
       newsletters: [
         {
           _id: 'mock-newsletter-1',
@@ -57,23 +60,35 @@ async function getBundleArticles(id: string) {
           articles: mockArticles,
           error: '',
           content: '',
-        },
+        } as INewsletter,
       ],
     };
   }
 
-  const bundle = await Bundle.findById(id)
+  const reactionMap = await Bundle.getReactionMap(id);
+  const articlesWithReactions = Array.from(reactionMap.keys());
+
+  const bundle: IBundle | null = await Bundle.findById(id)
     .populate([
       {
         path: 'articles',
-        match: { $or: [{ lastError: '' }, { lastError: { $exists: false } }] },
+        match: {
+          $or: [{ lastError: '' }, { lastError: { $exists: false } }],
+          _id: { $nin: articlesWithReactions },
+        },
       },
       {
         path: 'newsletters',
-        match: { $or: [{ error: '' }, { error: { $exists: false } }] },
+        match: {
+          $or: [{ lastError: '' }, { lastError: { $exists: false } }],
+          _id: { $nin: articlesWithReactions },
+        },
         populate: {
           path: 'articles',
-          match: { $or: [{ lastError: '' }, { lastError: { $exists: false } }] },
+          match: {
+            $or: [{ lastError: '' }, { lastError: { $exists: false } }],
+            _id: { $nin: articlesWithReactions },
+          },
         },
       },
     ])
@@ -105,11 +120,13 @@ async function getBundleArticles(id: string) {
       ...nl,
       articles: ((nl.articles as IArticle[]) || []).filter((a: IArticle) => byId.has(String(a._id))),
     }))
-    .sort((a, b) => (a.date && b.date ? (a.date > b.date ? -1 : a.date < b.date ? 1 : 0) : 0));
+    .sort((a, b) => (a.date && b.date ? (a.date > b.date ? -1 : a.date < b.date ? 1 : 0) : 0)) as INewsletter[];
 
   return {
     count: byId.size,
     newsletters,
+    userId: String(bundle.user._id) || '',
+    reactionMap,
   };
 }
 
@@ -124,7 +141,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <main>
           <div className="space-y-12">
             {(data?.newsletters || []).map((newsletter) => (
-              <NewsletterDisplay key={newsletter._id} newsletter={newsletter as any} />
+              <NewsletterDisplay
+                key={newsletter._id}
+                newsletter={newsletter as INewsletter}
+                userId={data.userId}
+                reactionMap={data.reactionMap}
+              />
             ))}
           </div>
         </main>

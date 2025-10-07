@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { Reaction, ReactionsEnum } from '@lib/models/reaction';
+import { Reaction } from '@lib/models/reaction';
+import { ReactionsEnum } from '@lib/models/enums';
 
 export interface ReactionRequestBody {
   user: string;

@@ -21,19 +21,17 @@ export default async function (req: NextRequest) {
 
 async function getByBundle(bundleId: string) {
   // Find bundle and get all article IDs
-  const bundle = await Bundle.findById({ _id: bundleId }).populate('newsletters');
+  const bundle = await Bundle.findById(bundleId).populate('newsletters', 'articles');
   if (!bundle) {
     return Response.json({ error: 'Bundle not found' }, { status: 404 });
   }
 
-  const articleIds = bundle.allArticles();
+  const articleIds = bundle.unwrapArticleIds();
 
   const reactions = await Reaction.find({
     user: bundle.user,
     article: { $in: articleIds },
-  })
-    // .populate('article')
-    .lean();
+  }).lean();
 
   return Response.json({ result: reactions }, { status: 200 });
 }

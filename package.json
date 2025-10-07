@@ -5,7 +5,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "start": "next start",
+    "start": "npm run dev & npm run mail & npm run worker & npm run agendash & npm run rtdb",
     "dev": "next dev & npm run build:services -- --watch --no-minify",
     "build": "next build",
     "build:services": "tsup src/services --format esm --out-dir dist/services --tsconfig tsconfig.services.json",

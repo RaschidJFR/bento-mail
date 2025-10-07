@@ -4,16 +4,7 @@ import { clearModelInDevelopment } from './utils';
 import { UserClass } from './user';
 import { ArticleClass } from './article';
 import { Types } from 'mongoose';
-
-/**
- * Enum representing possible reactions to an article.
- */
-export enum ReactionsEnum {
-  PROBLEM = -2,
-  NEGATIVE = -1,
-  ACKNOWLEDGED = 1,
-  POSITIVE = 2,
-}
+import { ReactionsEnum } from './enums';
 
 export interface IReaction {
   user: Ref<UserClass>;
