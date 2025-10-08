@@ -26,7 +26,7 @@ function findByArticle(this: types.QueryHelperThis<typeof ReactionClass, QueryHe
 export class ReactionClass implements IReaction {
   @prop({ ref: () => UserClass, required: true })
   public user!: Ref<UserClass>;
-  @prop({ ref: () => UserClass, type: String, required: true })
+  @prop({ ref: () => ArticleClass, type: String, required: true })
   public article!: Ref<ArticleClass>;
   @prop({ type: Number, enum: ReactionsEnum, required: true })
   public reaction!: ReactionsEnum;
