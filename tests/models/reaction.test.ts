@@ -1,6 +1,5 @@
-import { Reaction, ReactionsEnum } from '../../src/lib/models/reaction';
-import { User } from '../../src/lib/models/user';
-import { Article } from '../../src/lib/models/article';
+import { Reaction, User, Article } from '@lib/models';
+import { ReactionsEnum } from '@lib/models/enums';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('Reaction Model', () => {
@@ -16,20 +15,20 @@ describe('Reaction Model', () => {
     const reaction = await Reaction.create({
       user: user._id,
       article: article._id,
-      reaction: ReactionsEnum.NEGATIVE,
+      reaction: ReactionsEnum.SKIP,
     });
     await expect(
       Reaction.create({
         user: user._id,
         article: article._id,
-        reaction: ReactionsEnum.POSITIVE,
+        reaction: ReactionsEnum.UPVOTE,
       })
     ).rejects.toThrow();
 
     reaction.set({
       user: user._id,
       article: article._id,
-      reaction: ReactionsEnum.POSITIVE,
+      reaction: ReactionsEnum.UPVOTE,
     });
     await expect(reaction.save()).resolves.toBeDefined();
   });
@@ -46,7 +45,7 @@ describe('Reaction Model', () => {
     const original = await Reaction.create({
       user: user._id,
       article: article._id,
-      reaction: ReactionsEnum.POSITIVE,
+      reaction: ReactionsEnum.UPVOTE,
     });
     const found = await Reaction.find().findByUser(user._id).exec();
     expect(found[0].id).toBe(original.id);
@@ -56,7 +55,7 @@ describe('Reaction Model', () => {
     const original = await Reaction.create({
       user: user._id,
       article: article._id,
-      reaction: ReactionsEnum.NEGATIVE,
+      reaction: ReactionsEnum.SKIP,
     });
     const found = await Reaction.find().findByArticle(article._id).exec();
     expect(found[0].id).toBe(original.id);

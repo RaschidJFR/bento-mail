@@ -8,25 +8,7 @@ import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
 import { Reaction, Article, User, Newsletter } from '.';
 import { IReaction } from './reaction';
-
-enum ReactionsEnum {
-  /**
-   * A problem occurred while processing the article (e.g., extraction failure).
-   */
-  PROBLEM = -2,
-  /**
-   * The user disliked the article.
-   */
-  NEGATIVE = -1,
-  /**
-   * The user has seen the article but has not expressed a clear preference.
-   */
-  ACKNOWLEDGED = 1,
-  /**
-   * The user liked the article.
-   */
-  POSITIVE = 2,
-}
+import { ReactionsEnum } from './enums';
 
 interface IReactions {
   article: string;

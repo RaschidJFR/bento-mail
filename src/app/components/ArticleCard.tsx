@@ -39,8 +39,8 @@ async function upsertReaction({
 export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [liveArticle, setLiveArticle] = useState(article);
-  const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.POSITIVE);
-  const [isRemoved, setIsRemoved] = useState(reaction === ReactionsEnum.NEGATIVE);
+  const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
+  const [isRemoved, setIsRemoved] = useState(reaction === ReactionsEnum.SKIP);
   const [isFlagged, setIsFlagged] = useState(reaction === ReactionsEnum.PROBLEM);
   const [isProcessing, setIsProcessing] = useState(!isProcessed(article));
 
@@ -52,7 +52,7 @@ export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => 
       await upsertReaction({
         userId,
         articleId: article._id,
-        reaction: isLiked ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.POSITIVE,
+        reaction: isLiked ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.UPVOTE,
       });
     }
   };
@@ -65,7 +65,7 @@ export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => 
       await upsertReaction({
         userId,
         articleId: article._id,
-        reaction: isRemoved ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.NEGATIVE,
+        reaction: isRemoved ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.SKIP,
       });
     }
   };
