@@ -73,24 +73,29 @@ export function defineJobs(agenda: Agenda) {
   });
 
   // Define job to process article
-  agenda.define(JobNames.Article.process, { shouldSaveResult: true }, async (job: Job<{ id: string, force?: boolean }>) => {
-    const id = job.attrs.data?.id;
-    const force = job.attrs.data?.force;
+  agenda.define(
+    JobNames.Article.process,
+    { shouldSaveResult: true },
+    async (job: Job<{ id: string, force?: boolean, generateImage?: boolean }>) => {
+      const id = job.attrs.data?.id;
+      const force = job.attrs.data?.force;
+      const generateImage = job.attrs.data?.generateImage;
 
-    if (!id) {
-      throw new Error('Missing id');
-    }
-    const article = await Article.findById({ _id: id });
-    if (!article) {
-      throw new Error(`Article not found: ${id}`);
-    }
+      if (!id) {
+        throw new Error('Missing id');
+      }
+      const article = await Article.findById({ _id: id });
+      if (!article) {
+        throw new Error(`Article not found: ${id}`);
+      }
 
-    try {
-      await article.process({ force });
-      return { processed: article.isProcessed() };
-    } catch (err: any) {
-      console.error(`[worker] Error processing article ${id}:`, err.message);
-      throw err;
+      try {
+        await article.process({ force, generateImage });
+        return { processed: article.isProcessed() };
+      } catch (err: any) {
+        console.error(`[worker] Error processing article ${id}:`, err.message);
+        throw err;
+      }
     }
-  });
+  );
 }

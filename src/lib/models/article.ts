@@ -71,7 +71,7 @@ export class ArticleClass implements IArticle {
    * If `summaries` already exist, the method will not re-process the article.
    * If a previous processing attempt failed, it will retry.
    */
-  public async process(this: DocumentType<ArticleClass>, { force = false } = {}) {
+  public async process(this: DocumentType<ArticleClass>, { force = false, generateImage = false } = {}) {
     let existing = (await ArticleModel.findById(this._id)) as Article;
     if ((existing && this.isModified()) || !existing) {
       throw new Error('You must save any changes to this object before processing');
@@ -99,7 +99,7 @@ export class ArticleClass implements IArticle {
       const data = await extractArticleDetails(existing.content);
 
       let coverImg = existing?.coverImg || data.coverImg || '';
-      if (!coverImg) {
+      if (!coverImg && generateImage) {
         console.warn(`No cover image found for article %o. Attempting to generate.`, this._id);
         try {
           const { oneliner, overview, details } = data.summaries!;

@@ -33,7 +33,7 @@ const NewsletterSchema = z.object({
   date: z.string().default('').describe('The date of the newsletter (yyyy-mm-dd numbers). Empty string if not found.'),
 });
 
-const ComplementaryArticleSchema = z.object({
+const SummarizedArticleSchema = z.object({
   coverImg: z.string().default('').describe('URL to the cover image of the article. Empty string if not found.'),
   date: z
     .string()
@@ -68,8 +68,6 @@ export async function extractArticlesFromNewsletter(textContent: string): Promis
   }
 
   const prompt = `
-You are an expert at extracting structured information from newsletter Markdown content. 
-
 Analyze the provided Markdown content and extract all newsletter articles. For each article, identify:
 
 1. **header**: The main title/headline of the article
@@ -155,8 +153,8 @@ Analyze the provided Markdown content extracted from a web article and extract t
 
 Create three different summaries
 1. **oneliner**: Create the most accurate and compelling header/title for this article in less than 100 characters
-2. **overview**: Write the most complete conclusion and key takeaways in less than 200 characters
-3. **details**: Add supporting details and evidence that complement the overview summary in less than 500 characters
+2. **overview**: Write the most complete conclusion and key takeaways in less than 200 characters. Do not repeat what's in the oneliner.
+3. **details**: Add supporting details and evidence that complement the overview summary in less than 500 characters. Do not repeat what's in the overview.
 
 Rules:
 - The oneliner should be more accurate than the original title if needed
@@ -173,7 +171,7 @@ ${textContent}
 `;
 
   const result: ArticleDetailsProps = await model
-    .withStructuredOutput(ComplementaryArticleSchema)
+    .withStructuredOutput(SummarizedArticleSchema)
     .invoke([new SystemMessage(prompt)]);
   return result;
 }
