@@ -9,6 +9,9 @@ export async function setup() {
   process.env.DATABASE_NAME = '_test';
   process.env.AGENDA_COLLECTION = 'agenda_test';
 
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI not set in environment variables');
+  }
   await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.DATABASE_NAME });
 }
 

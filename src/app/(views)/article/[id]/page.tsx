@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { Article, IArticle } from '@lib/models';
+import { Article } from '@lib/models';
+import type { IArticle } from '@lib/models';
 import { ArticleCard } from '@components/ArticleCard';
 
 export const dynamic = 'force-dynamic';

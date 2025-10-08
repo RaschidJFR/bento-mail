@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
-import { Newsletter, IArticle, INewsletter } from '@lib/models';
+import { Newsletter } from '@lib/models';
+import type { IArticle, INewsletter } from '@lib/models';
 import { NewsletterHeader } from '@components/NewsletterHeader';
 import { ArticleCard } from '@components/ArticleCard';
 

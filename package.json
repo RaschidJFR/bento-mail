@@ -5,11 +5,8 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "start": "next start",
-    "preview": "next start",
-    "dev": "next dev",
-    "dev:services": "npm run build:services -- --watch --no-minify",
-    "build:dev": "next build",
+    "start": "npm run dev & npm run mail & npm run worker & npm run agendash & npm run rtdb",
+    "dev": "next dev & npm run build:services -- --watch --no-minify",
     "build": "next build",
     "build:services": "tsup src/services --format esm --out-dir dist/services --tsconfig tsconfig.services.json",
     "lint": "next lint",
@@ -25,6 +22,7 @@
     "@ai-sdk/openai": "^2.0.30",
     "@langchain/core": "^0.3.21",
     "@langchain/openai": "^0.6.13",
+    "@radix-ui/react-slot": "^1.2.3",
     "@typegoose/typegoose": "^12.19.0",
     "agenda": "^5.0.0",
     "axios": "^1.7.0",

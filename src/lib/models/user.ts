@@ -1,14 +1,17 @@
 import { DocumentType, getModelForClass, prop, index } from '@typegoose/typegoose';
-import { type ObjectId } from 'mongoose';
+import { Types } from 'mongoose';
 import { clearModelInDevelopment } from './utils';
+import { Base } from '@typegoose/typegoose/lib/defaultClasses';
 
-export interface IUser {
-  _id?: ObjectId;
+export interface IUser extends Base {
   email: string;
 }
 
 @index({ email: 1 }, { unique: true }) // Add index for email search
 export class UserClass implements IUser {
+  public _id!: Types.ObjectId;
+  public id!: string;
+
   @prop({ required: true, unique: true, type: String })
   public email!: string;
 }

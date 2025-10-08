@@ -1,12 +1,19 @@
-import { getModelForClass, getName, pre, prop, index } from '@typegoose/typegoose';
+import { getModelForClass, getName, pre, prop, index, isDocument } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
-import type { ObjectId } from 'mongoose';
-import { UserClass, User } from './user';
-import { Newsletter, NewsletterClass } from './newsletter';
-import { Article, ArticleClass } from './article';
+import { Types, type ObjectId } from 'mongoose';
+import { UserClass } from './user';
+import { NewsletterClass } from './newsletter';
+import { ArticleClass } from './article';
 import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
-import { warn } from 'console';
+import { Reaction, Article, User, Newsletter } from '.';
+import { IReaction } from './reaction';
+import { ReactionsEnum } from './enums';
+
+interface IReactions {
+  article: string;
+  reaction: ReactionsEnum;
+}
 
 export interface IBundle {
   _id: ObjectId;
@@ -15,6 +22,7 @@ export interface IBundle {
   newsletters?: Ref<NewsletterClass>[];
   articles?: Ref<ArticleClass>[];
   processingStage: ProcessingStagesEnum;
+  reactions?: IReactions[];
 }
 
 enum ProcessingStagesEnum {
@@ -48,6 +56,8 @@ export class BundleClass implements IBundle {
   public articles?: Ref<ArticleClass>[];
   @prop({ type: Number, enum: ProcessingStagesEnum, default: ProcessingStagesEnum.NOT_STARTED })
   public processingStage: ProcessingStagesEnum = ProcessingStagesEnum.NOT_STARTED;
+  @prop({ type: Array })
+  public reactions?: IBundle['reactions'];
 
   /**
    * Adds one or more newsletter IDs or Newsletter documents to the bundle, preventing duplicates.
@@ -203,7 +213,7 @@ export class BundleClass implements IBundle {
     }
 
     if ((existing.processingStage || ProcessingStagesEnum.NOT_STARTED) != ProcessingStagesEnum.NOT_STARTED) {
-      warn(
+      console.warn(
         `[Bundle.processArticles] Bundle ${this._id} has been previously processed (${
           ProcessingStagesEnum[existing.processingStage]
         }). Processing again...`
@@ -260,6 +270,82 @@ export class BundleClass implements IBundle {
     }
   }
   public static ProcessingStages = ProcessingStagesEnum;
+
+  /**
+   * Unwrap all articles in this bundle, including those from newsletters.
+   */
+  public unwrapArticleIds(this: DocumentType<BundleClass>): string[] {
+    if (!this.articles || !this.newsletters) {
+      throw new Error('Please populate both articles and newsletters before calling allArticles()');
+    }
+
+    const newsletters = this.newsletters || [];
+    const articles = newsletters.map((nl) => (nl as Newsletter).articles).flat();
+    const result = articles.concat(this.articles).map((a) => (isDocument(a) ? a.id : a));
+    return result;
+  }
+
+  /**
+   * Get a map of article IDs to the user's reactions for all articles in the bundle,
+   */
+  public static async getReactionMap(this: ReturnModelType<typeof BundleClass>, bundleId: string | ObjectId) {
+    const pipeline = [
+      {
+        $match: { _id: typeof bundleId === 'string' ? new Types.ObjectId(bundleId) : bundleId },
+      },
+      {
+        $lookup: {
+          from: 'newsletterclasses',
+          localField: 'newsletters',
+          foreignField: '_id',
+          as: 'newsletterDetails',
+        },
+      },
+      {
+        $unwind: '$newsletterDetails',
+      },
+      {
+        $unwind: '$newsletterDetails.articles',
+      },
+      {
+        $group: {
+          _id: '$_id',
+          user: {
+            $first: '$user',
+          },
+          newsletters: {
+            $first: '$newsletters',
+          },
+          articles: {
+            $first: '$articles',
+          },
+          newsletterArticles: {
+            $addToSet: '$newsletterDetails.articles',
+          },
+        },
+      },
+      {
+        $project: {
+          user: 1,
+          articlesUnion: {
+            $setUnion: ['$articles', '$newsletterArticles'],
+          },
+        },
+      },
+    ];
+
+    const results = await this.aggregate(pipeline).exec();
+    if (!results.length) throw new Error('Bundle not found');
+    const ids: string[] = results[0].articlesUnion;
+    const user = results[0].user;
+
+    const reactions: IReaction[] = await Reaction.find({ article: { $in: ids }, user }).lean();
+    const map = new Map<string, ReactionsEnum>();
+    reactions.forEach(({ article, reaction }) => {
+      map.set(article.toString(), reaction);
+    });
+    return map;
+  }
 }
 
 clearModelInDevelopment(getName(BundleClass));
