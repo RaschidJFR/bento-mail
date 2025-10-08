@@ -10,11 +10,6 @@ import { Reaction, Article, User, Newsletter } from '.';
 import { IReaction } from './reaction';
 import { ReactionsEnum } from './enums';
 
-interface IReactions {
-  article: string;
-  reaction: ReactionsEnum;
-}
-
 export interface IBundle {
   _id: ObjectId;
   sendOn?: Date;
@@ -22,7 +17,6 @@ export interface IBundle {
   newsletters?: Ref<NewsletterClass>[];
   articles?: Ref<ArticleClass>[];
   processingStage: ProcessingStagesEnum;
-  reactions?: IReactions[];
 }
 
 enum ProcessingStagesEnum {
@@ -56,8 +50,6 @@ export class BundleClass implements IBundle {
   public articles?: Ref<ArticleClass>[];
   @prop({ type: Number, enum: ProcessingStagesEnum, default: ProcessingStagesEnum.NOT_STARTED })
   public processingStage: ProcessingStagesEnum = ProcessingStagesEnum.NOT_STARTED;
-  @prop({ type: Array })
-  public reactions?: IBundle['reactions'];
 
   /**
    * Adds one or more newsletter IDs or Newsletter documents to the bundle, preventing duplicates.
