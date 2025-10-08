@@ -1,8 +1,8 @@
 'use client';
-import type { IArticle } from '@lib/models';
-import { Card } from '@components/ui/card';
-import { Badge } from '@components/ui/badge';
-import { Button } from '@components/ui/button';
+import type { IArticle } from '@lib/models/types';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { formatDate } from './utils';
@@ -12,6 +12,7 @@ interface ArticleCardProps {
   article: IArticle;
   userId?: string;
   reaction?: ReactionsEnum;
+  onRemove?: (articleId: string) => void;
 }
 
 function isProcessed(article: IArticle) {
@@ -36,18 +37,20 @@ async function upsertReaction({
   return await res.json();
 }
 
-export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => {
+export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [liveArticle, setLiveArticle] = useState(article);
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
-  const [isRemoved, setIsRemoved] = useState(reaction === ReactionsEnum.SKIP);
+  const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
   const [isFlagged, setIsFlagged] = useState(reaction === ReactionsEnum.PROBLEM);
   const [isProcessing, setIsProcessing] = useState(!isProcessed(article));
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const handleLike = async () => {
     setIsLiked(!isLiked);
     setIsFlagged(false);
-    setIsRemoved(false);
+    setIsSkip(false);
+    setIsRemoving(!isLiked);
     if (userId) {
       await upsertReaction({
         userId,
@@ -55,25 +58,39 @@ export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => 
         reaction: isLiked ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.UPVOTE,
       });
     }
+    // Remove article after animation
+    !isLiked &&
+      setTimeout(() => {
+        console.log('Removing article', article._id);
+        onRemove?.(article._id);
+      }, 300);
   };
 
-  const handleRemove = async () => {
+  const handleSkip = async () => {
     setIsLiked(false);
     setIsFlagged(false);
-    setIsRemoved(!isRemoved);
+    setIsSkip(!isSkip);
+    setIsRemoving(!isSkip);
     if (userId) {
       await upsertReaction({
         userId,
         articleId: article._id,
-        reaction: isRemoved ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.SKIP,
+        reaction: isSkip ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.SKIP,
       });
     }
+    // Remove article after animation
+    !isSkip &&
+      setTimeout(() => {
+        console.log('Removing article', article._id);
+        onRemove?.(article._id);
+      }, 300);
   };
 
   const handleFlag = async () => {
     setIsLiked(false);
     setIsFlagged(!isFlagged);
-    setIsRemoved(false);
+    setIsSkip(false);
+    setIsRemoving(!isFlagged);
     if (userId) {
       await upsertReaction({
         userId,
@@ -81,6 +98,12 @@ export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => 
         reaction: isFlagged ? ReactionsEnum.ACKNOWLEDGED : ReactionsEnum.PROBLEM,
       });
     }
+    // Remove article after animation
+    !isFlagged &&
+      setTimeout(() => {
+        console.log('Removing article', article._id);
+        onRemove?.(article._id);
+      }, 300);
   };
 
   const handleProcess = () => {
@@ -93,11 +116,14 @@ export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => 
 
   return (
     <Card
-      className={`relative overflow-hidden bg-surface-elevated border-border hover:border-brand-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-brand-primary/10 group ${
-        isLiked || isRemoved || isFlagged || isProcessing ? 'opacity-60' : ''
-      }`}
+      className={`relative overflow-hidden bg-surface-elevated border-border 
+          transition-all duration-300 max-h-screen
+          hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/10 group 
+          ${isLiked || isSkip || isFlagged || isProcessing ? 'opacity-60' : ''} 
+        `}
+      style={isRemoving ? { maxHeight: 0, opacity: 0 } : {}}
     >
-      <div className='relative'>
+      <div className="relative">
         {/* Processing overlay */}
         {!isProcessed(liveArticle) && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
@@ -167,20 +193,22 @@ export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => 
       {/* Read Full Article Link & Action Buttons */}
       <div className="p-2 pr-6 pl-6 border-t border-border/50">
         <div className="flex items-center justify-between w-full">
-          {liveArticle.url && (
-            <a
-              href={liveArticle.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm"
-            >
-              <ExternalLink className="w-4 h-4" />
-              <div>Read full article</div>
-            </a>
-          )}
+          <div className="flex-1">
+            {liveArticle.url && (
+              <a
+                href={liveArticle.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm"
+              >
+                <ExternalLink className="w-4 h-4" />
+                <div>Read full article</div>
+              </a>
+            )}
+          </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 ml-auto">
             <Button
               variant="ghost"
               size="sm"
@@ -195,9 +223,9 @@ export const ArticleCard = ({ article, userId, reaction }: ArticleCardProps) => 
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleRemove}
+              onClick={handleSkip}
               className={`flex items-center gap-1 ${
-                isRemoved ? 'text-red-500' : 'text-muted-foreground'
+                isSkip ? 'text-red-500' : 'text-muted-foreground'
               } hover:text-red-600 px-2`}
             >
               <X className="w-4 h-4" />

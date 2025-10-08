@@ -81,7 +81,6 @@ async function getBundleArticles(id: string) {
         path: 'newsletters',
         match: {
           $or: [{ lastError: '' }, { lastError: { $exists: false } }],
-          _id: { $nin: articlesWithReactions },
         },
         populate: {
           path: 'articles',
@@ -140,14 +139,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <main>
           <div className="space-y-12">
-            {(data?.newsletters || []).map((newsletter) => (
-              <NewsletterDisplay
-                key={newsletter._id}
-                newsletter={newsletter as INewsletter}
-                userId={data.userId}
-                reactionMap={data.reactionMap}
-              />
-            ))}
+            {data?.newsletters.length ? (
+              data.newsletters.map((newsletter) => (
+                <NewsletterDisplay
+                  key={newsletter._id}
+                  newsletter={newsletter as INewsletter}
+                  userId={data.userId}
+                  reactionMap={data.reactionMap}
+                />
+              ))
+            ) : (
+              <p className="text-center text-muted-foreground">No newsletters available.</p>
+            )}
           </div>
         </main>
       </div>

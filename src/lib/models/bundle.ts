@@ -291,7 +291,9 @@ export class BundleClass implements IBundle {
   public static async getReactionMap(this: ReturnModelType<typeof BundleClass>, bundleId: string | ObjectId) {
     const pipeline = [
       {
-        $match: { _id: typeof bundleId === 'string' ? new Types.ObjectId(bundleId) : bundleId },
+        $match: {
+          _id: typeof bundleId === 'string' ? new Types.ObjectId(bundleId) : bundleId,
+        },
       },
       {
         $lookup: {
@@ -339,7 +341,11 @@ export class BundleClass implements IBundle {
     const ids: string[] = results[0].articlesUnion;
     const user = results[0].user;
 
-    const reactions: IReaction[] = await Reaction.find({ article: { $in: ids }, user }).lean();
+    const reactions: IReaction[] = await Reaction.find({
+      article: { $in: ids },
+      user,
+      reaction: { $ne: ReactionsEnum.ACKNOWLEDGED },
+    }).lean();
     const map = new Map<string, ReactionsEnum>();
     reactions.forEach(({ article, reaction }) => {
       map.set(article.toString(), reaction);

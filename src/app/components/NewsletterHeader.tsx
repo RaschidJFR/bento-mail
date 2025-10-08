@@ -1,5 +1,5 @@
-import { Badge } from '@components/ui/badge';
-import type { INewsletter } from '@lib/models';
+import { Badge } from './ui/badge';
+import type { INewsletter } from '@lib/models/types';
 import { Calendar } from 'lucide-react';
 import { formatDate } from './utils';
 
