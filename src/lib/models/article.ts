@@ -17,6 +17,7 @@ export interface IArticle {
     details: string;
   };
   lastError?: string;
+  secondaryArticles?: Partial<IArticle>[];
 }
 
 function generateId(article: DocumentType<ArticleClass>) {
@@ -45,6 +46,8 @@ export class ArticleClass implements IArticle {
   public sourceName: string = '';
   @prop({ default: {}, type: Object })
   public summaries: IArticle['summaries'] = {} as IArticle['summaries'];
+  @prop({ type: [Object] })
+  public secondaryArticles?: Partial<IArticle>[];
 
   /**
    * Error message from the last processing attempt, if any.

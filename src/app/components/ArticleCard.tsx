@@ -4,7 +4,7 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
 
@@ -46,6 +46,11 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
   const [isProcessing, setIsProcessing] = useState(!isProcessed(article));
   const [isRemoving, setIsRemoving] = useState(false);
 
+  useEffect(() => {
+    setLiveArticle(article);
+    setIsProcessing(!isProcessed(article));
+  }, [article]);
+
   const handleLike = async () => {
     setIsLiked(!isLiked);
     setIsFlagged(false);
@@ -61,7 +66,6 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
     // Remove article after animation
     !isLiked &&
       setTimeout(() => {
-        console.log('Removing article', article._id);
         onRemove?.(article._id);
       }, 300);
   };
@@ -81,7 +85,6 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
     // Remove article after animation
     !isSkip &&
       setTimeout(() => {
-        console.log('Removing article', article._id);
         onRemove?.(article._id);
       }, 300);
   };
@@ -101,17 +104,25 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
     // Remove article after animation
     !isFlagged &&
       setTimeout(() => {
-        console.log('Removing article', article._id);
         onRemove?.(article._id);
       }, 300);
   };
 
-  const handleProcess = () => {
+  const handleProcess = async () => {
+    setLiveArticle({ ...liveArticle, summaries: {} } as any);
     setIsProcessing(true);
-    // Simulate processing
-    setTimeout(() => {
-      setIsProcessing(false);
-    }, 2000);
+    try {
+      const res = await fetch(`/api/article/${article._id}/process`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      });
+      if (!res.ok) throw new Error('Failed to process article');
+      // UI will update via props
+    } catch (err) {
+      console.error(err);
+    }
+    // Don't setIsProcessing(false) here; let props handle it
   };
 
   return (

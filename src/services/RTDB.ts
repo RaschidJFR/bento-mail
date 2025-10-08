@@ -1,4 +1,4 @@
-import { Article, Newsletter, Bundle } from '@lib/models';
+import { Article, Newsletter, Bundle, IArticle } from '@lib/models';
 import { Server } from 'socket.io';
 import http from 'http';
 
@@ -14,12 +14,12 @@ export async function main() {
   articleChangeStream.on('change', (change) => {
     if (change.operationType === 'update' || change.operationType === 'replace') {
       const article = change.fullDocument;
-      console.log(`Article updated:`, article._id);
       io.emit('articleUpdated', {
         _id: article._id,
+        coverImg: article.coverImg,
         summaries: article.summaries,
         lastError: article.lastError,
-      });
+      } as Partial<IArticle>);
     }
   });
 

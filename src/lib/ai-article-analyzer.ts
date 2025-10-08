@@ -46,6 +46,7 @@ const SummarizedArticleSchema = z.object({
       .string()
       .describe('Supporting details and evidence that complement the overview in less than 500 characters'),
   }),
+  secondaryArticles: z.array(BasicArticleSchema).default([]).describe('List of secondary articles mentioned, if any'),
 });
 
 const ArticleOrNewsletterSchema = z.object({
@@ -149,7 +150,8 @@ Analyze the provided Markdown content extracted from a web article and extract t
 
 1. **coverImg**: Look for the main article image (markdown image syntax ![alt](url)). 
   Ignore the author's avatar image (you can recognize it by its small size or placement near the author name).
-2. **date**: Extract the publication date if mentioned in the content (yyyy-mm-dd numbers)
+2. **date**: Extract the publication date if mentioned in the content (yyyy-mm-dd numbers).
+3. **secondaryArticles**: Extract any secondary articles mentioned within the content.
 
 Create three different summaries
 1. **oneliner**: Create the most accurate and compelling header/title for this article in less than 100 characters
@@ -185,16 +187,10 @@ export async function isArticleOrNewsletter(textContent: string) {
   }
 
   const prompt = `
-Given the following text from a newsletter content, determine if it represents:
-- A single "article" (one main story, possibly with sections). 
-  Even if it has subsections or links to other articles, it should focus on one main topic.
-- A "newsletter" (a list or collection of suggested articles to read, possibly with summaries).
-  This focuses on multiple distinct articles or topics.
-- "unknown" if it is neither or unclear. Watch out for advertisements, error messages, captchas, or unrelated content.
-
-If you are unsure or the text does not clearly fit either category, respond with "unknown".
-
-Respond with a JSON object with a single key "type" whose value is either "article", "newsletter", or "unknown".
+Given the following text, determine if it represents:
+- An "article" (one main story, possibly with links or summaries to other recommended articles). 
+- A "newsletter" (no main narrative, just a list of articles with or without abstracts).
+- "unknown" if it is neither or unclear (spam, error messages, captchas, or unrelated content).
 
 Text:
 

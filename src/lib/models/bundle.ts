@@ -329,7 +329,6 @@ export class BundleClass implements IBundle {
     ];
 
     const results = await this.aggregate(pipeline).exec();
-    if (!results.length) throw new Error('Bundle not found');
     const ids: string[] = results[0].articlesUnion;
     const user = results[0].user;
 

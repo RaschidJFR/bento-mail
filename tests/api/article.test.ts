@@ -17,11 +17,11 @@ describe('POST /api/article/[id]/process', () => {
 
   it('returns 404 if article not found', async () => {
     const req = mockReq({});
-    const res = await POST(req, { params: { id: '000000000000000000000000' } });
+    const res = await POST(req, { params: Promise.resolve({ id: '000000000000000000000000' }) });
     expect(res.status).toBe(404);
   });
 
-  it('schedules job and returns 201', async () => {
+  it('schedules job and returns 202', async () => {
     const req = mockReq({ force: true, generateImage: true });
 
     // Mock agenda and its chain methods
@@ -34,8 +34,8 @@ describe('POST /api/article/[id]/process', () => {
     const workerModule = await import('@services/worker');
     vi.spyOn(workerModule, 'default').mockResolvedValue(agendaMock as any);
 
-    const res = await POST(req, { params: { id: article._id } });
-    expect(res.status).toBe(201);
+    const res = await POST(req, { params: Promise.resolve({ id: article._id }) });
+    expect(res.status).toBe(202);
     const data = await res.json();
     expect(data.result).toBeDefined();
 
