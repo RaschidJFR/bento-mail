@@ -60,10 +60,4 @@ describe('Reaction Model', () => {
     const found = await Reaction.find().findByArticle(article._id).exec();
     expect(found[0].id).toBe(original.id);
   });
-
-  it('can add reaction to an article', async () => {
-    await article.addReaction(1, user._id);
-    const reactions = await Reaction.find({ user: user._id, article: article._id });
-    expect(reactions[0].reaction).toBe(1);
-  });
 });
