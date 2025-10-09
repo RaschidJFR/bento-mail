@@ -3,7 +3,6 @@ import { Bundle, IArticle, IBundle, INewsletter } from '@lib/models';
 import { NewsletterDisplay } from '@components/NewsletterDisplay';
 import type { ReactionsEnum } from '@lib/models/enums';
 import { ArticleCard } from '@app/components/ArticleCard';
-import { NewsletterHeader } from '@app/components/NewsletterHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,12 +45,11 @@ AI and automation are making it easier for readers to get the content they care 
   },
 ];
 
-async function getBundleArticles(id: string) {
+async function getBundleArticles(id: string, debug = false) {
   // Use mock data if DB is not connected
   if (Bundle.db.readyState != 1) {
     console.warn('Database not connected, using mock bundle articles');
     return {
-      count: mockArticles.length,
       userId: '',
       reactionMap: new Map<string, ReactionsEnum>(),
       articles: [],
@@ -71,25 +69,29 @@ async function getBundleArticles(id: string) {
   const reactionMap = await Bundle.getReactionMap(id);
   const articlesWithReactions = Array.from(reactionMap.keys());
 
+  // Match filters
+  const noErrors = debug ? {} : { $or: [{ lastError: '' }, { lastError: { $exists: false } }] };
+  const noReactions = debug ? {} : { _id: { $nin: articlesWithReactions } };
+
   const bundle: IBundle | null = await Bundle.findById(id)
     .populate([
       {
         path: 'articles',
         match: {
-          $or: [{ lastError: '' }, { lastError: { $exists: false } }],
-          _id: { $nin: articlesWithReactions },
+          ...noErrors,
+          ...noReactions,
         },
       },
       {
         path: 'newsletters',
         match: {
-          $or: [{ lastError: '' }, { lastError: { $exists: false } }],
+          ...noErrors,
         },
         populate: {
           path: 'articles',
           match: {
-            $or: [{ lastError: '' }, { lastError: { $exists: false } }],
-            _id: { $nin: articlesWithReactions },
+            ...noErrors,
+            ...noReactions,
           },
         },
       },
@@ -107,9 +109,16 @@ async function getBundleArticles(id: string) {
   };
 }
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<Record<string, string>>;
+}) {
   const { id } = await params;
-  const data = await getBundleArticles(id);
+  const debug = (await searchParams)?.debug;
+  const data = await getBundleArticles(id, debug == '1');
   if (!data) return notFound();
 
   return (

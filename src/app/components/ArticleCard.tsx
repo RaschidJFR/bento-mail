@@ -15,7 +15,7 @@ interface ArticleCardProps {
   onRemove?: (articleId: string) => void;
 }
 
-function isProcessed(article: IArticle) {
+function hasSummaries(article: IArticle) {
   return !!article.summaries?.oneliner && !!article.summaries?.overview && !!article.summaries?.details;
 }
 
@@ -43,12 +43,12 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
   const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
   const [isFlagged, setIsFlagged] = useState(reaction === ReactionsEnum.PROBLEM);
-  const [isProcessing, setIsProcessing] = useState(!isProcessed(article));
+  const [isProcessing, setIsProcessing] = useState(!hasSummaries(article));
   const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     setLiveArticle(article);
-    setIsProcessing(!isProcessed(article));
+    setIsProcessing(!hasSummaries(article));
   }, [article]);
 
   const handleLike = async () => {
@@ -136,7 +136,7 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
     >
       <div className="relative">
         {/* Processing overlay */}
-        {!isProcessed(liveArticle) && (
+        {isProcessing && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
             <div className="flex items-center gap-2 text-brand-primary">
               <Loader2 className="w-6 h-6 animate-spin" />

@@ -278,7 +278,8 @@ export class BundleClass implements IBundle {
   }
 
   /**
-   * Get a map of article IDs to the user's reactions for all articles in the bundle,
+   * Get a map of article IDs to the user's reactions for all articles in the bundle.
+   * Ignores "ACKNOWLEDGED" reactions.
    */
   public static async getReactionMap(this: ReturnModelType<typeof BundleClass>, bundleId: string | ObjectId) {
     const pipeline = [
