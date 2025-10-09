@@ -33,7 +33,7 @@ const NewsletterSchema = z.object({
   date: z.string().default('').describe('The date of the newsletter (yyyy-mm-dd numbers). Empty string if not found.'),
 });
 
-const SummarizedArticleSchema = z.object({
+const ComplementaryArticleSchema = z.object({
   coverImg: z.string().default('').describe('URL to the cover image of the article. Empty string if not found.'),
   date: z
     .string()
@@ -46,7 +46,6 @@ const SummarizedArticleSchema = z.object({
       .string()
       .describe('Supporting details and evidence that complement the overview in less than 500 characters'),
   }),
-  secondaryArticles: z.array(BasicArticleSchema).default([]).describe('List of secondary articles mentioned, if any'),
 });
 
 const ArticleOrNewsletterSchema = z.object({
@@ -69,6 +68,8 @@ export async function extractArticlesFromNewsletter(textContent: string): Promis
   }
 
   const prompt = `
+You are an expert at extracting structured information from newsletter Markdown content. 
+
 Analyze the provided Markdown content and extract all newsletter articles. For each article, identify:
 
 1. **header**: The main title/headline of the article
@@ -150,13 +151,12 @@ Analyze the provided Markdown content extracted from a web article and extract t
 
 1. **coverImg**: Look for the main article image (markdown image syntax ![alt](url)). 
   Ignore the author's avatar image (you can recognize it by its small size or placement near the author name).
-2. **date**: Extract the publication date if mentioned in the content (yyyy-mm-dd numbers).
-3. **secondaryArticles**: Extract any secondary articles mentioned within the content.
+2. **date**: Extract the publication date if mentioned in the content (yyyy-mm-dd numbers)
 
 Create three different summaries
 1. **oneliner**: Create the most accurate and compelling header/title for this article in less than 100 characters
-2. **overview**: Write the most complete conclusion and key takeaways in less than 200 characters. Do not repeat what's in the oneliner.
-3. **details**: Add supporting details and evidence that complement the overview summary in less than 500 characters. Do not repeat what's in the overview.
+2. **overview**: Write the most complete conclusion and key takeaways in less than 200 characters
+3. **details**: Add supporting details and evidence that complement the overview summary in less than 500 characters
 
 Rules:
 - The oneliner should be more accurate than the original title if needed
@@ -173,7 +173,7 @@ ${textContent}
 `;
 
   const result: ArticleDetailsProps = await model
-    .withStructuredOutput(SummarizedArticleSchema)
+    .withStructuredOutput(ComplementaryArticleSchema)
     .invoke([new SystemMessage(prompt)]);
   return result;
 }
@@ -187,10 +187,16 @@ export async function isArticleOrNewsletter(textContent: string) {
   }
 
   const prompt = `
-Given the following text, determine if it represents:
-- An "article" (one main story, possibly with links or summaries to other recommended articles). 
-- A "newsletter" (no main narrative, just a list of articles with or without abstracts).
-- "unknown" if it is neither or unclear (spam, error messages, captchas, or unrelated content).
+Given the following text from a newsletter content, determine if it represents:
+- A single "article" (one main story, possibly with sections). 
+  Even if it has subsections or links to other articles, it should focus on one main topic.
+- A "newsletter" (a list or collection of suggested articles to read, possibly with summaries).
+  This focuses on multiple distinct articles or topics.
+- "unknown" if it is neither or unclear. Watch out for advertisements, error messages, captchas, or unrelated content.
+
+If you are unsure or the text does not clearly fit either category, respond with "unknown".
+
+Respond with a JSON object with a single key "type" whose value is either "article", "newsletter", or "unknown".
 
 Text:
 
