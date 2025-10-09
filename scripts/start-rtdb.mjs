@@ -17,7 +17,7 @@ startServer().catch((err) => {
   process.exit(1);
 });
 
-console.log('Press Ctrl+C to stop the RTDB server');
+console.log('Press Ctrl+C to stop the RTDB server\n');
 
 process.on('SIGINT', () => {
   console.log('Stopping RTDB server...');
