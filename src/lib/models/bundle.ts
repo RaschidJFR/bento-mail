@@ -329,18 +329,21 @@ export class BundleClass implements IBundle {
     ];
 
     const results = await this.aggregate(pipeline).exec();
-    const ids: string[] = results[0].articlesUnion;
-    const user = results[0].user;
-
-    const reactions: IReaction[] = await Reaction.find({
-      article: { $in: ids },
-      user,
-      reaction: { $ne: ReactionsEnum.ACKNOWLEDGED },
-    }).lean();
+    const ids: string[] = results[0]?.articlesUnion || [];
     const map = new Map<string, ReactionsEnum>();
-    reactions.forEach(({ article, reaction }) => {
-      map.set(article.toString(), reaction);
-    });
+
+    if (ids.length > 0) {
+      const user = results[0]?.user;
+
+      const reactions: IReaction[] = await Reaction.find({
+        article: { $in: ids },
+        user,
+        reaction: { $ne: ReactionsEnum.ACKNOWLEDGED },
+      }).lean();
+      reactions.forEach(({ article, reaction }) => {
+        map.set(article.toString(), reaction);
+      });
+    }
     return map;
   }
 }

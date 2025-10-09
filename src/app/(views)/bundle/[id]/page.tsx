@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { Bundle, IArticle, IBundle, INewsletter } from '@lib/models';
 import { NewsletterDisplay } from '@components/NewsletterDisplay';
 import type { ReactionsEnum } from '@lib/models/enums';
+import { ArticleCard } from '@app/components/ArticleCard';
+import { NewsletterHeader } from '@app/components/NewsletterHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +54,7 @@ async function getBundleArticles(id: string) {
       count: mockArticles.length,
       userId: '',
       reactionMap: new Map<string, ReactionsEnum>(),
+      articles: [],
       newsletters: [
         {
           _id: 'mock-newsletter-1',
@@ -96,34 +99,9 @@ async function getBundleArticles(id: string) {
 
   if (!bundle) return null;
 
-  const direct = (bundle.articles || []) as IArticle[];
-  const fromNewsletters = ((bundle.newsletters || []) as INewsletter[]).flatMap(
-    (nl) => nl?.articles || []
-  ) as IArticle[];
-
-  // Deduplicate by _id
-  const byId = new Map<string, IArticle>();
-  [...direct, ...fromNewsletters]
-    .filter((a) => a && a._id)
-    .forEach((a) => {
-      const id = String(a._id);
-      if (!byId.has(id)) {
-        byId.set(id, a);
-      }
-    });
-
-  // Filter newsletter articles by deduped ids
-  const newsletters = ((bundle.newsletters || []) as INewsletter[])
-    .filter((nl) => nl.articles?.length)
-    .map((nl) => ({
-      ...nl,
-      articles: ((nl.articles as IArticle[]) || []).filter((a: IArticle) => byId.has(String(a._id))),
-    }))
-    .sort((a, b) => (a.date && b.date ? (a.date > b.date ? -1 : a.date < b.date ? 1 : 0) : 0)) as INewsletter[];
-
   return {
-    count: byId.size,
-    newsletters,
+    newsletters: (bundle.newsletters || []) as INewsletter[],
+    articles: (bundle.articles || []) as IArticle[],
     userId: String(bundle.user._id) || '',
     reactionMap,
   };
@@ -138,16 +116,30 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <main>
-          <div className="space-y-12">
-            {data?.newsletters.length ? (
-              data.newsletters.map((newsletter) => (
-                <NewsletterDisplay
-                  key={newsletter._id}
-                  newsletter={newsletter as INewsletter}
+          <div className="space-y-12 mb-6">
+            {!!data.articles.length &&
+              data.articles.map((article) => (
+                <ArticleCard
+                  key={article._id}
+                  article={article}
                   userId={data.userId}
-                  reactionMap={data.reactionMap}
+                  reaction={data.reactionMap?.get(article._id)}
                 />
-              ))
+              ))}
+          </div>
+          <div className="space-y-12">
+            {data.newsletters.length ? (
+              data.newsletters.map(
+                (newsletter) =>
+                  !!newsletter.articles?.length && (
+                    <NewsletterDisplay
+                      key={newsletter._id}
+                      newsletter={newsletter}
+                      userId={data.userId}
+                      reactionMap={data.reactionMap}
+                    />
+                  )
+              )
             ) : (
               <p className="text-center text-muted-foreground">No newsletters available.</p>
             )}

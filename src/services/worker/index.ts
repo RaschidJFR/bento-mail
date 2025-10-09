@@ -14,11 +14,11 @@ export async function init(): Promise<Agenda> {
   const agenda = new Agenda().processEvery('30 seconds');
 
   agenda.on('start', (job: Job) => {
-    console.log(`Job ${job.attrs._id} started: `, job.attrs.name);
+    console.log(`Job ${job.attrs._id} %o started.`, job.attrs.name);
   });
 
   agenda.on('success', (job: Job) => {
-    console.log(`Job ${job.attrs._id} succeeded: `, job.attrs.name);
+    console.log(`Job ${job.attrs._id} %o succeeded.`, job.attrs.name);
   });
 
   agenda.on('fail', (error, job: Job) => {
