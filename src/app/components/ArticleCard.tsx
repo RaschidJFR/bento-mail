@@ -3,7 +3,7 @@ import type { IArticle } from '@lib/models/types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw } from 'lucide-react';
+import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw, AlertCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
@@ -64,10 +64,11 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
       });
     }
     // Remove article after animation
-    !isLiked &&
+    if (!isLiked) {
       setTimeout(() => {
         onRemove?.(article._id);
       }, 300);
+    }
   };
 
   const handleSkip = async () => {
@@ -83,10 +84,11 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
       });
     }
     // Remove article after animation
-    !isSkip &&
+    if (!isSkip) {
       setTimeout(() => {
         onRemove?.(article._id);
       }, 300);
+    }
   };
 
   const handleFlag = async () => {
@@ -102,10 +104,11 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
       });
     }
     // Remove article after animation
-    !isFlagged &&
+    if (!isFlagged) {
       setTimeout(() => {
         onRemove?.(article._id);
       }, 300);
+    }
   };
 
   const handleProcess = async () => {
@@ -126,15 +129,28 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
   };
 
   return (
-    <Card
-      className={`relative overflow-hidden bg-surface-elevated border-border 
-          transition-all duration-300 max-h-screen
-          hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/10 group 
-          ${isLiked || isSkip || isFlagged || isProcessing ? 'opacity-60' : ''} 
-        `}
-      style={isRemoving ? { maxHeight: 0, opacity: 0 } : {}}
-    >
-      <div className="relative">
+    <Card>
+      {/* Error banner */}
+      {liveArticle.lastError && (
+        <div className="bg-destructive/10 border-l-4 border-destructive p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-destructive mb-1">Processing Error:</h3>
+              <p className="text-sm text-destructive/90">{liveArticle.lastError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Main content area */}
+      <div
+        className={`relative overflow-hidden bg-surface-elevated border-border 
+        transition-all duration-300 max-h-screen
+        hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/10 group 
+        ${isLiked || isSkip || isFlagged || isProcessing ? 'opacity-60' : ''} 
+      `}
+        style={isRemoving ? { maxHeight: 0, opacity: 0 } : {}}
+      >
         {/* Processing overlay */}
         {isProcessing && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
