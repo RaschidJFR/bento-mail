@@ -52,6 +52,7 @@ const ArticleOrNewsletterSchema = z.object({
   type: z
     .enum(['article', 'newsletter', 'unknown'])
     .describe('Whether the text is a single article, a newsletter, or unknown'),
+  reason: z.string().describe('Brief explanation of the classification decision'),
 });
 
 /**
@@ -187,16 +188,10 @@ export async function isArticleOrNewsletter(textContent: string) {
   }
 
   const prompt = `
-Given the following text from a newsletter content, determine if it represents:
-- A single "article" (one main story, possibly with sections). 
-  Even if it has subsections or links to other articles, it should focus on one main topic.
-- A "newsletter" (a list or collection of suggested articles to read, possibly with summaries).
-  This focuses on multiple distinct articles or topics.
-- "unknown" if it is neither or unclear. Watch out for advertisements, error messages, captchas, or unrelated content.
-
-If you are unsure or the text does not clearly fit either category, respond with "unknown".
-
-Respond with a JSON object with a single key "type" whose value is either "article", "newsletter", or "unknown".
+Given the following newsletter/article text, determine if there is a main article/featured story or not.
+- if there is one (even if there are other recommended articles), classify it as "article"
+- if it is only a list of articles with no featured narrative, classify it as "newsletter"
+- if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown"
 
 Text:
 
@@ -207,6 +202,7 @@ ${textContent}
 
   try {
     const result = await model.withStructuredOutput(ArticleOrNewsletterSchema).invoke([new SystemMessage(prompt)]);
+    console.debug('[ai-article-analyzer] Classification result:', result);
     return result.type;
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
