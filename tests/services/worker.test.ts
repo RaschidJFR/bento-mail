@@ -1,6 +1,6 @@
 import { JobNames } from '@services/worker';
 import { Bundle, Newsletter } from '@lib/models';
-import Agenda from 'agenda';
+import { Chronos as Agenda, Job } from 'chronos-jobs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 describe('Worker', () => {
@@ -21,48 +21,51 @@ describe('Worker', () => {
   afterEach(async () => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();
-    await agenda._mdb.collection(agenda._collection.collectionName).deleteMany({});
+    await agenda.db.collection.deleteMany({});
   });
 
   afterAll(async () => {
     console.log('Agenda stop. Cleaning up test database...');
     await worker.stop();
-    await worker.close();
-    await agenda.close();
+    await agenda.stop();
     console.log('Agenda database cleaned up.');
   });
 
   it('Agenda is using the designated db', async () => {
     vi.stubEnv('AGENDA_DB_NAME', 'pechuga');
-    const { default: initWorker } = await import('@services/worker')
+    const { default: initWorker } = await import('@services/worker');
     const w = await initWorker();
-    expect(w._collection.dbName).toBe('pechuga');
-    expect(w._collection.collectionName).toBe('agendaJobs');
+    expect(w.db.collection.dbName).toBe('pechuga');
+    expect(w.db.collection.collectionName).toBe('chronosJobs');
 
-    await w._mdb.dropDatabase();
-    await w.close();
+    await w.db.collection.db.dropDatabase();
+    await w.stop();
   });
 
   it('Job.save() is bypassed when no MONGODB_URI is unset in non-production environment', async () => {
     vi.stubEnv('MONGODB_URI', '');
     vi.stubEnv('NODE_ENV', 'notproduction');
+    const { Job } = await import('chronos-jobs');
+    const originalSave = vi.spyOn(Job.prototype, 'save');
 
     let instantiate = (await import('@services/worker')).default;
     let localAgenda = await instantiate();
     await expect(localAgenda.create('someJob', {}).save()).resolves.not.toThrow();
+    expect(originalSave).not.toHaveBeenCalled();
   });
 
   it('Job.save() should not be bypassed in production', async () => {
     vi.stubEnv('MONGODB_URI', '');
     vi.stubEnv('NODE_ENV', 'production');
-    const Job = (await import('agenda/dist/job')).Job;
-    const originalSave = vi.spyOn(Job.prototype, 'save');
+    const { Job } = await import('chronos-jobs');
+    const originalSave = vi.spyOn(Job.prototype, 'save').mockResolvedValue(Job.prototype);
 
-    let instantiate = (await import('@services/worker')).default;
+    let { default: instantiate } = await import('@services/worker');
     let localAgenda = await instantiate();
 
-    // expect error from missing MONGODB_URI
-    await expect(localAgenda.create('someJob', {}).save()).rejects.toThrow();
+    const job = localAgenda.create('someJob', {});
+    await expect(job.save()).resolves.not.toThrow();
+    expect(originalSave).toHaveBeenCalled();
   });
 
   describe('Bundle.process', () => {
@@ -170,14 +173,14 @@ describe('Worker', () => {
 
       // Stop the worker to prevent automatic processing of jobs
       worker.stop();
-      await agenda.create(JobNames.Newsletter.processArticles, { id: 'someNewsletterId' }).run();
+      const job = await agenda.create(JobNames.Newsletter.processArticles, { id: 'someNewsletterId' }).save();
+      await job.run();
       // Wait for this job to create the sub-jobs
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // get all jobs in the collection and verify there are two article processing jobs
-      const collection = worker._collection.collectionName;
-      const jobs = await worker._mdb.collection(collection).find({ name: JobNames.Article.process }).toArray();
-      const idsInJobs = jobs.map((job) => job.data.id).sort();
+      const jobs = await worker.jobs({ name: JobNames.Article.process });
+      const idsInJobs = jobs.map((job: Job<any>) => job.attrs.data.id).sort();
       expect(jobs.length).toBe(2);
       expect(idsInJobs).toEqual(['articleId1', 'articleId2'].sort());
     });

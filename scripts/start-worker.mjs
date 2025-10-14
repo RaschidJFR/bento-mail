@@ -24,9 +24,9 @@ try {
 worker = await initWorker();
 console.log('Starting worker...');
 worker.start().then(() => {
-  const collectionName = worker._collection?.collectionName;
+  const collectionName = worker.db?.collection?.collectionName;
   console.log(
-    `Worker started, polling jobs at intervals of ${worker._processEvery} from ${collectionName}. \nPress Ctrl+C to stop.\n`
+    `Worker started, polling jobs at intervals of ${worker.attrs.processEvery / 1000} seconds from ${collectionName}. \nPress Ctrl+C to stop.\n`
   );
 });
 
@@ -37,5 +37,4 @@ const shutdown = async () => {
   process.exit(0);
 };
 
-process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

@@ -1,4 +1,4 @@
-import Agenda, { Job } from 'agenda';
+import { Job, Chronos as Agenda } from 'chronos-jobs';
 import { defineJobs } from './job-definitions';
 import { MongoClient } from 'mongodb';
 
@@ -11,7 +11,7 @@ import { MongoClient } from 'mongodb';
  * await agenda.now(JobNames.Bundle.process, { id: 'bundleId' });
  */
 export async function init(): Promise<Agenda> {
-  let agenda = new Agenda().processEvery('30 seconds');
+  const agenda = new Agenda().processEvery('30 seconds');
 
   agenda.on('start', (job: Job) => {
     console.log(`Job ${job.attrs._id} %o started.`, job.attrs.name);
@@ -36,15 +36,14 @@ export async function init(): Promise<Agenda> {
   if (process.env.MONGODB_URI) {
     const client = await new MongoClient(process.env.MONGODB_URI).connect();
     const db = client.db(process.env.AGENDA_DB_NAME || 'agenda');
-
     agenda.mongo(db, process.env.AGENDA_COLLECTION);
     return new Promise((resolve) => agenda.on('ready', () => resolve(agenda)));
   } else if (process.env.NODE_ENV !== 'production') {
     // In non-production environments, allow running without DB for testing
     console.warn('Env var MONGODB_URI not set. Skipping Agenda database connection. Jobs will not persist.');
-    (agenda.saveJob as any) = async function (this: Agenda, job: Job) {
-      console.warn('Skipping job save %o since MONGODB_URI is not set.', job.attrs?.name);
-      return job;
+    Job.prototype.save = async function () {
+      console.warn('Skipping job save %o since MONGODB_URI is not set.', this.attrs?.name);
+      return this;
     };
   }
   return agenda;

@@ -29,7 +29,9 @@ describe('POST /api/article/[id]/process', () => {
       create: vi.fn(() => agendaMock),
       unique: vi.fn(() => agendaMock),
       schedule: vi.fn(() => agendaMock),
-      save: vi.fn().mockResolvedValue({}),
+      save: vi.fn().mockResolvedValue({
+        attrs: { data: { _id: 'jobid123' } },
+      }),
     };
     const workerModule = await import('@services/worker');
     vi.spyOn(workerModule, 'default').mockResolvedValue(agendaMock as any);
@@ -37,7 +39,7 @@ describe('POST /api/article/[id]/process', () => {
     const res = await POST(req, { params: Promise.resolve({ id: article._id }) });
     expect(res.status).toBe(202);
     const data = await res.json();
-    expect(data.result).toBeDefined();
+    expect(data.result).toEqual({ data: { _id: 'jobid123' } });
 
     // Verify that agenda methods were called correctly
     expect(agendaMock.create).toHaveBeenCalledWith(

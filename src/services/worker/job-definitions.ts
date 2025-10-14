@@ -1,4 +1,4 @@
-import Agenda, { Job } from 'agenda';
+import { Job, Chronos as Agenda } from 'chronos-jobs';
 import { Bundle, Newsletter, Article } from '@lib/models';
 import { applyInBatches } from '@lib/utils';
 
@@ -16,7 +16,7 @@ export const JobNames = Object.freeze({
 
 export function defineJobs(agenda: Agenda) {
   // Define job to process bundle
-  agenda.define(JobNames.Bundle.process, { shouldSaveResult: true }, async (job: Job<{ id: string }>) => {
+  agenda.define(JobNames.Bundle.process, async (job: Job<{ id: string }>) => {
     const id = job.attrs.data?.id;
     if (!id) {
       throw new Error('Missing id');
@@ -40,7 +40,7 @@ export function defineJobs(agenda: Agenda) {
 
   // Define job to extract articles from newsletter
   // This job will extract the newsletter's articles and queue article processing jobs
-  agenda.define(JobNames.Newsletter.processArticles, { shouldSaveResult: true }, async (job: Job<{ id: string, force?: boolean }>) => {
+  agenda.define(JobNames.Newsletter.processArticles, async (job: Job<{ id: string; force?: boolean }>) => {
     const newsletterId = job.attrs.data?.id;
     const force = job.attrs.data?.force;
     if (!newsletterId) {
@@ -74,8 +74,7 @@ export function defineJobs(agenda: Agenda) {
   // Define job to process article
   agenda.define(
     JobNames.Article.process,
-    { shouldSaveResult: true },
-    async (job: Job<{ id: string, force?: boolean, generateImage?: boolean }>) => {
+    async (job: Job<{ id: string; force?: boolean; generateImage?: boolean }>) => {
       const id = job.attrs.data?.id;
       const force = job.attrs.data?.force;
       const generateImage = job.attrs.data?.generateImage;
