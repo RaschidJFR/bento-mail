@@ -32,11 +32,15 @@ describe('Worker', () => {
   });
 
   it('Agenda is using the designated db', async () => {
-    vi.stubEnv('AGENDA_DB_NAME', 'pechuga');
+    vi.mock('@services/worker', async () => {
+      vi.stubEnv('AGENDA_DB_NAME', 'pechuga');
+      vi.stubEnv('AGENDA_COLLECTION', 'de pollo');
+      return await vi.importActual('@services/worker');
+    });
     const { default: initWorker } = await import('@services/worker');
     const w = await initWorker();
     expect(w.db.collection.dbName).toBe('pechuga');
-    expect(w.db.collection.collectionName).toBe('chronosJobs');
+    expect(w.db.collection.collectionName).toBe('de pollo');
 
     await w.db.collection.db.dropDatabase();
     await w.stop();

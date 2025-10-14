@@ -98,7 +98,7 @@ export async function useBundle(id: string, debug = false) {
 
   if (!bundleData) return null;
 
-  const bundle = Bundle.hydrate(bundleData) as Bundle;
+  const bundle = await Bundle.findById(id) as Bundle;
   const articleIds = bundle.unwrapArticleIds();
 
   // Fetch processing jobs for articles in this bundle
@@ -106,7 +106,7 @@ export async function useBundle(id: string, debug = false) {
   const jobs = await scheduler.jobs({
     name: JobNames.Article.process,
     'data.id': { $in: articleIds },
-    lockedAt: { $exists: true },
+    lockedAt: { $exists: true, $ne: null } as any,
   });
 
   // Map article ID to job ID

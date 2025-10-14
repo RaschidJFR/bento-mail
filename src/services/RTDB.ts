@@ -1,6 +1,8 @@
 import { Article, Newsletter, Bundle, IArticle } from '@lib/models';
 import { Server } from 'socket.io';
 import http from 'http';
+import { ITask, Task } from './worker';
+import type { ChangeStreamDocument } from 'mongodb';
 
 const PORT = 4001;
 
@@ -53,6 +55,19 @@ export async function main() {
         newsletters: bundle.newsletters,
         articles: bundle.articles,
       });
+    }
+  });
+
+  // Task change stream
+  const taskChangeStream = Task.watch<Task, ChangeStreamDocument<Task>>([], { fullDocument: 'updateLookup' });
+  taskChangeStream.on('change', (change) => {
+    if ((change.operationType === 'update' || change.operationType === 'replace') && change.fullDocument) {
+      const task = change.fullDocument;
+      io.emit('taskUpdated', {
+        _id: task._id,
+        failReason: task.failReason,
+        lockedAt: task.lockedAt,
+      } as ITask);
     }
   });
 

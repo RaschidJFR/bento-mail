@@ -1,6 +1,8 @@
-import { Job, Chronos as Agenda } from 'chronos-jobs';
+import 'dotenv/config';
+import { Job, Chronos as Agenda } from 'chronos-jobs'; // Migrated to Chronos from Agenda
 import { defineJobs } from './job-definitions';
 import { MongoClient } from 'mongodb';
+import { COLLECTION_NAME, DB_NAME } from './vars';
 
 /**
  * Initializes and configures an Agenda job scheduler instance.
@@ -34,10 +36,8 @@ export async function init(): Promise<Agenda> {
   defineJobs(agenda);
 
   if (process.env.MONGODB_URI) {
-    const client = await new MongoClient(process.env.MONGODB_URI).connect();
-    const db = client.db(process.env.AGENDA_DB_NAME || 'agenda');
-    agenda.mongo(db, process.env.AGENDA_COLLECTION);
-    return new Promise((resolve) => agenda.on('ready', () => resolve(agenda)));
+    const client = await new MongoClient(process.env.MONGODB_URI || '').connect();
+    await agenda.mongo(client!.db(DB_NAME), COLLECTION_NAME);
   } else if (process.env.NODE_ENV !== 'production') {
     // In non-production environments, allow running without DB for testing
     console.warn('Env var MONGODB_URI not set. Skipping Agenda database connection. Jobs will not persist.');
@@ -51,3 +51,4 @@ export async function init(): Promise<Agenda> {
 
 export default init;
 export { JobNames } from './job-definitions';
+export * from './task';
