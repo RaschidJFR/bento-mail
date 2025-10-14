@@ -28,7 +28,8 @@ function generateId(article: DocumentType<ArticleClass>) {
 }
 
 @modelOptions({ options: { allowMixed: 0 } })
-@index({ lastError: 1, sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
+@index({ lastError: 1 }, { sparse: true }) // Optimized for fetching articles for a bundle
+@index({ sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
 export class ArticleClass implements IArticle {
   @prop({ type: String, default: generateId })
   public _id: string = '';

@@ -1,5 +1,5 @@
 import { hash, applyInBatches } from '@lib/utils';
-import { prop, getModelForClass, modelOptions, Ref, pre } from '@typegoose/typegoose';
+import { prop, getModelForClass, modelOptions, Ref, pre, index } from '@typegoose/typegoose';
 import type { DocumentType, ReturnModelType } from '@typegoose/typegoose';
 import { Article, ArticleClass } from './article';
 import { extractArticlesFromNewsletter } from '@lib/ai-article-analyzer';
@@ -38,6 +38,8 @@ function generateId(this: DocumentType<NewsletterClass>) {
   }
 })
 @modelOptions({ options: { allowMixed: 0 } })
+@index({ error: 1 }, { sparse: true })
+@index({ date: -1 })
 export class NewsletterClass implements INewsletter {
   @prop({ default: generateId, type: String })
   public readonly _id!: string;

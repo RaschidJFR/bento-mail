@@ -9,14 +9,10 @@ import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
 
 interface ArticleCardProps {
-  article: IArticle;
+  article: IArticle & { processingJob?: string };
   userId?: string;
   reaction?: ReactionsEnum;
   onRemove?: (articleId: string) => void;
-}
-
-function hasSummaries(article: IArticle) {
-  return !!article.summaries?.oneliner && !!article.summaries?.overview && !!article.summaries?.details;
 }
 
 async function upsertReaction({
@@ -43,12 +39,12 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
   const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
   const [isFlagged, setIsFlagged] = useState(reaction === ReactionsEnum.PROBLEM);
-  const [isProcessing, setIsProcessing] = useState(!hasSummaries(article));
+  const [isProcessing, setIsProcessing] = useState(!!article.processingJob);
   const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     setLiveArticle(article);
-    setIsProcessing(!hasSummaries(article));
+    setIsProcessing(!!article.processingJob);
   }, [article]);
 
   const handleLike = async () => {
