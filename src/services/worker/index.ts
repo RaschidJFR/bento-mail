@@ -1,6 +1,6 @@
 import Agenda, { Job } from 'agenda';
 import { defineJobs } from './job-definitions';
-export { JobNames } from './job-definitions';
+import { MongoClient } from 'mongodb';
 
 /**
  * Initializes and configures an Agenda job scheduler instance.
@@ -11,7 +11,7 @@ export { JobNames } from './job-definitions';
  * await agenda.now(JobNames.Bundle.process, { id: 'bundleId' });
  */
 export async function init(): Promise<Agenda> {
-  const agenda = new Agenda().processEvery('30 seconds');
+  let agenda = new Agenda().processEvery('30 seconds');
 
   agenda.on('start', (job: Job) => {
     console.log(`Job ${job.attrs._id} %o started.`, job.attrs.name);
@@ -21,7 +21,7 @@ export async function init(): Promise<Agenda> {
     console.log(`Job ${job.attrs._id} %o succeeded.`, job.attrs.name);
   });
 
-  agenda.on('fail', (error, job: Job) => {
+  agenda.on('fail', (error: any, job: Job) => {
     console.error(
       `Job ${job.attrs._id} failed:\n\t> ${job.attrs.name} – ${
         job.attrs.failReason || error?.message || 'unknown reason'
@@ -34,8 +34,11 @@ export async function init(): Promise<Agenda> {
   defineJobs(agenda);
 
   if (process.env.MONGODB_URI) {
-    agenda.database(process.env.MONGODB_URI!, process.env.AGENDA_COLLECTION);
-    await new Promise((resolve) => agenda.on('ready', () => resolve(agenda)));
+    const client = await new MongoClient(process.env.MONGODB_URI).connect();
+    const db = client.db(process.env.AGENDA_DB_NAME || 'agenda');
+
+    agenda.mongo(db, process.env.AGENDA_COLLECTION);
+    return new Promise((resolve) => agenda.on('ready', () => resolve(agenda)));
   } else if (process.env.NODE_ENV !== 'production') {
     // In non-production environments, allow running without DB for testing
     console.warn('Env var MONGODB_URI not set. Skipping Agenda database connection. Jobs will not persist.');
@@ -48,3 +51,4 @@ export async function init(): Promise<Agenda> {
 }
 
 export default init;
+export { JobNames } from './job-definitions';

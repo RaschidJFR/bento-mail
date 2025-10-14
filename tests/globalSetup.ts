@@ -7,7 +7,7 @@ export async function setup() {
 
   // Use a separate test database (used by @models/index.ts)
   process.env.DATABASE_NAME = '_test';
-  process.env.AGENDA_COLLECTION = 'agenda_test';
+  process.env.AGENDA_DB_NAME = 'agenda_test';
 
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI not set in environment variables');
@@ -17,7 +17,8 @@ export async function setup() {
 
 export async function teardown() {
   console.log('Tearing down test database...');
-  await mongoose.connection.dropDatabase();
+  await mongoose.connection.useDb('_test').dropDatabase();
+  await mongoose.connection.useDb('agenda_test').dropDatabase();
   await mongoose.connection.close();
   console.log('Database connection closed.');
 }

@@ -1,6 +1,5 @@
 import Agenda, { Job } from 'agenda';
-import { Bundle, Newsletter } from '@lib/models';
-import { Article } from '@lib/models/article';
+import { Bundle, Newsletter, Article } from '@lib/models';
 import { applyInBatches } from '@lib/utils';
 
 export const JobNames = Object.freeze({

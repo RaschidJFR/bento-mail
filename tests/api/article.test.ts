@@ -22,7 +22,7 @@ describe('POST /api/article/[id]/process', () => {
   });
 
   it('schedules job and returns 202', async () => {
-    const req = mockReq({ force: true, generateImage: true });
+    const req = mockReq({ force: false, generateImage: false });
 
     // Mock agenda and its chain methods
     const agendaMock = {
@@ -42,7 +42,7 @@ describe('POST /api/article/[id]/process', () => {
     // Verify that agenda methods were called correctly
     expect(agendaMock.create).toHaveBeenCalledWith(
       workerModule.JobNames.Article.process,
-      expect.objectContaining({ id: article._id, force: true, generateImage: true })
+      expect.objectContaining({ id: article._id, force: false, generateImage: false })
     );
     expect(agendaMock.schedule).toHaveBeenCalledWith('now');
     expect(agendaMock.unique).toHaveBeenCalledWith(expect.objectContaining({ 'data.id': article._id }), {

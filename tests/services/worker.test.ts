@@ -1,6 +1,6 @@
 import { JobNames } from '@services/worker';
 import { Bundle, Newsletter } from '@lib/models';
-import Agenda, { Job } from 'agenda';
+import Agenda from 'agenda';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 
 describe('Worker', () => {
@@ -19,6 +19,7 @@ describe('Worker', () => {
   });
 
   afterEach(async () => {
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
     await agenda._mdb.collection(agenda._collection.collectionName).deleteMany({});
   });
@@ -29,6 +30,17 @@ describe('Worker', () => {
     await worker.close();
     await agenda.close();
     console.log('Agenda database cleaned up.');
+  });
+
+  it('Agenda is using the designated db', async () => {
+    vi.stubEnv('AGENDA_DB_NAME', 'pechuga');
+    const { default: initWorker } = await import('@services/worker')
+    const w = await initWorker();
+    expect(w._collection.dbName).toBe('pechuga');
+    expect(w._collection.collectionName).toBe('agendaJobs');
+
+    await w._mdb.dropDatabase();
+    await w.close();
   });
 
   it('Job.save() is bypassed when no MONGODB_URI is unset in non-production environment', async () => {
