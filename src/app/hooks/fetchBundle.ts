@@ -1,7 +1,6 @@
 import { Bundle, IArticle, IBundle, INewsletter } from '@lib/models';
 import type { ReactionsEnum } from '@lib/models/enums';
-import initScheduler, { JobNames } from '@services/worker';
-import { Job } from 'chronos-jobs';
+import { JobNames, Task, ITask } from '@services/worker';
 
 // Mock articles strictly following IArticle interface from /lib/models/article.ts
 const mockArticles: IArticle[] = [
@@ -42,13 +41,14 @@ AI and automation are making it easier for readers to get the content they care 
   },
 ];
 
-export async function useBundle(id: string, debug = false) {
+export async function fetchBundleData(id: string, debug = false) {
   // Use mock data if DB is not connected
   if (Bundle.db.readyState != 1) {
     console.warn('Database not connected, using mock bundle articles');
     return {
       userId: '',
       reactionMap: new Map<string, ReactionsEnum>(),
+      jobMap: new Map<string, string>(),
       articles: [],
       newsletters: [
         {
@@ -98,26 +98,26 @@ export async function useBundle(id: string, debug = false) {
 
   if (!bundleData) return null;
 
-  const bundle = await Bundle.findById(id) as Bundle;
-  const articleIds = bundle.unwrapArticleIds();
+  const articleIds = Bundle.unwrapArticleIds(bundleData);
 
   // Fetch processing jobs for articles in this bundle
-  const scheduler = await initScheduler();
-  const jobs = await scheduler.jobs({
+  const tasks: ITask[] = await Task.find({
     name: JobNames.Article.process,
     'data.id': { $in: articleIds },
-    lockedAt: { $exists: true, $ne: null } as any,
-  });
+    lockedAt: { $exists: true, $ne: null },
+  }).lean();
 
+  
   // Map article ID to job ID
-  const jobMap = new Map(jobs.map((job: Job<any>) => [String(job.attrs.data.id), String(job.attrs._id)]));
+  const jobMap = new Map(tasks.map((job) => [String(job.data.id), String(job._id)]));
   const newsletters = (bundleData.newsletters || []) as INewsletter[];
   const articles = (bundleData.articles || []) as IArticle[];
-
+  
   return {
     newsletters,
-    articles: articles.map((a) => ({ ...a, processingJob: jobMap.get(a._id) })),
+    articles,
     userId: String(bundleData.user._id) || '',
     reactionMap,
+    jobMap,
   };
 }

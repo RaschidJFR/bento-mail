@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { NewsletterDisplay } from '@components/NewsletterDisplay';
 import { ArticleCard } from '@app/components/ArticleCard';
-import { useBundle } from '@app/hooks/useBundle';
+import { fetchBundleData } from '@app/hooks/fetchBundle';
 
 export default async function Page({
   params,
@@ -12,7 +12,7 @@ export default async function Page({
 }) {
   const { id } = await params;
   const debug = (await searchParams)?.debug;
-  const data = await useBundle(id, debug == '1');
+  const data = await fetchBundleData(id, debug == '1');
   if (!data) return notFound();
 
   return (
@@ -27,6 +27,7 @@ export default async function Page({
                   article={article}
                   userId={data.userId}
                   reaction={data.reactionMap?.get(article._id)}
+                  jobId={data.jobMap.get(article._id)}
                 />
               ))}
           </div>
@@ -40,6 +41,7 @@ export default async function Page({
                       newsletter={newsletter}
                       userId={data.userId}
                       reactionMap={data.reactionMap}
+                      jobMap={data.jobMap}
                     />
                   )
               )

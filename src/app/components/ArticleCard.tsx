@@ -12,6 +12,7 @@ interface ArticleCardProps {
   article: IArticle & { processingJob?: string };
   userId?: string;
   reaction?: ReactionsEnum;
+  jobId?: string;
   onRemove?: (articleId: string) => void;
 }
 
@@ -33,19 +34,19 @@ async function upsertReaction({
   return await res.json();
 }
 
-export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCardProps) => {
+export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [liveArticle, setLiveArticle] = useState(article);
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
   const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
   const [isFlagged, setIsFlagged] = useState(reaction === ReactionsEnum.PROBLEM);
-  const [isProcessing, setIsProcessing] = useState(!!article.processingJob);
+  const [isProcessing, setIsProcessing] = useState(!!jobId);
   const [isRemoving, setIsRemoving] = useState(false);
 
   useEffect(() => {
     setLiveArticle(article);
-    setIsProcessing(!!article.processingJob);
-  }, [article]);
+    setIsProcessing(!!jobId);
+  }, [article, jobId]);
 
   const handleLike = async () => {
     setIsLiked(!isLiked);

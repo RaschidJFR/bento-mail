@@ -2,7 +2,7 @@ import { getModelForClass, getName, pre, prop, index, isDocument } from '@typego
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
 import { Types, type ObjectId } from 'mongoose';
 import { UserClass } from './user';
-import { NewsletterClass } from './newsletter';
+import { INewsletter, NewsletterClass } from './newsletter';
 import { ArticleClass } from './article';
 import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
@@ -266,15 +266,22 @@ export class BundleClass implements IBundle {
   /**
    * Unwrap all articles in this bundle, including those from newsletters.
    */
-  public unwrapArticleIds(this: DocumentType<BundleClass>): string[] {
-    if (!this.articles || !this.newsletters) {
+  public static unwrapArticleIds(this: typeof BundleModel, bundle: IBundle): string[] {
+    if (!bundle.articles || !bundle.newsletters) {
       throw new Error('Please populate both articles and newsletters before calling allArticles()');
     }
 
-    const newsletters = this.newsletters || [];
-    const articles = newsletters.map((nl) => (nl as Newsletter).articles).flat();
-    const result = articles.concat(this.articles).map((a) => (isDocument(a) ? a.id : a));
+    const newsletters = bundle.newsletters || [];
+    const articles = newsletters.map((nl) => (nl as INewsletter).articles).flat();
+    const result = articles.concat(bundle.articles).map((a) => (typeof a === 'string' ? a : a._id));
     return result;
+  }
+
+  /**
+   * Unwrap all articles in this bundle, including those from newsletters.
+   */
+  public unwrapArticleIds(this: Bundle): string[] {
+    return BundleModel.unwrapArticleIds(this);
   }
 
   /**

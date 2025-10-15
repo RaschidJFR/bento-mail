@@ -1,4 +1,4 @@
-'use client'
+'use client';
 import type { INewsletter, IArticle } from '@lib/models/types';
 import { NewsletterHeader } from './NewsletterHeader';
 import { ArticleCard } from './ArticleCard';
@@ -10,10 +10,12 @@ export function NewsletterDisplay({
   newsletter,
   userId,
   reactionMap,
+  jobMap,
 }: {
   newsletter: INewsletter;
   userId?: string;
   reactionMap?: Map<string, ReactionsEnum>;
+  jobMap?: Map<string, string>;
 }) {
   const [articles, setArticles] = useState<IArticle[]>((newsletter.articles as IArticle[]) || []);
 
@@ -21,13 +23,7 @@ export function NewsletterDisplay({
     // TODO: is there a way to filter events by id?
     const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001');
     const handler = (data: Partial<IArticle>) => {
-      setArticles((prev) =>
-        prev.map((article) =>
-          article._id === data._id
-            ? { ...article, ...data }
-            : article
-        )
-      );
+      setArticles((prev) => prev.map((article) => (article._id === data._id ? { ...article, ...data } : article)));
     };
     socket.on('articleUpdated', handler);
     return () => {
@@ -51,6 +47,7 @@ export function NewsletterDisplay({
               article={article}
               userId={userId}
               reaction={reactionMap?.get(article._id)}
+              jobId={jobMap?.get(article._id)}
               onRemove={handleRemoveArticle}
             />
           ))
