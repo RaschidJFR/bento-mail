@@ -48,7 +48,7 @@ export async function fetchBundleData(id: string, debug = false) {
     return {
       userId: '',
       reactionMap: new Map<string, ReactionsEnum>(),
-      jobMap: new Map<string, string>(),
+      tasks: [],
       articles: [],
       newsletters: [
         {
@@ -67,8 +67,8 @@ export async function fetchBundleData(id: string, debug = false) {
   const articlesWithReactions = Array.from(reactionMap.keys());
 
   // Match filters
-  const noErrors: any = debug ? {} : { $or: [{ lastError: '' }, { lastError: { $exists: false } }] };
-  const noReactions: any = debug ? {} : { _id: { $nin: articlesWithReactions } };
+  const noErrors = debug ? {} : { $or: [{ lastError: '' }, { lastError: { $exists: false } }] };
+  const noReactions = debug ? {} : { _id: { $nin: articlesWithReactions } };
 
   const bundleData: IBundle | null = await Bundle.findById(id)
     .populate([
@@ -101,23 +101,21 @@ export async function fetchBundleData(id: string, debug = false) {
   const articleIds = Bundle.unwrapArticleIds(bundleData);
 
   // Fetch processing jobs for articles in this bundle
-  const tasks: ITask[] = await Task.find({
+  const activeTasks: ITask<{ id: string }>[] = await Task.find<ITask>({
     name: JobNames.Article.process,
     'data.id': { $in: articleIds },
-    lockedAt: { $exists: true, $ne: null },
+    $or: [{ lockedAt: { $exists: true, $ne: null } }, { nextRunAt: { $exists: true, $ne: null } }],
   }).lean();
 
-  
-  // Map article ID to job ID
-  const jobMap = new Map(tasks.map((job) => [String(job.data.id), String(job._id)]));
   const newsletters = (bundleData.newsletters || []) as INewsletter[];
   const articles = (bundleData.articles || []) as IArticle[];
-  
+  const tasks = activeTasks.map((t) => ({ ...t, _id: String(t._id) }));
+
   return {
     newsletters,
     articles,
     userId: String(bundleData.user._id) || '',
     reactionMap,
-    jobMap,
+    tasks,
   };
 }

@@ -7,12 +7,13 @@ import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw, AlertCircle
 import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
+import { isTaskActive, ITaskArticleProcess } from '@app/hooks/useTasks';
 
 interface ArticleCardProps {
-  article: IArticle & { processingJob?: string };
+  article: IArticle;
   userId?: string;
   reaction?: ReactionsEnum;
-  jobId?: string;
+  job?: ITaskArticleProcess;
   onRemove?: (articleId: string) => void;
 }
 
@@ -34,19 +35,22 @@ async function upsertReaction({
   return await res.json();
 }
 
-export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: ArticleCardProps) => {
+export const ArticleCard = ({ article, userId, reaction, job: initialJob, onRemove }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [liveArticle, setLiveArticle] = useState(article);
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
   const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
   const [isFlagged, setIsFlagged] = useState(reaction === ReactionsEnum.PROBLEM);
-  const [isProcessing, setIsProcessing] = useState(!!jobId);
+  const [isProcessing, setIsProcessing] = useState(initialJob && isTaskActive(initialJob));
   const [isRemoving, setIsRemoving] = useState(false);
+  const [job, setJob] = useState(initialJob);
 
   useEffect(() => {
-    setLiveArticle(article);
-    setIsProcessing(!!jobId);
-  }, [article, jobId]);
+    setJob(initialJob);
+  }, [initialJob]);
+
+  useEffect(() => {
+    setIsProcessing(!!job && isTaskActive(job));
+  }, [job]);
 
   const handleLike = async () => {
     setIsLiked(!isLiked);
@@ -109,8 +113,6 @@ export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: Arti
   };
 
   const handleProcess = async () => {
-    setLiveArticle({ ...liveArticle, summaries: {} } as any);
-    setIsProcessing(true);
     try {
       const res = await fetch(`/api/article/${article._id}/process`, {
         method: 'POST',
@@ -119,22 +121,23 @@ export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: Arti
       });
       if (!res.ok) throw new Error('Failed to process article');
       // UI will update via props
+      const task = (await res.json()) as ITaskArticleProcess;
+      setJob(task);
     } catch (err) {
       console.error(err);
     }
-    // Don't setIsProcessing(false) here; let props handle it
   };
 
   return (
     <Card>
       {/* Error banner */}
-      {liveArticle.lastError && (
+      {article.lastError && (
         <div className="bg-destructive/10 border-l-4 border-destructive p-4 mb-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-destructive mb-1">Processing Error:</h3>
-              <p className="text-sm text-destructive/90">{liveArticle.lastError}</p>
+              <p className="text-sm text-destructive/90">{article.lastError}</p>
             </div>
           </div>
         </div>
@@ -161,9 +164,9 @@ export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: Arti
         {/* Clickable area to toggle details */}
         <div className={isDetailsOpen ? '' : 'cursor-pointer'} onClick={() => setIsDetailsOpen(true)}>
           {/* Cover Image */}
-          {liveArticle.coverImg && (
+          {article.coverImg && (
             <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
-              <img src={liveArticle.coverImg} alt={liveArticle.header} className="w-full h-full object-contain" />
+              <img src={article.coverImg} alt={article.header} className="w-full h-full object-contain" />
             </div>
           )}
 
@@ -171,21 +174,21 @@ export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: Arti
             {/* Header */}
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-text-headline leading-tight group-hover:text-brand-primary transition-colors duration-200">
-                {liveArticle.header || liveArticle.summaries?.oneliner}
+                {article.header || article.summaries?.oneliner}
               </h2>
 
-              <div className="text-xs text-muted-foreground font-mono">ID: {liveArticle._id}</div>
+              <div className="text-xs text-muted-foreground font-mono">ID: {article._id}</div>
 
               <div className="flex items-center gap-3 text-sm text-text-meta">
-                {liveArticle.sourceName && (
+                {article.sourceName && (
                   <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary border-brand-primary/20">
-                    {liveArticle.sourceName}
+                    {article.sourceName}
                   </Badge>
                 )}
-                {liveArticle.date && (
+                {article.date && (
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    <span>{formatDate(liveArticle.date)}</span>
+                    <span>{formatDate(article.date)}</span>
                   </div>
                 )}
               </div>
@@ -196,7 +199,7 @@ export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: Arti
               {/* Overview with fade effect when collapsed */}
               <div className="relative">
                 <p className="text-text-body leading-relaxed transition-all duration-300">
-                  {liveArticle.summaries?.overview || ''}
+                  {article.summaries?.overview || ''}
                 </p>
               </div>
 
@@ -207,7 +210,7 @@ export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: Arti
                 }`}
               >
                 <div className="pt-3 border-t border-border/50">
-                  <p className="text-text-meta text-sm leading-relaxed">{liveArticle.summaries?.details || ''}</p>
+                  <p className="text-text-meta text-sm leading-relaxed">{article.summaries?.details || ''}</p>
                 </div>
               </div>
             </div>
@@ -218,9 +221,9 @@ export const ArticleCard = ({ article, userId, reaction, jobId, onRemove }: Arti
       <div className="p-2 pr-6 pl-6 border-t border-border/50">
         <div className="flex items-center justify-between w-full">
           <div className="flex-1">
-            {liveArticle.url && (
+            {article.url && (
               <a
-                href={liveArticle.url}
+                href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm"

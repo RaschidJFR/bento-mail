@@ -1,22 +1,32 @@
-import { Newsletter, Article, ITask } from '@lib/models';
+import { Newsletter, Article, ITask, IArticle } from '@lib/models';
 import { JobNames, Task } from '@services/worker';
 import { Server } from 'socket.io';
-import { io } from 'socket.io-client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { io, Socket } from 'socket.io-client';
+import { afterAll, afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import type { ObjectId } from 'mongodb';
 
 describe('RTDB Service', () => {
   const port = 12899;
   let server: Server;
+  let client: Socket;
+
+  function connect(client: Socket) {
+    client.connect();
+    return new Promise<void>((resolve: any) => client.once('connect', resolve));
+  }
 
   beforeEach(async () => {
     const startServer = (await import('@services/RTDB')).setupAndStart;
     server = await startServer(port);
+    client = io(`http://localhost:${port}`, { autoConnect: false });
   });
 
-  afterEach(() => {
-    server.disconnectSockets();
-    server.close();
+  afterEach(async () => {
+    client.close();
+  });
+
+  afterAll(async () => {
+    await server.close();
   });
 
   describe('Basic connectivity', () => {
@@ -25,7 +35,7 @@ describe('RTDB Service', () => {
       const forTestToFinish = new Promise((resolve) => (finishTest = resolve));
 
       server.on('connection', (socket) => socket.on('testEvent', finishTest));
-      const client = io(`http://localhost:${port}`);
+      client.connect();
 
       client.emit('testEvent', { data: 'test' });
       await expect(forTestToFinish).resolves.toEqual({ data: 'test' });
@@ -37,7 +47,7 @@ describe('RTDB Service', () => {
 
       server.on('connection', (socket) => socket.emit('testEvent', { data: 'test' }));
 
-      const client = io(`http://localhost:${port}`);
+      client.connect();
       client.on('testEvent', finishTest);
 
       await expect(forTestToFinish).resolves.toEqual({ data: 'test' });
@@ -47,7 +57,7 @@ describe('RTDB Service', () => {
       let finishTest!: (value: unknown) => void;
       const forTestToFinish = new Promise((resolve) => (finishTest = resolve));
 
-      const client = io(`http://localhost:${port}`);
+      client.connect();
       client.on('testEvent', finishTest);
 
       // Wait for client to actually connect before emitting
@@ -63,7 +73,7 @@ describe('RTDB Service', () => {
 
       server.on('connection', (socket) => socket.join('testRoom'));
 
-      const client = io(`http://localhost:${port}`);
+      client.connect();
       client.on('testEvent', finishTest);
 
       // Wait for client to actually connect before emitting
@@ -91,12 +101,12 @@ describe('RTDB Service', () => {
       })) as Newsletter;
     });
 
-    it('Emit when an article processing task is created', async () => {
+    it('Emit when a task is created', async () => {
       let onTaskChanged!: (value: TaskChange) => void;
       const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
 
       // Connect client and join newsletter room
-      const client = io(`http://localhost:${port}`);
+      client.connect();
       client.on('taskChanged', onTaskChanged);
       client.emit('joinNewsletter', newsletter._id);
 
@@ -112,7 +122,7 @@ describe('RTDB Service', () => {
       expect(onTaskChanged).toHaveBeenCalledOnce();
     });
 
-    it('Emit when an article processing task is updated', async () => {
+    it('Emit when a task is updated', async () => {
       let onTaskChanged!: (value: TaskChange) => void;
       const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
 
@@ -121,7 +131,7 @@ describe('RTDB Service', () => {
       const task = await Task.create(taskData);
 
       // Connect client and join newsletter room
-      const client = io(`http://localhost:${port}`);
+      client.connect();
       client.on('taskChanged', onTaskChanged);
       client.emit('joinNewsletter', newsletter._id);
 
@@ -137,7 +147,7 @@ describe('RTDB Service', () => {
     });
 
     it(
-      'Emit when an article processing task is deleted',
+      'Emit when a task is deleted',
       async () => {
         let onTaskChanged!: (value: TaskChange) => void;
         const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
@@ -145,24 +155,25 @@ describe('RTDB Service', () => {
         const task = await Task.create({ name: JobNames.Article.process, data: { id: article._id } });
 
         // Connect client and join newsletter room
-        const client = io(`http://localhost:${port}`);
+        client.on('taskChanged', onTaskChanged);
         client.emit('joinNewsletter', newsletter._id);
-
-        // Wait for client to actually connect before emitting
+        client.connect();
         await new Promise((resolve: any) => client.once('connect', resolve));
 
         // Set up listener and delete task to trigger the change stream
-        client.on('taskChanged', onTaskChanged);
         await task.deleteOne();
+
+        // wait for 3 secs
+        await new Promise((resolve) => setTimeout(resolve, 3000));
 
         // Wait for change to be processed
         const { _id, data } = await taskChangePromise;
         expect(_id).toBe(task.id);
         expect(data).toBeNull();
-        expect(onTaskChanged).toHaveBeenCalledOnce();
+        expect(onTaskChanged).lastCalledWith({ _id: task._id, data: null });
       },
       { todo: true }
-    ); // Deletion currently not implemented
+    ); // changeStreamPreAndPostImages is required for this test to work
 
     it('Emit only to clients in a newsletter rooms', async () => {
       // Create a task for the article in the newsletter
@@ -173,7 +184,7 @@ describe('RTDB Service', () => {
       const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
 
       // Connect client and join newsletter room
-      const client = io(`http://localhost:${port}`);
+      client.connect();
       client.on('taskChanged', onTaskChanged);
 
       // Wait for client to actually connect before emitting
@@ -189,6 +200,111 @@ describe('RTDB Service', () => {
       await task.set({ lockedAt: Date.now() }).save();
       await taskChangePromise;
       expect(onTaskChanged).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('Article ChangeStream', () => {
+    interface ArticleChange {
+      _id: ObjectId;
+      data: IArticle | null;
+    }
+
+    let article: Article;
+    let newsletter: Newsletter;
+
+    beforeEach(async () => {
+      article = await Article.create({ content: ' Article content' });
+      newsletter = await Newsletter.create({
+        content: 'newsletter content',
+        articles: [article],
+      });
+    });
+
+    it('Emit when an article is created', async () => {
+      let onArticleChanged!: (value: any) => void;
+      const articleChangePromise = new Promise<ArticleChange>((resolve) => (onArticleChanged = resolve));
+
+      // Connect client
+      client.emit('joinNewsletter', newsletter._id);
+      client.connect();
+      await new Promise<void>((resolve: any) => client.once('connect', resolve));
+
+      // Generate a new article and add it to the newsletter
+      const newArticle = await Article.create({ content: 'new article' });
+      newsletter.articles.push(newArticle);
+      await newsletter.save();
+
+      // Create the article with the pre-shared id to trigger the change stream
+      client.on('articleChanged', onArticleChanged);
+      const { _id, data } = await articleChangePromise;
+      expect(_id).toBe(newArticle._id);
+      expect(data?.content).toBe('new article');
+    });
+
+    it('Emit when an article is updated', async () => {
+      let onArticleChanged!: Mock;
+      const articleChangePromise = new Promise<ArticleChange>((resolve) => (onArticleChanged = vi.fn(resolve)));
+
+      // Connect client and join newsletter room
+      client.connect();
+      client.on('articleChanged', onArticleChanged);
+      client.emit('joinNewsletter', newsletter._id);
+
+      // Wait for client to actually connect before emitting
+      await new Promise((resolve: any) => client.once('connect', resolve));
+
+      // Update article to trigger the change stream
+      await article.set({ content: 'updated content' }).save();
+      const { _id, data } = await articleChangePromise;
+      expect(_id).toBe(article._id);
+      expect(data?.content).toBe('updated content');
+      expect(onArticleChanged).toHaveBeenCalledOnce();
+    });
+
+    it('Emit when an article is deleted', async () => {
+      let onArticleChanged!: Mock;
+      const articleChangePromise = new Promise<ArticleChange>((resolve) => (onArticleChanged = vi.fn(resolve)));
+
+      // Connect client and join newsletter room
+      client.on('articleChanged', onArticleChanged);
+      client.emit('joinNewsletter', newsletter._id);
+      client.connect();
+
+      // Wait for client to be ready
+      await new Promise((resolve: any) => client.once('connect', resolve));
+
+      // Delete article to trigger the change stream
+      await article.deleteOne();
+
+      // Wait for change to be processed
+      const { _id, data } = await articleChangePromise;
+      expect(_id).toBe(article._id);
+      expect(data).toBeNull();
+      expect(onArticleChanged).toHaveBeenLastCalledWith({ _id: article._id, data: null });
+    });
+
+    it('Emit only to clients in a newsletter rooms', async () => {
+      // Set up a mock to track calls
+      let onArticleChanged!: Mock;
+      const articleChangePromise = new Promise<ArticleChange>((resolve) => (onArticleChanged = vi.fn(resolve)));
+
+      // Connect client and do NOT join newsletter room initially
+      client.connect();
+      client.on('articleChanged', onArticleChanged);
+
+      // Wait for client to actually connect before emitting
+      await new Promise((resolve: any) => client.once('connect', resolve));
+
+      // Update article to trigger the change stream
+      await article.set({ content: 'first update' }).save();
+      await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for change to be processed
+      expect(onArticleChanged).not.toHaveBeenCalled();
+
+      client.emit('joinNewsletter', newsletter._id);
+      await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for join to be processed
+      await article.set({ content: 'second update' }).save();
+      await articleChangePromise;
+      expect(onArticleChanged).toHaveBeenCalledOnce();
     });
   });
 });

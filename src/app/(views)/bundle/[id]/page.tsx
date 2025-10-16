@@ -15,6 +15,8 @@ export default async function Page({
   const data = await fetchBundleData(id, debug == '1');
   if (!data) return notFound();
 
+  const jobMap = new Map(data.tasks?.map((task) => [task.data.id, task]) || []);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -27,7 +29,7 @@ export default async function Page({
                   article={article}
                   userId={data.userId}
                   reaction={data.reactionMap?.get(article._id)}
-                  jobId={data.jobMap.get(article._id)}
+                  job={jobMap.get(article._id)}
                 />
               ))}
           </div>
@@ -35,13 +37,13 @@ export default async function Page({
             {data.newsletters.length ? (
               data.newsletters.map(
                 (newsletter) =>
-                  !!newsletter.articles?.length && (
+                  !!newsletter.articles && (
                     <NewsletterDisplay
                       key={newsletter._id}
                       newsletter={newsletter}
                       userId={data.userId}
                       reactionMap={data.reactionMap}
-                      jobMap={data.jobMap}
+                      tasks={data.tasks}
                     />
                   )
               )

@@ -4,33 +4,32 @@ import { NewsletterHeader } from './NewsletterHeader';
 import { ArticleCard } from './ArticleCard';
 import { ReactionsEnum } from '@lib/models/enums';
 import { useState, useEffect } from 'react';
-import io from 'socket.io-client';
 import { useTasks } from '@app/hooks/useTasks';
+import { socket } from '@app/hooks/getSocket';
+import { ITask } from '@lib/models';
 
 export function NewsletterDisplay({
   newsletter,
   userId,
   reactionMap,
-  jobMap,
+  tasks: initialTasks,
 }: {
   newsletter: INewsletter;
   userId?: string;
   reactionMap?: Map<string, ReactionsEnum>;
-  jobMap?: Map<string, string>;
+  tasks?: (Omit<ITask<{ id: string }>, '_id'> & { _id: string })[];
 }) {
   const [articles, setArticles] = useState<IArticle[]>((newsletter.articles as IArticle[]) || []);
-  const [tasks, setTasks] = useTasks(newsletter._id);
+  const [jobMap] = useTasks(newsletter._id, initialTasks || []);
 
   useEffect(() => {
     // TODO: is there a way to filter events by id?
-    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4001');
     const handler = (data: Partial<IArticle>) => {
       setArticles((prev) => prev.map((article) => (article._id === data._id ? { ...article, ...data } : article)));
     };
     socket.on('articleUpdated', handler);
     return () => {
       socket.off('articleUpdated', handler);
-      socket.disconnect();
     };
   }, []);
 
@@ -49,7 +48,7 @@ export function NewsletterDisplay({
               article={article}
               userId={userId}
               reaction={reactionMap?.get(article._id)}
-              jobId={jobMap?.get(article._id)}
+              job={jobMap?.get(article._id)}
               onRemove={handleRemoveArticle}
             />
           ))
