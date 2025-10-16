@@ -5,6 +5,7 @@ import { ArticleCard } from './ArticleCard';
 import { ReactionsEnum } from '@lib/models/enums';
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
+import { useTasks } from '@app/hooks/useTasks';
 
 export function NewsletterDisplay({
   newsletter,
@@ -18,6 +19,7 @@ export function NewsletterDisplay({
   jobMap?: Map<string, string>;
 }) {
   const [articles, setArticles] = useState<IArticle[]>((newsletter.articles as IArticle[]) || []);
+  const [tasks, setTasks] = useTasks(newsletter._id);
 
   useEffect(() => {
     // TODO: is there a way to filter events by id?

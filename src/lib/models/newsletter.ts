@@ -1,7 +1,7 @@
 import { hash, applyInBatches } from '@lib/utils';
-import { prop, getModelForClass, modelOptions, Ref, pre, index } from '@typegoose/typegoose';
-import type { DocumentType, ReturnModelType } from '@typegoose/typegoose';
-import { Article, ArticleClass } from './article';
+import { prop, getModelForClass, modelOptions, Ref, pre, index, queryMethod } from '@typegoose/typegoose';
+import type { DocumentType, ReturnModelType, types } from '@typegoose/typegoose';
+import { Article, ArticleClass, IArticle } from './article';
 import { extractArticlesFromNewsletter } from '@lib/ai-article-analyzer';
 import { clearModelInDevelopment } from './utils';
 
@@ -12,6 +12,14 @@ export interface INewsletter {
   date?: string;
   name?: string;
   error?: string;
+}
+
+interface QueryHelpers {
+  findByNewsletter: types.AsQueryMethod<typeof findByArticle>;
+}
+
+function findByArticle(this: types.QueryHelperThis<typeof NewsletterClass, QueryHelpers>, id: IArticle['_id']) {
+  return this.find({ articles: id });
 }
 
 function generateId(this: DocumentType<NewsletterClass>) {
@@ -40,6 +48,7 @@ function generateId(this: DocumentType<NewsletterClass>) {
 @modelOptions({ options: { allowMixed: 0 } })
 @index({ error: 1 }, { sparse: true })
 @index({ date: -1 })
+@queryMethod(findByArticle)
 export class NewsletterClass implements INewsletter {
   @prop({ default: generateId, type: String })
   public readonly _id!: string;
