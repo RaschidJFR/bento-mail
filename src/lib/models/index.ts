@@ -11,6 +11,7 @@ export { Bundle } from './bundle';
 export type { IBundle } from './bundle';
 export { Reaction } from './reaction';
 export type { IReaction } from './reaction';
+export type { ITask } from '@services/worker/task';
 
 // Connect to the database when this module is imported
 if (process.env.MONGODB_URI) {

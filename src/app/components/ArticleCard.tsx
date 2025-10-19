@@ -3,20 +3,18 @@ import type { IArticle } from '@lib/models/types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
+import { isTaskActive, ITaskArticleProcess } from '@app/hooks/useTasks';
 
 interface ArticleCardProps {
   article: IArticle;
   userId?: string;
   reaction?: ReactionsEnum;
+  job?: ITaskArticleProcess;
   onRemove?: (articleId: string) => void;
-}
-
-function isProcessed(article: IArticle) {
-  return !!article.summaries?.oneliner && !!article.summaries?.overview && !!article.summaries?.details;
 }
 
 async function upsertReaction({
@@ -37,14 +35,27 @@ async function upsertReaction({
   return await res.json();
 }
 
-export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCardProps) => {
+export const ArticleCard = ({ article: initialArticle, userId, reaction, job: initialJob, onRemove }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [liveArticle, setLiveArticle] = useState(article);
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
   const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
   const [isFlagged, setIsFlagged] = useState(reaction === ReactionsEnum.PROBLEM);
-  const [isProcessing, setIsProcessing] = useState(!isProcessed(article));
+  const [isProcessing, setIsProcessing] = useState(initialJob && isTaskActive(initialJob));
   const [isRemoving, setIsRemoving] = useState(false);
+  const [job, setJob] = useState(initialJob);
+  const [article, setArticle] = useState(initialArticle);
+
+  useEffect(() => {
+    setArticle(initialArticle);
+  }, [initialArticle]);
+
+  useEffect(() => {
+    setJob(initialJob);
+  }, [initialJob]);
+
+  useEffect(() => {
+    setIsProcessing(!!job && isTaskActive(job));
+  }, [job]);
 
   const handleLike = async () => {
     setIsLiked(!isLiked);
@@ -59,11 +70,11 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
       });
     }
     // Remove article after animation
-    !isLiked &&
+    if (!isLiked) {
       setTimeout(() => {
-        console.log('Removing article', article._id);
         onRemove?.(article._id);
       }, 300);
+    }
   };
 
   const handleSkip = async () => {
@@ -79,11 +90,11 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
       });
     }
     // Remove article after animation
-    !isSkip &&
+    if (!isSkip) {
       setTimeout(() => {
-        console.log('Removing article', article._id);
         onRemove?.(article._id);
       }, 300);
+    }
   };
 
   const handleFlag = async () => {
@@ -99,33 +110,56 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
       });
     }
     // Remove article after animation
-    !isFlagged &&
+    if (!isFlagged) {
       setTimeout(() => {
-        console.log('Removing article', article._id);
         onRemove?.(article._id);
       }, 300);
+    }
   };
 
-  const handleProcess = () => {
-    setIsProcessing(true);
-    // Simulate processing
-    setTimeout(() => {
+  const handleProcess = async () => {
+    try {
+      setIsProcessing(true);
+      const res = await fetch(`/api/article/${article._id}/process`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true }),
+      });
+      if (!res.ok) throw new Error('Failed to process article');
+      // UI will update via props
+      const task = (await res.json()) as ITaskArticleProcess;
+      setJob(task);
+    } catch (err) {
       setIsProcessing(false);
-    }, 2000);
+      console.error(err);
+    }
   };
 
   return (
-    <Card
-      className={`relative overflow-hidden bg-surface-elevated border-border 
-          transition-all duration-300 max-h-screen
-          hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/10 group 
-          ${isLiked || isSkip || isFlagged || isProcessing ? 'opacity-60' : ''} 
-        `}
-      style={isRemoving ? { maxHeight: 0, opacity: 0 } : {}}
-    >
-      <div className="relative">
+    <Card>
+      {/* Error banner */}
+      {article.lastError && !isProcessing && (
+        <div className="bg-destructive/10 border-l-4 border-destructive p-4 mb-4">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-destructive mb-1">Processing Error:</h3>
+              <p className="text-sm text-destructive/90">{article.lastError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Main content area */}
+      <div
+        className={`relative overflow-hidden bg-surface-elevated border-border 
+        transition-all duration-300 max-h-screen
+        hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/10 group 
+        ${isLiked || isSkip || isFlagged || isProcessing ? 'opacity-60' : ''} 
+      `}
+        style={isRemoving ? { maxHeight: 0, opacity: 0 } : {}}
+      >
         {/* Processing overlay */}
-        {!isProcessed(liveArticle) && (
+        {isProcessing && (
           <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center">
             <div className="flex items-center gap-2 text-brand-primary">
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -137,9 +171,9 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
         {/* Clickable area to toggle details */}
         <div className={isDetailsOpen ? '' : 'cursor-pointer'} onClick={() => setIsDetailsOpen(true)}>
           {/* Cover Image */}
-          {liveArticle.coverImg && (
+          {article.coverImg && (
             <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
-              <img src={liveArticle.coverImg} alt={liveArticle.header} className="w-full h-full object-contain" />
+              <img src={article.coverImg} alt={article.header} className="w-full h-full object-contain" />
             </div>
           )}
 
@@ -147,21 +181,21 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
             {/* Header */}
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-text-headline leading-tight group-hover:text-brand-primary transition-colors duration-200">
-                {liveArticle.header || liveArticle.summaries?.oneliner}
+                {article.header || article.summaries?.oneliner}
               </h2>
 
-              <div className="text-xs text-muted-foreground font-mono">ID: {liveArticle._id}</div>
+              <div className="text-xs text-muted-foreground font-mono">ID: {article._id}</div>
 
               <div className="flex items-center gap-3 text-sm text-text-meta">
-                {liveArticle.sourceName && (
+                {article.sourceName && (
                   <Badge variant="secondary" className="bg-brand-primary/10 text-brand-primary border-brand-primary/20">
-                    {liveArticle.sourceName}
+                    {article.sourceName}
                   </Badge>
                 )}
-                {liveArticle.date && (
+                {article.date && (
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    <span>{formatDate(liveArticle.date)}</span>
+                    <span>{formatDate(article.date)}</span>
                   </div>
                 )}
               </div>
@@ -172,7 +206,7 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
               {/* Overview with fade effect when collapsed */}
               <div className="relative">
                 <p className="text-text-body leading-relaxed transition-all duration-300">
-                  {liveArticle.summaries?.overview || ''}
+                  {article.summaries?.overview || ''}
                 </p>
               </div>
 
@@ -183,7 +217,7 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
                 }`}
               >
                 <div className="pt-3 border-t border-border/50">
-                  <p className="text-text-meta text-sm leading-relaxed">{liveArticle.summaries?.details || ''}</p>
+                  <p className="text-text-meta text-sm leading-relaxed">{article.summaries?.details || ''}</p>
                 </div>
               </div>
             </div>
@@ -194,9 +228,9 @@ export const ArticleCard = ({ article, userId, reaction, onRemove }: ArticleCard
       <div className="p-2 pr-6 pl-6 border-t border-border/50">
         <div className="flex items-center justify-between w-full">
           <div className="flex-1">
-            {liveArticle.url && (
+            {article.url && (
               <a
-                href={liveArticle.url}
+                href={article.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 text-brand-primary hover:text-brand-accent transition-colors font-medium text-sm"

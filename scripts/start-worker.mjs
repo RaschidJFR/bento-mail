@@ -7,15 +7,11 @@
  * If collectionName is provided, the worker will process jobs from that specific collection.
  *
  * Environment variables:
- *   - MONGODB_URI: MongoDB connection string (required)
- *   - WORKER_PROCESSING_INTERVAL: How often to check for new jobs (default: '1 hour')
+ *   - WORKER_PROCESSING_INTERVAL: How often to check for new jobs (default: '1 second')
  */
 
 import 'dotenv/config';
 let worker;
-process.env.AGENDA_COLLECTION = process.argv[2] || process.env.AGENDA_COLLECTION || '';
-const interval = process.env.WORKER_PROCESSING_INTERVAL || '1 hour';
-
 let initWorker;
 try {
   initWorker = (await import('../dist/services/worker/index.mjs')).default;
@@ -26,12 +22,11 @@ try {
 }
 
 worker = await initWorker();
-worker.processEvery(interval);
 console.log('Starting worker...');
 worker.start().then(() => {
-  const collectionName = worker._collection?.collectionName;
+  const collectionName = worker.db?.collection?.collectionName;
   console.log(
-    `Worker started, polling jobs at intervals of ${interval} from ${collectionName}. \nPress Ctrl+C to stop.\n`
+    `Worker started, polling jobs at intervals of ${worker.attrs.processEvery / 1000} seconds from ${collectionName}. \nPress Ctrl+C to stop.\n`
   );
 });
 
@@ -42,5 +37,4 @@ const shutdown = async () => {
   process.exit(0);
 };
 
-process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

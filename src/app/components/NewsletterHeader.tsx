@@ -6,7 +6,11 @@ import { formatDate } from './utils';
 const devEnv = process.env.NODE_ENV !== 'production';
 
 interface NewsletterHeaderProps {
-  newsletter?: INewsletter;
+  newsletter?: {
+    _id?: string;
+    name?: string;
+    date?: string;
+  };
 }
 
 export const NewsletterHeader = ({ newsletter }: NewsletterHeaderProps) => {
@@ -28,8 +32,8 @@ export const NewsletterHeader = ({ newsletter }: NewsletterHeaderProps) => {
           </div>
         )}
         {/* <div className="text-text-body text-lg max-w-2xl">
-          {newsletter?.content && newsletter.content.trim() ? (
-            <pre>{newsletter.content}</pre>
+          {newsletter?.content && newsletter?.content.trim() ? (
+            <pre>{newsletter?.content}</pre>
           ) : (
             "The latest breakthroughs in technology, science, and innovation. Curated insights from the world's leading research institutions and tech companies."
           )}

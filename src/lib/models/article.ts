@@ -17,6 +17,7 @@ export interface IArticle {
     details: string;
   };
   lastError?: string;
+  secondaryArticles?: Partial<IArticle>[];
 }
 
 function generateId(article: DocumentType<ArticleClass>) {
@@ -27,7 +28,8 @@ function generateId(article: DocumentType<ArticleClass>) {
 }
 
 @modelOptions({ options: { allowMixed: 0 } })
-@index({ lastError: 1, sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
+@index({ lastError: 1 }, { sparse: true }) // Optimized for fetching articles for a bundle
+@index({ sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
 export class ArticleClass implements IArticle {
   @prop({ type: String, default: generateId })
   public _id: string = '';
@@ -45,6 +47,8 @@ export class ArticleClass implements IArticle {
   public sourceName: string = '';
   @prop({ default: {}, type: Object })
   public summaries: IArticle['summaries'] = {} as IArticle['summaries'];
+  @prop({ type: [Object] })
+  public secondaryArticles?: Partial<IArticle>[];
 
   /**
    * Error message from the last processing attempt, if any.
@@ -71,7 +75,7 @@ export class ArticleClass implements IArticle {
    * If `summaries` already exist, the method will not re-process the article.
    * If a previous processing attempt failed, it will retry.
    */
-  public async process(this: DocumentType<ArticleClass>, { force = false } = {}) {
+  public async process(this: DocumentType<ArticleClass>, { force = false, generateImage = false } = {}) {
     let existing = (await ArticleModel.findById(this._id)) as Article;
     if ((existing && this.isModified()) || !existing) {
       throw new Error('You must save any changes to this object before processing');
@@ -99,7 +103,7 @@ export class ArticleClass implements IArticle {
       const data = await extractArticleDetails(existing.content);
 
       let coverImg = existing?.coverImg || data.coverImg || '';
-      if (!coverImg) {
+      if (!coverImg && generateImage) {
         console.warn(`No cover image found for article %o. Attempting to generate.`, this._id);
         try {
           const { oneliner, overview, details } = data.summaries!;

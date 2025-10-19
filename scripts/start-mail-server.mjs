@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 server.on('ready', () => {
-  console.log('Press Ctrl+C to stop the server');
+  console.log('Press Ctrl+C to stop the server\n');
 });
 
 process.on('SIGINT', () => {
