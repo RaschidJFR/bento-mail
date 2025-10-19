@@ -28,7 +28,16 @@ export async function setupTaskChangestream(io: Server) {
   const pipeline = [
     {
       $match: {
-        operationType: { $in: ['insert', 'update', 'replace', 'delete'] },
+        $or: [
+          {
+            'fullDocument.name': 'article.process',
+            operationType: { $in: ['insert', 'update', 'replace'] },
+          },
+          {
+            'fullDocumentBeforeChange.name': 'article.process',
+            operationType: 'delete',
+          },
+        ],
       },
     },
   ];
@@ -54,7 +63,7 @@ async function onArticleProcessTaskChange(io: Server, change: ChangeStreamDocume
   const task = 'fullDocument' in change ? change.fullDocument : null;
   const prevTask = 'fullDocumentBeforeChange' in change ? change.fullDocumentBeforeChange : null;
   const articleId = task?.data.id || prevTask?.data.id;
-  if(!articleId) {
+  if (!articleId) {
     console.warn('[%o] No article ID found in task %o', change.operationType, String(taskId));
     return;
   }
