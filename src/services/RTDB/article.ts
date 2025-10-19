@@ -114,8 +114,8 @@ async function onNewsletterChange(io: Server, change: ChangeStreamDocument<INews
     addedArticles.forEach((article) => {
       io.to(roomName(newsletterId)).emit(EMIT_EVENT_NAME, { _id: article._id, data: article });
     });
-  } else if (change.operationType === 'delete') {
-    console.warn('Delete operation not supported for newsletters in change stream');
+  } else {
+    console.warn('Operation %s not supported for newsletters in change stream', change.operationType);
   }
 }
 

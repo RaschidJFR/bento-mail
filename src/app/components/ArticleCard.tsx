@@ -35,7 +35,7 @@ async function upsertReaction({
   return await res.json();
 }
 
-export const ArticleCard = ({ article, userId, reaction, job: initialJob, onRemove }: ArticleCardProps) => {
+export const ArticleCard = ({ article: initialArticle, userId, reaction, job: initialJob, onRemove }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
   const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
@@ -43,6 +43,11 @@ export const ArticleCard = ({ article, userId, reaction, job: initialJob, onRemo
   const [isProcessing, setIsProcessing] = useState(initialJob && isTaskActive(initialJob));
   const [isRemoving, setIsRemoving] = useState(false);
   const [job, setJob] = useState(initialJob);
+  const [article, setArticle] = useState(initialArticle);
+
+  useEffect(() => {
+    setArticle(initialArticle);
+  }, [initialArticle]);
 
   useEffect(() => {
     setJob(initialJob);
@@ -114,6 +119,7 @@ export const ArticleCard = ({ article, userId, reaction, job: initialJob, onRemo
 
   const handleProcess = async () => {
     try {
+      setIsProcessing(true);
       const res = await fetch(`/api/article/${article._id}/process`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -124,6 +130,7 @@ export const ArticleCard = ({ article, userId, reaction, job: initialJob, onRemo
       const task = (await res.json()) as ITaskArticleProcess;
       setJob(task);
     } catch (err) {
+      setIsProcessing(false);
       console.error(err);
     }
   };
@@ -131,7 +138,7 @@ export const ArticleCard = ({ article, userId, reaction, job: initialJob, onRemo
   return (
     <Card>
       {/* Error banner */}
-      {article.lastError && (
+      {article.lastError && !isProcessing && (
         <div className="bg-destructive/10 border-l-4 border-destructive p-4 mb-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />

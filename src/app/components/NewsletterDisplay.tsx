@@ -3,10 +3,10 @@ import type { INewsletter, IArticle } from '@lib/models/types';
 import { NewsletterHeader } from './NewsletterHeader';
 import { ArticleCard } from './ArticleCard';
 import { ReactionsEnum } from '@lib/models/enums';
-import { useState, useEffect } from 'react';
-import { useTasks } from '@app/hooks/useTasks';
+import { useEffect } from 'react';
+import { ITaskArticleProcess, useTasks } from '@app/hooks/useTasks';
 import { socket } from '@app/hooks/getSocket';
-import { ITask } from '@lib/models';
+import { useArticles } from '@app/hooks/useArticles';
 
 export function NewsletterDisplay({
   newsletter,
@@ -17,21 +17,10 @@ export function NewsletterDisplay({
   newsletter: INewsletter;
   userId?: string;
   reactionMap?: Map<string, ReactionsEnum>;
-  tasks?: (Omit<ITask<{ id: string }>, '_id'> & { _id: string })[];
+  tasks?: ITaskArticleProcess[];
 }) {
-  const [articles, setArticles] = useState<IArticle[]>((newsletter.articles as IArticle[]) || []);
+  const [articles, setArticles] = useArticles(newsletter);
   const [jobMap] = useTasks(newsletter._id, initialTasks || []);
-
-  useEffect(() => {
-    // TODO: is there a way to filter events by id?
-    const handler = (data: Partial<IArticle>) => {
-      setArticles((prev) => prev.map((article) => (article._id === data._id ? { ...article, ...data } : article)));
-    };
-    socket.on('articleUpdated', handler);
-    return () => {
-      socket.off('articleUpdated', handler);
-    };
-  }, []);
 
   const handleRemoveArticle = (articleId: string) => {
     setArticles((prev) => prev.filter((article) => article._id !== articleId));
