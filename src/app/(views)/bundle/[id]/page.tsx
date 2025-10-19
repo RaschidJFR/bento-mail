@@ -16,6 +16,7 @@ export default async function Page({
   if (!data) return notFound();
 
   const jobMap = new Map(data.tasks?.map((task) => [task.data.id, task]) || []);
+  const hasArticles = (data.newsletters || []).some((nl) => nl.articles?.length);
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,10 +35,10 @@ export default async function Page({
               ))}
           </div>
           <div className="space-y-12">
-            {data.newsletters.length ? (
+            {hasArticles ? (
               data.newsletters.map(
                 (newsletter) =>
-                  !!newsletter.articles && (
+                  !!newsletter.articles?.length && (
                     <NewsletterDisplay
                       key={newsletter._id}
                       newsletter={newsletter}
@@ -48,7 +49,7 @@ export default async function Page({
                   )
               )
             ) : (
-              <p className="text-center text-muted-foreground">No newsletters available.</p>
+              <p className="text-center text-muted-foreground">No articles available.</p>
             )}
           </div>
         </main>
