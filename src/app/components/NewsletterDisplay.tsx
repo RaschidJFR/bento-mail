@@ -1,20 +1,26 @@
-'use client'
+'use client';
 import type { INewsletter, IArticle } from '@lib/models/types';
 import { NewsletterHeader } from './NewsletterHeader';
 import { ArticleCard } from './ArticleCard';
 import { ReactionsEnum } from '@lib/models/enums';
-import { useState } from 'react';
+import { useEffect } from 'react';
+import { ITaskArticleProcess, useTasks } from '@app/hooks/useTasks';
+import { socket } from '@app/hooks/getSocket';
+import { useArticles } from '@app/hooks/useArticles';
 
 export function NewsletterDisplay({
   newsletter,
   userId,
   reactionMap,
+  tasks: initialTasks,
 }: {
   newsletter: INewsletter;
   userId?: string;
   reactionMap?: Map<string, ReactionsEnum>;
+  tasks?: ITaskArticleProcess[];
 }) {
-  const [articles, setArticles] = useState<IArticle[]>((newsletter.articles as IArticle[]) || []);
+  const [articles, setArticles] = useArticles(newsletter);
+  const [jobMap] = useTasks(newsletter._id, initialTasks || []);
 
   const handleRemoveArticle = (articleId: string) => {
     setArticles((prev) => prev.filter((article) => article._id !== articleId));
@@ -31,6 +37,7 @@ export function NewsletterDisplay({
               article={article}
               userId={userId}
               reaction={reactionMap?.get(article._id)}
+              job={jobMap?.get(article._id)}
               onRemove={handleRemoveArticle}
             />
           ))

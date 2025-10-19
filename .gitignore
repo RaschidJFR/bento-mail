@@ -75,11 +75,8 @@ web_modules/
 .parcel-cache
 
 # Next.js build output
-.next
+.next/
 out
-
-# Next.js static export
-out/
 
 # Next.js cache
 .cache
@@ -152,5 +149,7 @@ vite.config.ts.timestamp-*
 #Mac system files
 .DS_Store
 
-samples/
-results/
+.env
+results
+samples
+samples.zip

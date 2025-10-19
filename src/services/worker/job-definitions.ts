@@ -1,6 +1,5 @@
-import Agenda, { Job } from 'agenda';
-import { Bundle, Newsletter } from '@lib/models';
-import { Article } from '@lib/models/article';
+import { Job, Chronos as Agenda } from 'chronos-jobs';
+import { Bundle, Newsletter, Article } from '@lib/models';
 import { applyInBatches } from '@lib/utils';
 
 export const JobNames = Object.freeze({
@@ -17,7 +16,7 @@ export const JobNames = Object.freeze({
 
 export function defineJobs(agenda: Agenda) {
   // Define job to process bundle
-  agenda.define(JobNames.Bundle.process, { shouldSaveResult: true }, async (job: Job<{ id: string }>) => {
+  agenda.define(JobNames.Bundle.process, async (job: Job<{ id: string }>) => {
     const id = job.attrs.data?.id;
     if (!id) {
       throw new Error('Missing id');
@@ -41,7 +40,7 @@ export function defineJobs(agenda: Agenda) {
 
   // Define job to extract articles from newsletter
   // This job will extract the newsletter's articles and queue article processing jobs
-  agenda.define(JobNames.Newsletter.processArticles, { shouldSaveResult: true }, async (job: Job<{ id: string, force?: boolean }>) => {
+  agenda.define(JobNames.Newsletter.processArticles, async (job: Job<{ id: string; force?: boolean }>) => {
     const newsletterId = job.attrs.data?.id;
     const force = job.attrs.data?.force;
     if (!newsletterId) {
@@ -73,24 +72,28 @@ export function defineJobs(agenda: Agenda) {
   });
 
   // Define job to process article
-  agenda.define(JobNames.Article.process, { shouldSaveResult: true }, async (job: Job<{ id: string, force?: boolean }>) => {
-    const id = job.attrs.data?.id;
-    const force = job.attrs.data?.force;
+  agenda.define(
+    JobNames.Article.process,
+    async (job: Job<{ id: string; force?: boolean; generateImage?: boolean }>) => {
+      const id = job.attrs.data?.id;
+      const force = job.attrs.data?.force;
+      const generateImage = job.attrs.data?.generateImage;
 
-    if (!id) {
-      throw new Error('Missing id');
-    }
-    const article = await Article.findById({ _id: id });
-    if (!article) {
-      throw new Error(`Article not found: ${id}`);
-    }
+      if (!id) {
+        throw new Error('Missing id');
+      }
+      const article = await Article.findById({ _id: id });
+      if (!article) {
+        throw new Error(`Article not found: ${id}`);
+      }
 
-    try {
-      await article.process({ force });
-      return { processed: article.isProcessed() };
-    } catch (err: any) {
-      console.error(`[worker] Error processing article ${id}:`, err.message);
-      throw err;
+      try {
+        await article.process({ force, generateImage });
+        return { processed: article.isProcessed() };
+      } catch (err: any) {
+        console.error(`[worker] Error processing article ${id}:`, err.message);
+        throw err;
+      }
     }
-  });
+  );
 }
