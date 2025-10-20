@@ -7,7 +7,7 @@
  * If collectionName is provided, the worker will process jobs from that specific collection.
  *
  * Environment variables:
- *   - WORKER_PROCESSING_INTERVAL: How often to check for new jobs (default: '1 second')
+ *   - WORKER_PROCESSING_INTERVAL: How often to check for new jobs (default: '30 seconds')
  */
 
 import 'dotenv/config';
@@ -22,6 +22,7 @@ try {
 }
 
 worker = await initWorker();
+worker.processEvery(process.env.WORKER_PROCESSING_INTERVAL || '30 seconds');
 console.log('Starting worker...');
 worker.start().then(() => {
   const collectionName = worker.db?.collection?.collectionName;

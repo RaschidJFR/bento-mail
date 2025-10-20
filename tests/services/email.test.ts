@@ -41,7 +41,7 @@ describe('Email processing', () => {
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/user'), {
       email: user.email,
     });
-    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/content'), {
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
       content: 'Test newsletter content',
       format: 'text',
     });
@@ -76,7 +76,7 @@ describe('Email processing', () => {
       });
 
     await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));
-    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/content'), {
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
       content: 'Test newsletter content',
       format: 'text',
     });
@@ -111,7 +111,7 @@ describe('Email processing', () => {
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/user'), {
       email: user.email,
     });
-    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/content'), {
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
       content: 'Test newsletter content',
       format: 'text',
     });

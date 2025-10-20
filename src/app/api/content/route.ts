@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       console.log('Creating new Newsletter with id: %o', newsletter._id);
       await newsletter.save();
     } else {
-      return Response.json({ error: 'Could not determine if content is an article or a newsletter.' }, { status: 400 });
+      return Response.json({ error: 'Could not determine if content is an article or a newsletter.' }, { status: 422 });
     }
 
     // Trigger worker to process the bundle

@@ -2,7 +2,12 @@ import { hash, applyInBatches } from '@lib/utils';
 import { prop, getModelForClass, modelOptions, Ref, pre, index, queryMethod, getName } from '@typegoose/typegoose';
 import type { DocumentType, ReturnModelType, types } from '@typegoose/typegoose';
 import { Article, ArticleClass, IArticle } from './article';
-import { extractArticlesFromNewsletter } from '@lib/ai-article-analyzer';
+import {
+  extractArticlesFromNewsletter,
+  isArticleOrNewsletter,
+  extractArticleDetails,
+  NewsletterDataProps,
+} from '@lib/ai-article-analyzer';
 import { clearModelInDevelopment } from './utils';
 
 export interface INewsletter {
@@ -76,57 +81,70 @@ export class NewsletterClass implements INewsletter {
    */
   public async extractArticles(this: Newsletter, { force = false } = {}): Promise<number> {
     // Ensure the article is pristine
-    const existing = (await Newsletter.findById(this._id)) as Newsletter | null;
-    let content = existing?.content || this.content || '';
-    if ((existing && this.isModified()) || !existing) {
+    const existingNewsletter = (await Newsletter.findById(this._id)) as Newsletter | null;
+    let content = existingNewsletter?.content || this.content || '';
+    if ((existingNewsletter && this.isModified()) || !existingNewsletter) {
       throw new Error('You must save any changes to this object before processing');
     }
     if (typeof content !== 'string' || !content.trim()) {
       throw new Error('Content is empty or invalid');
     }
-    if (existing?.articles?.length > 0 && !force) {
+    if (existingNewsletter?.articles?.length > 0 && !force) {
       console.warn(`Newsletter ${this._id} already has articles, skipping extraction.`);
       return 0;
     }
-    if (existing.error && !force) {
-      console.warn(`Newsletter %o previously failed. Skipping extraction. Error: (${existing.error})`, this._id);
+    if (existingNewsletter.error && !force) {
+      console.warn(
+        `Newsletter %o previously failed. Skipping extraction. Error: (${existingNewsletter.error})`,
+        this._id
+      );
       return 1;
     }
 
     try {
       console.log(`Extracting articles for newsletter %o...`, this._id);
-      const data = await extractArticlesFromNewsletter(content);
-
-      // Save articles and link them to this newsletter
-      let errCount = 0;
+      const contentType = await isArticleOrNewsletter(content);
       const articles: Article[] = [];
-      await applyInBatches(data.articles, async (a) => {
-        try {
-          let art = new Article(a);
-          const artExists = await Article.findById({ _id: art._id });
-          art = artExists || art;
-          art.sourceName = art.sourceName || data.name || existing.name || '';
-          art.date = art.date || data.date || existing.date || '';
-          await art.save();
-          articles.push(art);
-        } catch (error: any) {
-          console.error(`Failed to save article:`);
-          console.error(error.stack, '\n');
-          errCount++;
-        }
-      });
+      let errCount = 0;
+
+      if (contentType === 'article') {
+        const articleData = await extractArticleDetails(content, { skipVerify: true });
+        const article = new Article({ content, header: articleData.summaries!.oneliner, ...articleData });
+        await article.save();
+        articles.push(article);
+      } else if (contentType === 'newsletter') {
+        const data = await extractArticlesFromNewsletter(content);
+        this.set({ ...data }); // Update name/date and other newsletter props if extracted
+
+        await applyInBatches(data.articles, async (a) => {
+          try {
+            let art = new Article(a);
+            const artExists = await Article.findById({ _id: art._id });
+            art = artExists || art;
+            art.sourceName = art.sourceName || data.name || existingNewsletter.name || '';
+            art.date = art.date || data.date || existingNewsletter.date || '';
+            await art.save();
+            articles.push(art);
+          } catch (error: any) {
+            // If processing a single article, re-throw the error
+            if (contentType === 'article') throw error;
+            console.error(`Failed to save article:`, error);
+            errCount++;
+          }
+        });
+      } else {
+        throw new Error('Content could not be classified as an article or newsletter.');
+      }
 
       // Update newsletter with articles and clear any previous error
-      existing.set({ ...data, articles, error: '' });
-      await this.set(existing.toObject()).save();
+      await this.set({ articles, error: '' }).save();
       console.log(
         `Extracted and saved ${articles.length} articles for newsletter %o with ${errCount} errors.\n`,
         this._id
       );
       return errCount;
     } catch (error: any) {
-      console.error(`Error extracting articles for newsletter %o`, this._id);
-      console.error(error.stack, '\n');
+      console.error(`Error extracting articles for newsletter %o:\n`, this._id, error, '\n');
 
       // Save the error message
       await this.set({ error: error.message || String(error) }).save();

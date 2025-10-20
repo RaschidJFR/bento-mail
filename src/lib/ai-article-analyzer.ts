@@ -14,7 +14,9 @@ if (!process.env.OPENAI_API_KEY) {
 }
 
 export type ArticleDataProps = Omit<IArticle, '_id'>;
-export type ArticleDetailsProps = Pick<ArticleDataProps, 'date' | 'summaries' | 'coverImg'>;
+export type ArticleDetailsProps = Pick<ArticleDataProps, 'date' | 'summaries' | 'coverImg' | 'sourceName'> & {
+  linkedArticles?: BasicArticleProps[];
+};
 export type BasicArticleProps = Omit<ArticleDataProps, 'summaries'> & { content: string };
 export type NewsletterDataProps = Omit<INewsletter, '_id' | 'content' | 'articles'> & {
   articles: BasicArticleProps[];
@@ -33,8 +35,9 @@ const NewsletterSchema = z.object({
   date: z.string().default('').describe('The date of the newsletter (yyyy-mm-dd numbers). Empty string if not found.'),
 });
 
-const ComplementaryArticleSchema = z.object({
+const FullArticleSchema = z.object({
   coverImg: z.string().default('').describe('URL to the cover image of the article. Empty string if not found.'),
+  sourceName: z.string().default('').describe('The name of the newsletter. Empty string if not found.'),
   date: z
     .string()
     .default('')
@@ -46,12 +49,18 @@ const ComplementaryArticleSchema = z.object({
       .string()
       .describe('Supporting details and evidence that complement the overview in less than 500 characters'),
   }),
+  linkedArticles: z
+    .array(BasicArticleSchema)
+    .optional()
+    .default([])
+    .describe('List of related or linked articles found in the content'),
 });
 
 const ArticleOrNewsletterSchema = z.object({
   type: z
     .enum(['article', 'newsletter', 'unknown'])
     .describe('Whether the text is a single article, a newsletter, or unknown'),
+  reason: z.string().describe('Brief explanation of the classification decision'),
 });
 
 /**
@@ -68,9 +77,7 @@ export async function extractArticlesFromNewsletter(textContent: string): Promis
   }
 
   const prompt = `
-You are an expert at extracting structured information from newsletter Markdown content. 
-
-Analyze the provided Markdown content and extract all newsletter articles. For each article, identify:
+Analyze the provided newsletter content and extract all articles. For each article, identify:
 
 1. **header**: The main title/headline of the article
 2. **url**: Any external links to the full article (look for markdown link syntax [text](url))
@@ -132,7 +139,7 @@ ${textContent}
  * Extracts article details from Markdown content using AI
  * @param textContent - The Markdown content of a single article
  */
-export async function extractArticleDetails(textContent: string) {
+export async function extractArticleDetails(textContent: string, { skipVerify = false } = {}) {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -141,17 +148,20 @@ export async function extractArticleDetails(textContent: string) {
   }
 
   // First ensure this is an article
-  const type = await isArticleOrNewsletter(textContent);
-  if (type !== 'article') {
-    throw new Error(`[ai-analyzer] Content is not a single article (detected type: ${type})`);
+  if (skipVerify == false) {
+    const type = await isArticleOrNewsletter(textContent);
+    if (type !== 'article') {
+      throw new Error(`[ai-analyzer] Content is not a single article (detected type: ${type})`);
+    }
   }
 
   const prompt = `
-Analyze the provided Markdown content extracted from a web article and extract the article information:
+Analyze the provided content extracted from a web article and extract the article information:
 
 1. **coverImg**: Look for the main article image (markdown image syntax ![alt](url)). 
   Ignore the author's avatar image (you can recognize it by its small size or placement near the author name).
 2. **date**: Extract the publication date if mentioned in the content (yyyy-mm-dd numbers)
+3. **linkedArticles**: Identify any related or linked articles mentioned in the content. These can appear as references, citations, or hyperlinks within the text.
 
 Create three different summaries
 1. **oneliner**: Create the most accurate and compelling header/title for this article in less than 100 characters
@@ -160,12 +170,12 @@ Create three different summaries
 
 Rules:
 - The oneliner should be more accurate than the original title if needed
-- The overview must be under 200 characters and capture the essence
-- The details summary must be under 500 characters and provide supporting context
+- The overview must be under 200 characters and capture the essence. Do not repeat the oneliner.
+- The details summary must be under 500 characters and provide supporting context. Do not repeat the overview.
 - Focus on actionable insights and key facts
 - Be precise and avoid fluff
 
-Markdown Content:
+Content:
 
 \`\`\`markdown
 ${textContent}
@@ -173,7 +183,7 @@ ${textContent}
 `;
 
   const result: ArticleDetailsProps = await model
-    .withStructuredOutput(ComplementaryArticleSchema)
+    .withStructuredOutput(FullArticleSchema)
     .invoke([new SystemMessage(prompt)]);
   return result;
 }
@@ -187,16 +197,10 @@ export async function isArticleOrNewsletter(textContent: string) {
   }
 
   const prompt = `
-Given the following text from a newsletter content, determine if it represents:
-- A single "article" (one main story, possibly with sections). 
-  Even if it has subsections or links to other articles, it should focus on one main topic.
-- A "newsletter" (a list or collection of suggested articles to read, possibly with summaries).
-  This focuses on multiple distinct articles or topics.
-- "unknown" if it is neither or unclear. Watch out for advertisements, error messages, captchas, or unrelated content.
-
-If you are unsure or the text does not clearly fit either category, respond with "unknown".
-
-Respond with a JSON object with a single key "type" whose value is either "article", "newsletter", or "unknown".
+Given the following newsletter/article text, determine if there is a main article/featured story or not.
+- if there is one (even if there are other recommended articles), classify it as "article"
+- if it is only a list of articles with no featured narrative, classify it as "newsletter"
+- if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown"
 
 Text:
 

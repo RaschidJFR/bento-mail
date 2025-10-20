@@ -82,7 +82,7 @@ export async function processNewEmail(email: Mail) {
     let objectType = '';
     let object = null;
     try {
-      const response = await axios.post(`${process.env.APP_URL}/api/content`, {
+      const response = await axios.post(`${process.env.APP_URL}/api/newsletter`, {
         content: email.text || email.html,
         format: email.text ? 'text' : 'html',
       });
