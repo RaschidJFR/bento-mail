@@ -42,6 +42,7 @@ describe('Article', () => {
   describe('process()', () => {
     beforeEach(async () => {
       // Mock ai-article-analyzer
+      vi.restoreAllMocks();
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue({
         summaries: {
@@ -119,14 +120,14 @@ describe('Article', () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       const extractArticleDetails = vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue({} as any);
 
-      const article = await new Article({
+      const article = await Article.create({
         content: 'Some content',
         summaries: {
           oneliner: 'Already summarized',
           overview: 'Already summarized',
           details: 'Already summarized',
         },
-      }).save();
+      });
 
       await article.process();
       expect(extractArticleDetails).not.toHaveBeenCalled();
