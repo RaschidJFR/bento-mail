@@ -2,7 +2,7 @@
 
 /**
  * Simple script to forward a sample email (in .eml format) to the test SMTP server.
- * Usage: node scripts/fwd-email.mjs <path-to-eml-file>
+ * Usage: node scripts/fwd-email.mjs <path-to-eml-file> [from-address]
  */
 
 import 'dotenv/config';
