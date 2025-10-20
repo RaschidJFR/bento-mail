@@ -127,7 +127,7 @@ export class NewsletterClass implements INewsletter {
             articles.push(art);
           } catch (error: any) {
             // If processing a single article, re-throw the error
-            if (articles.length === 1) throw error;
+            if (contentType === 'article') throw error;
             console.error(`Failed to save article:`, error);
             errCount++;
           }
