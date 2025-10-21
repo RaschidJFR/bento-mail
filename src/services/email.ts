@@ -25,7 +25,7 @@ function sanitizeFilename(name: string) {
 }
 
 async function fetchRawEmailFromMaildev(id: string): Promise<string | null> {
-  const url = `http://localhost:1080/email/${id}/source`;
+  const url = `http://127.0.0.1:1080/email/${id}/source`;
   try {
     const response = await axios.get(url, { responseType: 'text' });
     if (response.status === 200 && typeof response.data === 'string') {
@@ -58,7 +58,8 @@ async function saveEmailSample(email: Mail) {
 
 export async function processNewEmail(email: Mail) {
   try {
-    await saveEmailSample(email);
+    if (process.env.NODE_ENV != 'production') await saveEmailSample(email);
+    
     const userEmail = email.envelope?.from?.address;
     console.log(`Processing email received from %o: "${email.subject}"...`, userEmail);
 
@@ -115,7 +116,7 @@ export async function processNewEmail(email: Mail) {
         `[email] ${error.message} – ${error.response?.data?.error || error.response?.statusText || error.code}`
       );
     }
-    console.error(error.stack, '\n');
+    console.error(error, '\n');
   }
 }
 
