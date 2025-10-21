@@ -26,7 +26,6 @@ function generateId(article: DocumentType<ArticleClass>) {
   return hash((article.url || article.content) as string);
 }
 
-@modelOptions({ options: { allowMixed: 0 } })
 @index({ lastError: 1 }, { sparse: true }) // Optimized for fetching articles for a bundle
 @index({ sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
 export class ArticleClass implements IArticle {

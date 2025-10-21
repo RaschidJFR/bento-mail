@@ -60,7 +60,8 @@ export async function POST(req: NextRequest) {
       console.log('Creating new Newsletter with id: %o', newsletter._id);
       await newsletter.save();
     } else {
-      return Response.json({ error: 'Content is not a newsletter.' }, { status: 422 });
+      console.warn('Content is not a newsletter: ', contentType);
+      return Response.json({ error: `Content is not a newsletter (${contentType}).` }, { status: 422 });
     }
 
     // Trigger worker to process the bundle

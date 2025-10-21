@@ -50,7 +50,6 @@ interface QueryHelpers {
     }
   }
 })
-@modelOptions({ options: { allowMixed: 0 } })
 @index({ error: 1 }, { sparse: true })
 @index({ date: -1 })
 @queryMethod(findByArticle)

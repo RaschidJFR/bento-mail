@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
 import { isTaskActive, ITaskArticleProcess } from '@app/hooks/useTasks';
+import Image from 'next/image';
 
 interface ArticleCardProps {
   article: IArticle;
@@ -173,7 +174,7 @@ export const ArticleCard = ({ article: initialArticle, userId, reaction, job: in
           {/* Cover Image */}
           {article.coverImg && (
             <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
-              <img src={article.coverImg} alt={article.header} className="w-full h-full object-contain" />
+              <Image src={article.coverImg} alt={article.header} className="w-full h-full object-contain" />
             </div>
           )}
 
