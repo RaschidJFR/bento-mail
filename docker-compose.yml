@@ -10,7 +10,6 @@ services:
       - MONGODB_URI=${MONGODB_URI}
       - DATABASE_NAME=${DATABASE_NAME}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
   mail:
     build: .
     command: node scripts/start-mail-server.mjs
