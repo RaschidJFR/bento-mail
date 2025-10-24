@@ -1,4 +1,4 @@
-import { ChatOpenAI, DallEAPIWrapper, OpenAI } from '@langchain/openai';
+import { ChatOpenAI, DallEAPIWrapper } from '@langchain/openai';
 import { SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import 'dotenv/config';
@@ -21,6 +21,7 @@ export type BasicArticleProps = Omit<ArticleDataProps, 'summaries'> & { content:
 export type NewsletterDataProps = Omit<INewsletter, '_id' | 'content' | 'articles'> & {
   articles: BasicArticleProps[];
 };
+export type ArticleOrNewsletterResponse = { type: 'article' | 'newsletter' | 'unknown'; reason: string };
 
 const BasicArticleSchema = z.object({
   header: z.string().describe('The title of the article. 100 characters max.'),
@@ -96,11 +97,13 @@ Content:
 ${textContent}
 \`\`\`
 `;
-
-  const data = await model.withStructuredOutput(NewsletterSchema).invoke([new SystemMessage(prompt)]);
+  // @ts-ignore
+  const data = (await model
+    .withStructuredOutput(NewsletterSchema)
+    .invoke([new SystemMessage(prompt)]));
   return {
     ...data,
-    articles: data.articles.map((a) => ({ ...a, sourceName: data.name })),
+    articles: data.articles.map((a: BasicArticleProps) => ({ ...a, sourceName: data.name })),
   };
 }
 
@@ -182,13 +185,14 @@ ${textContent}
 \`\`\`
 `;
 
-  const result: ArticleDetailsProps = await model
+  // @ts-ignore
+  const result: ArticleDetailsProps = (await model
     .withStructuredOutput(FullArticleSchema)
-    .invoke([new SystemMessage(prompt)]);
+    .invoke([new SystemMessage(prompt)]));
   return result;
 }
 
-export async function isArticleOrNewsletter(textContent: string) {
+export async function isArticleOrNewsletter(textContent: string): Promise<ArticleOrNewsletterResponse['type']> {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -210,7 +214,10 @@ ${textContent}
 `;
 
   try {
-    const result = await model.withStructuredOutput(ArticleOrNewsletterSchema).invoke([new SystemMessage(prompt)]);
+    // @ts-ignore
+    const result: ArticleOrNewsletterResponse = (await model
+      .withStructuredOutput(ArticleOrNewsletterSchema)
+      .invoke([new SystemMessage(prompt)]));
     return result.type;
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');

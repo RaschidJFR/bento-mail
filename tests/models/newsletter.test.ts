@@ -141,6 +141,31 @@ describe('Newsletter', () => {
       const article = updated.articles[0] as Article;
       expect(article).toMatchObject(mockArticle);
       expect(article.header).toBe('Single Article Title');
+
+      // Newsletter properties updated from article
+      expect(updated.name).toBe('Single Article Source');
+      expect(updated.date).toBe('2025-10-20');
+    });
+
+    it('can re-process single-article newsletter', async () => {
+      const mockArticleData = {
+        coverImg: '',
+        sourceName: 'Single Article Source',
+        date: '2025-10-20',
+        summaries: {
+          oneliner: 'Single Article Title',
+          overview: 'Overview summary',
+          details: 'Supporting details',
+        },
+      } as ArticleDetailsProps;
+      const analyzer = await import('@lib/ai-article-analyzer');
+      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('article');
+      vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockArticleData);
+
+      const newsletter = await Newsletter.create({ content: 'Single-article newsletter content' });
+      await newsletter.extractArticles();
+      await expect(newsletter.extractArticles({ force: true })).resolves.toBe(0);
+      expect(analyzer.extractArticleDetails).toHaveBeenCalledTimes(2);
     });
 
     it('should not re-process nor fail if `articles` is already populated', async () => {

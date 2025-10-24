@@ -1,0 +1,39 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    command: npx next start --host "::" --port 3000 # Railway requires binding to ipv6 address
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+  mail:
+    build: .
+    command: node scripts/start-mail-server.mjs
+    ports:
+      - '1025:1025'
+    environment:
+      - NODE_ENV=production
+      - APP_URL=http://web:3000 # Internal network URL to access the web service
+  worker:
+    build: .
+    command: node scripts/start-worker.mjs
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - DATABASE_NAME=${DATABASE_NAME}
+      - WORKER_PROCESSING_INTERVAL=${WORKER_PROCESSING_INTERVAL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+  rtdb:
+    build: .
+    command: node scripts/start-rtdb.mjs
+    ports:
+      - '4001:4001'
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI}
+      - DATABASE_NAME=${DATABASE_NAME}

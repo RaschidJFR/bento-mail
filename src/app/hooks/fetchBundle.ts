@@ -84,6 +84,7 @@ export async function fetchBundleData(id: string, debug = false) {
         match: {
           ...noErrors,
         },
+        options: { sort: { date: -1 } },
         populate: {
           path: 'articles',
           match: {

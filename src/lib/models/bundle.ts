@@ -1,4 +1,4 @@
-import { getModelForClass, getName, pre, prop, index, isDocument } from '@typegoose/typegoose';
+import { getModelForClass, getName, pre, prop, index } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
 import { Types, type ObjectId } from 'mongoose';
 import { UserClass } from './user';
@@ -297,7 +297,7 @@ export class BundleClass implements IBundle {
       },
       {
         $lookup: {
-          from: 'newsletterclasses',
+          from: Newsletter.collection.name,
           localField: 'newsletters',
           foreignField: '_id',
           as: 'newsletterDetails',
@@ -357,7 +357,8 @@ export class BundleClass implements IBundle {
 }
 
 clearModelInDevelopment(getName(BundleClass));
-const BundleModel = getModelForClass(BundleClass);
+// Specify collection name to avoid name changes due to minification in production
+const BundleModel = getModelForClass(BundleClass, { schemaOptions: { collection: 'bundles' } });
 
 export { BundleModel as Bundle };
 export type Bundle = DocumentType<BundleClass>;

@@ -1,13 +1,8 @@
 import { hash, applyInBatches } from '@lib/utils';
-import { prop, getModelForClass, modelOptions, Ref, pre, index, queryMethod, getName } from '@typegoose/typegoose';
+import { prop, getModelForClass, Ref, pre, index, queryMethod, getName } from '@typegoose/typegoose';
 import type { DocumentType, ReturnModelType, types } from '@typegoose/typegoose';
 import { Article, ArticleClass, IArticle } from './article';
-import {
-  extractArticlesFromNewsletter,
-  isArticleOrNewsletter,
-  extractArticleDetails,
-  NewsletterDataProps,
-} from '@lib/ai-article-analyzer';
+import { extractArticlesFromNewsletter, isArticleOrNewsletter, extractArticleDetails } from '@lib/ai-article-analyzer';
 import { clearModelInDevelopment } from './utils';
 
 export interface INewsletter {
@@ -50,7 +45,6 @@ interface QueryHelpers {
     }
   }
 })
-@modelOptions({ options: { allowMixed: 0 } })
 @index({ error: 1 }, { sparse: true })
 @index({ date: -1 })
 @queryMethod(findByArticle)
@@ -106,35 +100,36 @@ export class NewsletterClass implements INewsletter {
       const contentType = await isArticleOrNewsletter(content);
       const articles: Article[] = [];
       let errCount = 0;
+      let dArticles = [] as Partial<IArticle>[];
 
       if (contentType === 'article') {
-        const articleData = await extractArticleDetails(content, { skipVerify: true });
-        const article = new Article({ content, header: articleData.summaries!.oneliner, ...articleData });
-        await article.save();
-        articles.push(article);
+        const data = await extractArticleDetails(content, { skipVerify: true });
+        this.name = data.sourceName || existingNewsletter?.name || '';
+        this.date = data.date || existingNewsletter?.date || '';
+        dArticles = [data];
       } else if (contentType === 'newsletter') {
         const data = await extractArticlesFromNewsletter(content);
         this.set({ ...data }); // Update name/date and other newsletter props if extracted
-
-        await applyInBatches(data.articles, async (a) => {
-          try {
-            let art = new Article(a);
-            const artExists = await Article.findById({ _id: art._id });
-            art = artExists || art;
-            art.sourceName = art.sourceName || data.name || existingNewsletter.name || '';
-            art.date = art.date || data.date || existingNewsletter.date || '';
-            await art.save();
-            articles.push(art);
-          } catch (error: any) {
-            // If processing a single article, re-throw the error
-            if (contentType === 'article') throw error;
-            console.error(`Failed to save article:`, error);
-            errCount++;
-          }
-        });
+        dArticles = data.articles;
       } else {
         throw new Error('Content could not be classified as an article or newsletter.');
       }
+
+      await applyInBatches(dArticles, async (a) => {
+        try {
+          const articleContent = a.content || content || '';
+          const id = hash(articleContent);
+          const art = (await Article.findById({ _id: id })) || new Article({ content: articleContent, ...a });
+          art.header = art.header || a.header || a.summaries?.oneliner || '';
+          art.sourceName = art.sourceName || this.name || existingNewsletter.name || '';
+          art.date = art.date || this.date || existingNewsletter.date || '';
+          await art.save();
+          articles.push(art);
+        } catch (error: any) {
+          console.error(`Failed to save article:`, error);
+          errCount++;
+        }
+      });
 
       // Update newsletter with articles and clear any previous error
       await this.set({ articles, error: '' }).save();
@@ -185,7 +180,10 @@ export class NewsletterClass implements INewsletter {
   }
 }
 clearModelInDevelopment(getName(NewsletterClass));
-const NewsletterModel = getModelForClass<typeof NewsletterClass, QueryHelpers>(NewsletterClass);
+// Specify collection name to avoid name changes due to minification in production
+const NewsletterModel = getModelForClass<typeof NewsletterClass, QueryHelpers>(NewsletterClass, {
+  schemaOptions: { collection: 'newsletters' },
+});
 
 export const Newsletter = NewsletterModel;
 export type Newsletter = DocumentType<NewsletterClass>;

@@ -25,7 +25,7 @@ function sanitizeFilename(name: string) {
 }
 
 async function fetchRawEmailFromMaildev(id: string): Promise<string | null> {
-  const url = `http://localhost:1080/email/${id}/source`;
+  const url = `http://127.0.0.1:1080/email/${id}/source`;
   try {
     const response = await axios.get(url, { responseType: 'text' });
     if (response.status === 200 && typeof response.data === 'string') {
@@ -58,7 +58,8 @@ async function saveEmailSample(email: Mail) {
 
 export async function processNewEmail(email: Mail) {
   try {
-    await saveEmailSample(email);
+    if (process.env.NODE_ENV != 'production') await saveEmailSample(email);
+    
     const userEmail = email.envelope?.from?.address;
     console.log(`Processing email received from %o: "${email.subject}"...`, userEmail);
 
@@ -79,22 +80,19 @@ export async function processNewEmail(email: Mail) {
     }
 
     // Create newsletter
-    let objectType = '';
     let object = null;
     try {
       const response = await axios.post(`${process.env.APP_URL}/api/newsletter`, {
         content: email.text || email.html,
         format: email.text ? 'text' : 'html',
       });
-      const { result, type } = response?.data || {};
-      console.log(`${type} created with id %o`, result._id);
-      objectType = type;
+      const { result } = response?.data || {};
+      console.log(`Newsletter created with id %o`, result._id);
       object = result;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status == 409) {
         const { result, type } = err.response?.data || {};
         console.log(`${type} already exists: %o`, result._id);
-        objectType = type;
         object = result;
       } else {
         throw err;
@@ -104,18 +102,18 @@ export async function processNewEmail(email: Mail) {
     // Add object to bundle
     const bundleRes = await axios.post(`${process.env.APP_URL}/api/bundle`, {
       email: userEmail,
-      newsletters: objectType === 'newsletter' ? [object._id] : [],
-      articles: objectType === 'article' ? [object._id] : [],
+      newsletters: [object._id],
+      articles: [],
     });
     const { result: bundle } = (await bundleRes.data) || {};
-    console.log(`Bundle %o updated with ${objectType} %o\n`, bundle._id, object?._id);
+    console.log(`Bundle %o updated with newsletter %o\n`, bundle._id, object?._id);
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
       console.error(
         `[email] ${error.message} – ${error.response?.data?.error || error.response?.statusText || error.code}`
       );
     }
-    console.error(error.stack, '\n');
+    console.error(error, '\n');
   }
 }
 

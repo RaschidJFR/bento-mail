@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { processNewEmail } from '@services/email';
 import { AxiosError } from 'axios';
+import { ResponseData as PostNewsletterResponse } from '@app/api/newsletter/route';
+import { ResponseData as PostBundleResponse } from '@app/api/bundle/post';
+import { IBundle } from '@lib/models';
 
 function getMockEmailData({ from = 'user@example.com', subject = 'Test Subject', text = 'Test Content' }) {
   return {
@@ -15,12 +18,10 @@ function getMockEmailData({ from = 'user@example.com', subject = 'Test Subject',
 }
 
 describe('Email processing', () => {
-  it('ignore emails without from address', async () => {});
-
   it('creates newsletter and adds to bundle', async () => {
     const user = { email: 'user@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };
-    const bundle = { _id: 'bundleid', newsletters: ['newsletterid'], user };
+    const bundle = { _id: 'bundleid', newsletters: ['newsletterid'], user } as unknown as IBundle;
 
     const { default: axios } = await import('axios');
     vi.spyOn(axios, 'post')
@@ -30,11 +31,11 @@ describe('Email processing', () => {
       })
       // Create newsletter
       .mockImplementationOnce(async (url, data) => {
-        return { data: { result: newsletter, type: 'newsletter' } };
+        return { data: { result: newsletter } as PostNewsletterResponse};
       })
       // Create bundle
       .mockImplementationOnce(async (url, data) => {
-        return { data: { result: bundle } };
+        return { data: { result: bundle } as PostBundleResponse };
       });
 
     await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));
@@ -55,7 +56,7 @@ describe('Email processing', () => {
   it('finds existing newsletter and adds to bundle', async () => {
     const user = { email: 'user@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };
-    const bundle = { _id: 'bundleid', newsletters: [newsletter._id], user };
+    const bundle = { _id: 'bundleid', newsletters: [newsletter._id], user } as unknown as IBundle;
 
     const { default: axios } = await import('axios');
     vi.spyOn(axios, 'post')
@@ -67,12 +68,12 @@ describe('Email processing', () => {
       .mockImplementationOnce(async () => {
         throw new AxiosError('', '', undefined, null, {
           status: 409,
-          data: { result: { _id: newsletter._id }, type: 'newsletter' },
+          data: { result: { _id: newsletter._id } } as PostNewsletterResponse,
         } as any);
       })
       // Create bundle
       .mockImplementationOnce(async () => {
-        return { data: { result: bundle } };
+        return { data: { result: bundle } as PostBundleResponse };
       });
 
     await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));
@@ -90,7 +91,7 @@ describe('Email processing', () => {
   it('creates user if not found', async () => {
     const user = { email: 'newuser@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };
-    const bundle = { _id: 'bundleid', newsletters: [newsletter._id], user: user };
+    const bundle = { _id: 'bundleid', newsletters: [newsletter._id], user: user } as unknown as IBundle;
 
     const { default: axios } = await import('axios');
     vi.spyOn(axios, 'post')
@@ -100,10 +101,10 @@ describe('Email processing', () => {
       })
       // Create newsletter
       .mockImplementationOnce(async () => {
-        return { data: { result: newsletter, type: 'newsletter' } };
+        return { data: { result: newsletter } as PostNewsletterResponse };
       })
       .mockImplementationOnce(async () => {
-        return { data: { result: bundle } };
+        return { data: { result: bundle } as PostBundleResponse };
       });
 
     await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));

@@ -43,12 +43,33 @@ describe('api/newsletter POST', () => {
     expect(type).toBe('newsletter');
   });
 
-  it('should return 422 if content is not a newsletter', async () => {
-    const content = 'Not a newsletter';
+  it('should create article if content is a single-article newsletter', async () => {
+    const content = 'A single article newsletter';
     const format = 'text';
 
     const analyzer = await import('@lib/ai-article-analyzer');
     vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('article');
+
+    const req = mockReq({ content, format });
+    const res = await POST(req as any);
+    expect(res.status).toBe(201);
+
+    const { result } = await res.json();
+    expect(result.content).toBe(content);
+
+    const created = await Newsletter.findById(result._id).populate('articles').lean();
+    expect(created).toBeTruthy();
+    expect(created?.content).toBe('A single article newsletter');
+    expect(result).toMatchObject(created!);
+    expect(created?.articles || []).toHaveLength(0);  // No articles should be created before calling Newsletter.processArticles()
+  });
+
+  it('should return 422 if content is not a newsletter nor an article', async () => {
+    const content = 'Not a newsletter';
+    const format = 'text';
+
+    const analyzer = await import('@lib/ai-article-analyzer');
+    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('unknown');
 
     const req = mockReq({ content, format });
     const res = await POST(req as any);

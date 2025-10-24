@@ -26,7 +26,6 @@ function generateId(article: DocumentType<ArticleClass>) {
   return hash((article.url || article.content) as string);
 }
 
-@modelOptions({ options: { allowMixed: 0 } })
 @index({ lastError: 1 }, { sparse: true }) // Optimized for fetching articles for a bundle
 @index({ sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
 export class ArticleClass implements IArticle {
@@ -135,7 +134,8 @@ export class ArticleClass implements IArticle {
 }
 
 clearModelInDevelopment('ArticleClass'!);
-const ArticleModel = getModelForClass(ArticleClass);
+// Specify collection name to avoid name changes due to minification in production
+const ArticleModel = getModelForClass(ArticleClass, { schemaOptions: { collection: 'articles' } });
 
 export { ArticleModel as Article };
 export type Article = DocumentType<ArticleClass>;

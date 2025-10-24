@@ -1,0 +1,7 @@
+.git
+.vscode
+node_modules
+samples
+samples.zip
+.env
+.DS_Store
