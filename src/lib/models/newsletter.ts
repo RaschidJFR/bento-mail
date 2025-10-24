@@ -111,6 +111,9 @@ export class NewsletterClass implements INewsletter {
         const article = new Article({ content, header: articleData.summaries!.oneliner, ...articleData });
         await article.save();
         articles.push(article);
+
+        this.name = article.sourceName || existingNewsletter?.name || '';
+        this.date = article.date || existingNewsletter?.date || '';
       } else if (contentType === 'newsletter') {
         const data = await extractArticlesFromNewsletter(content);
         this.set({ ...data }); // Update name/date and other newsletter props if extracted

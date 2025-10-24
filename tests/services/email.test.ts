@@ -18,8 +18,6 @@ function getMockEmailData({ from = 'user@example.com', subject = 'Test Subject',
 }
 
 describe('Email processing', () => {
-  it('ignore emails without from address', async () => {});
-
   it('creates newsletter and adds to bundle', async () => {
     const user = { email: 'user@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };

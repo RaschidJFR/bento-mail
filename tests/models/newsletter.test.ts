@@ -141,6 +141,10 @@ describe('Newsletter', () => {
       const article = updated.articles[0] as Article;
       expect(article).toMatchObject(mockArticle);
       expect(article.header).toBe('Single Article Title');
+
+      // Newsletter properties updated from article
+      expect(updated.name).toBe('Single Article Source');
+      expect(updated.date).toBe('2025-10-20');
     });
 
     it('should not re-process nor fail if `articles` is already populated', async () => {
