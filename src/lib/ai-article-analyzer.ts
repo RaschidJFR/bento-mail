@@ -192,7 +192,7 @@ ${textContent}
   return result;
 }
 
-export async function isArticleOrNewsletter(textContent: string) {
+export async function isArticleOrNewsletter(textContent: string): Promise<ArticleOrNewsletterResponse['type']> {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -215,7 +215,7 @@ ${textContent}
 
   try {
     // @ts-ignore
-    const result = (await model
+    const result: ArticleOrNewsletterResponse = (await model
       .withStructuredOutput(ArticleOrNewsletterSchema)
       .invoke([new SystemMessage(prompt)]));
     return result.type;

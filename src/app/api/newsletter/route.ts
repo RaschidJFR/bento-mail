@@ -54,14 +54,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Determine if content is a newsletter and save accordingly
+    // Determine if content is a newsletter and save
     const contentType = await isArticleOrNewsletter(contentText);
-    if (contentType == 'newsletter') {
+    // A result of 'article' is acceptable here since some newsletters contain a single article
+    if (contentType == 'newsletter' || contentType == 'article') {
       console.log('Creating new Newsletter with id: %o', newsletter._id);
       await newsletter.save();
     } else {
       console.warn('Content is not a newsletter: ', contentType);
-      return Response.json({ error: `Content is not a newsletter (${contentType}).` }, { status: 422 });
+      return Response.json({ error: `Content is not a newsletter (found: ${contentType}).` }, { status: 422 });
     }
 
     // Trigger worker to process the bundle

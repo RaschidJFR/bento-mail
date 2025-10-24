@@ -28,6 +28,10 @@ function validateRequestBody(body: RequestBody) {
   return null;
 }
 
+/**
+ * API route to create a new newsletter or article. 
+ * @deprecated Use /api/newsletter instead to create newsletters specifically.
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
