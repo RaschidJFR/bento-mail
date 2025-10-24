@@ -15,7 +15,7 @@
     "test": "vitest",
     "mail": "npx nodemon --watch ./dist/services --watch scripts/start-mail-server.mjs --exec node scripts/start-mail-server.mjs",
     "worker": "npx nodemon --watch ./dist/services --watch ./scripts/start-worker.mjs --exec node scripts/start-worker.mjs",
-    "rtdb": "npx nodemon --watch ./dist/services --watch ./scripts/start-rtbd.mjs --exec node scripts/start-rtdb.mjs",
+    "rtdb": "npx nodemon --watch ./dist/services --watch ./scripts/start-rtdb.mjs --exec node scripts/start-rtdb.mjs",
     "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\" --collection=agenda -p 3001"
   },
   "dependencies": {

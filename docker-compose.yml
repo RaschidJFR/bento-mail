@@ -2,7 +2,7 @@ version: '3.8'
 services:
   web:
     build: .
-    command: npx next start
+    command: npx next start --host "::" --port 3000 # Railway requires binding to ipv6 address
     ports:
       - '3000:3000'
     environment:
@@ -18,7 +18,7 @@ services:
       - '1025:1025'
     environment:
       - NODE_ENV=production
-      - APP_URL=${APP_URL}
+      - APP_URL=http://web:3000 # Internal network URL to access the web service
   worker:
     build: .
     command: node scripts/start-worker.mjs

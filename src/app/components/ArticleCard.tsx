@@ -174,7 +174,7 @@ export const ArticleCard = ({ article: initialArticle, userId, reaction, job: in
           {/* Cover Image */}
           {article.coverImg && (
             <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
-              <Image src={article.coverImg} alt={article.header} className="w-full h-full object-contain" />
+              <img src={article.coverImg} alt={article.header} className="w-full h-full object-contain" />
             </div>
           )}
 
