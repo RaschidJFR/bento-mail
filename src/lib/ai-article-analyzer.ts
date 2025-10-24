@@ -98,9 +98,7 @@ ${textContent}
 \`\`\`
 `;
   // @ts-ignore
-  const data = (await model
-    .withStructuredOutput(NewsletterSchema)
-    .invoke([new SystemMessage(prompt)]));
+  const data = await model.withStructuredOutput(NewsletterSchema).invoke([new SystemMessage(prompt)]);
   return {
     ...data,
     articles: data.articles.map((a: BasicArticleProps) => ({ ...a, sourceName: data.name })),
@@ -186,9 +184,9 @@ ${textContent}
 `;
 
   // @ts-ignore
-  const result: ArticleDetailsProps = (await model
+  const result: ArticleDetailsProps = await model
     .withStructuredOutput(FullArticleSchema)
-    .invoke([new SystemMessage(prompt)]));
+    .invoke([new SystemMessage(prompt)]);
   return result;
 }
 
@@ -202,9 +200,10 @@ export async function isArticleOrNewsletter(textContent: string): Promise<Articl
 
   const prompt = `
 Given the following newsletter/article text, determine if there is a main article/featured story or not.
-- if there is one (even if there are other recommended articles), classify it as "article"
-- if it is only a list of articles with no featured narrative, classify it as "newsletter"
-- if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown"
+- if there is one **main** article (even if there are other recommended articles), classify it as "article".
+- If there are multiple articles with no main featured story, classify it as "newsletter".
+- if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown".
+- Note: a main article must have a substantial content, and a longer length compared to other articles.
 
 Text:
 
@@ -215,9 +214,9 @@ ${textContent}
 
   try {
     // @ts-ignore
-    const result: ArticleOrNewsletterResponse = (await model
+    const result: ArticleOrNewsletterResponse = await model
       .withStructuredOutput(ArticleOrNewsletterSchema)
-      .invoke([new SystemMessage(prompt)]));
+      .invoke([new SystemMessage(prompt)]);
     return result.type;
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');

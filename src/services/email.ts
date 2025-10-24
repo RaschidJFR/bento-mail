@@ -61,11 +61,11 @@ export async function processNewEmail(email: Mail) {
     if (process.env.NODE_ENV != 'production') await saveEmailSample(email);
     
     const userEmail = email.envelope?.from?.address;
-    console.log(`Processing email received from %o: "${email.subject}"...`, userEmail);
+    console.log(`Processing email received from %o: "%o"...`, userEmail, email.subject);
 
     // Zod email validation
     z.string().email().parse(userEmail); // Throws if invalid email
-
+    
     // attempt to create user
     try {
       const response = await axios.post(`${process.env.APP_URL}/api/user`, {
