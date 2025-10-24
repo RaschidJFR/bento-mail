@@ -39,7 +39,8 @@ interface QueryHelpers {
 }
 
 clearModelInDevelopment(getName(ReactionClass));
-const ReactionModel = getModelForClass<typeof ReactionClass, QueryHelpers>(ReactionClass);
+// Specify collection name to avoid name changes due to minification in production
+const ReactionModel = getModelForClass<typeof ReactionClass, QueryHelpers>(ReactionClass, { schemaOptions: { collection: 'reactions' } });
 
 export { ReactionModel as Reaction };
 export type Reaction = DocumentType<ReactionClass>;

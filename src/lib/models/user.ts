@@ -17,7 +17,8 @@ export class UserClass implements IUser {
 }
 
 clearModelInDevelopment('UserClass');
-const UserModel = getModelForClass(UserClass);
+// Specify collection name to avoid name changes due to minification in production
+const UserModel = getModelForClass(UserClass, { schemaOptions: { collection: 'users' } });
 
 export { UserModel as User };
 export type User = DocumentType<UserClass>;

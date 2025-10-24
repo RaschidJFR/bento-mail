@@ -11,7 +11,7 @@
 - **rtdb**: Real-time database service to emit change events
 
 
-## Run Localy
+## Run Locally
 
 To run all services locally using Docker Compose and environment variables from `.env`, and name the main container `BentoMail`, use:
 

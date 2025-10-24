@@ -134,7 +134,8 @@ export class ArticleClass implements IArticle {
 }
 
 clearModelInDevelopment('ArticleClass'!);
-const ArticleModel = getModelForClass(ArticleClass);
+// Specify collection name to avoid name changes due to minification in production
+const ArticleModel = getModelForClass(ArticleClass, { schemaOptions: { collection: 'articles' } });
 
 export { ArticleModel as Article };
 export type Article = DocumentType<ArticleClass>;

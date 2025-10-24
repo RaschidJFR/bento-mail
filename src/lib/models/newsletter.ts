@@ -182,7 +182,10 @@ export class NewsletterClass implements INewsletter {
   }
 }
 clearModelInDevelopment(getName(NewsletterClass));
-const NewsletterModel = getModelForClass<typeof NewsletterClass, QueryHelpers>(NewsletterClass);
+// Specify collection name to avoid name changes due to minification in production
+const NewsletterModel = getModelForClass<typeof NewsletterClass, QueryHelpers>(NewsletterClass, {
+  schemaOptions: { collection: 'newsletters' },
+});
 
 export const Newsletter = NewsletterModel;
 export type Newsletter = DocumentType<NewsletterClass>;

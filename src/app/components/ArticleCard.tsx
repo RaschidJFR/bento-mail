@@ -8,7 +8,6 @@ import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
 import { isTaskActive, ITaskArticleProcess } from '@app/hooks/useTasks';
-import Image from 'next/image';
 
 interface ArticleCardProps {
   article: IArticle;
