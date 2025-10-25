@@ -1,11 +1,25 @@
 #!/usr/bin/env node
+import MailDev from 'maildev';
 import 'dotenv/config';
+import { simpleParser } from 'mailparser';
 
-let server;
+const server = new MailDev({});
 try {
-  server = (await import('../dist/services/email.mjs')).default;
+  const { processNewEmail } = await import('../dist/services/email/index.mjs');
+  const { saveEmailSample, fetchRawEmailFromMaildev } = await import('../dist/services/email/utils.mjs');
+  server.on('new', async (email) => {
+    if (process.NODE_ENV === 'development') {
+      saveEmailSample(email);
+    }
+    const rawEmail = await fetchRawEmailFromMaildev(email.id);
+    if (!rawEmail) return null;
+    const parsed = await simpleParser(rawEmail);
+    return processNewEmail(parsed);
+  });
 } catch (err) {
-  console.error("Failed to load mail server module 'email.mjs'. Have you built the project?: `npm run build:services`\n");
+  console.error(
+    "Failed to load mail server module 'email.mjs'. Have you built the project?: `npm run build:services`\n"
+  );
   console.error(err.stack);
   process.exit(1);
 }
