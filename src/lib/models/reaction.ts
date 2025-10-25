@@ -10,6 +10,7 @@ export interface IReaction {
   user: Ref<UserClass>;
   article: Ref<ArticleClass>;
   reaction: ReactionsEnum;
+  date?: Date;
 }
 
 function findByUser(this: types.QueryHelperThis<typeof ReactionClass, QueryHelpers>, user: string | Types.ObjectId) {
@@ -33,6 +34,8 @@ export class ReactionClass implements IReaction {
   public article!: Ref<ArticleClass>;
   @prop({ type: Number, enum: ReactionsEnum, required: true })
   public reaction!: ReactionsEnum;
+  @prop({ type: Date, default: () => new Date() })
+  public date?: Date;
 }
 
 interface QueryHelpers {
@@ -40,7 +43,6 @@ interface QueryHelpers {
   findByUser: types.AsQueryMethod<typeof findByUser>;
   findByArticle: types.AsQueryMethod<typeof findByArticle>;
 }
-
 
 clearModelInDevelopment(getName(ReactionClass));
 const ReactionModel = getModelForClass<typeof ReactionClass, QueryHelpers>(ReactionClass, {

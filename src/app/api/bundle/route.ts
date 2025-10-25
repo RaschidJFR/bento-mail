@@ -1,2 +1,3 @@
 import POST from './post';
-export { POST };
+import GET from './get';
+export { POST, GET };

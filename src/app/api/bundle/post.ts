@@ -26,6 +26,9 @@ function validateRequestBody(body: RequestBody) {
   return null;
 }
 
+/**
+ * Create or update a bundle for the user
+ */
 export default async function (req: NextRequest) {
   try {
     const body = await req.json();
