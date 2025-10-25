@@ -9,6 +9,10 @@ let newsletterChangeStream: ChangeStream<INewsletter>;
 export async function setupArticleChangestream(io: Server) {
   io.on('connection', (client) => {
     client.on('joinNewsletter', (newsletterId: string) => joinNewsletterArticles(client, newsletterId));
+    client.on('leaveNewsletter', (newsletterId: string) => {
+      console.log(`Client %o leaving Articles rooms for newsletter %o`, client.id, roomName(newsletterId));
+      client.leave(roomName(newsletterId));
+    });
   });
 
   const articleChangeStream = await setupArticleCreationStream(io);

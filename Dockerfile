@@ -24,3 +24,4 @@ FROM base AS runner
 WORKDIR /app
 COPY --from=builder /app ./
 ENV NODE_ENV=production
+ENV NODE_OPTIONS=--enable-source-maps

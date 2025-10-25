@@ -1,4 +1,4 @@
-import { getModelForClass, getName, prop, index, queryMethod } from '@typegoose/typegoose';
+import { getModelForClass, prop, index, queryMethod, getName } from '@typegoose/typegoose';
 import type { DocumentType, Ref, types } from '@typegoose/typegoose';
 import { clearModelInDevelopment } from './utils';
 import { UserClass } from './user';
@@ -16,7 +16,10 @@ function findByUser(this: types.QueryHelperThis<typeof ReactionClass, QueryHelpe
   return this.find({ user });
 }
 
-function findByArticle(this: types.QueryHelperThis<typeof ReactionClass, QueryHelpers>, article: string | Types.ObjectId) {
+function findByArticle(
+  this: types.QueryHelperThis<typeof ReactionClass, QueryHelpers>,
+  article: string | Types.ObjectId
+) {
   return this.find({ article });
 }
 
@@ -38,9 +41,11 @@ interface QueryHelpers {
   findByArticle: types.AsQueryMethod<typeof findByArticle>;
 }
 
+
 clearModelInDevelopment(getName(ReactionClass));
-// Specify collection name to avoid name changes due to minification in production
-const ReactionModel = getModelForClass<typeof ReactionClass, QueryHelpers>(ReactionClass, { schemaOptions: { collection: 'reactions' } });
+const ReactionModel = getModelForClass<typeof ReactionClass, QueryHelpers>(ReactionClass, {
+  schemaOptions: { collection: 'reactions' },
+});
 
 export { ReactionModel as Reaction };
 export type Reaction = DocumentType<ReactionClass>;

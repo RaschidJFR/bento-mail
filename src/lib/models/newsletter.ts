@@ -179,8 +179,8 @@ export class NewsletterClass implements INewsletter {
     return errCount;
   }
 }
+
 clearModelInDevelopment(getName(NewsletterClass));
-// Specify collection name to avoid name changes due to minification in production
 const NewsletterModel = getModelForClass<typeof NewsletterClass, QueryHelpers>(NewsletterClass, {
   schemaOptions: { collection: 'newsletters' },
 });

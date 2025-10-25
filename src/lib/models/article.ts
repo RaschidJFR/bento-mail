@@ -1,4 +1,4 @@
-import { prop, getModelForClass, DocumentType, modelOptions, index } from '@typegoose/typegoose';
+import { prop, getModelForClass, DocumentType, index, getName } from '@typegoose/typegoose';
 import { extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';
 import { fetchHtmlContent, htmlToMarkdown, hash } from '@lib/utils';
 import { clearModelInDevelopment } from './utils';
@@ -133,9 +133,11 @@ export class ArticleClass implements IArticle {
   }
 }
 
-clearModelInDevelopment('ArticleClass'!);
-// Specify collection name to avoid name changes due to minification in production
-const ArticleModel = getModelForClass(ArticleClass, { schemaOptions: { collection: 'articles' } });
+
+clearModelInDevelopment(getName(ArticleClass));
+const ArticleModel = getModelForClass(ArticleClass, {
+  schemaOptions: { collection: 'articles' },
+});
 
 export { ArticleModel as Article };
 export type Article = DocumentType<ArticleClass>;

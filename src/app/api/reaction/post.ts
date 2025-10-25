@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { Reaction } from '@lib/models/reaction';
+import { Reaction } from '@lib/models';
 import { ReactionsEnum } from '@lib/models/enums';
 
 export interface ReactionRequestBody {
@@ -43,8 +43,7 @@ export default async function(req: NextRequest) {
     }
 
     // Create new reaction
-    const newReaction = new Reaction({ user, article, reaction });
-    await newReaction.save();
+    const newReaction = await Reaction.create({ user, article, reaction });
     return Response.json({ result: newReaction }, { status: 201 });
   } catch (error: any) {
     console.error(error);

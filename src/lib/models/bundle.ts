@@ -1,4 +1,4 @@
-import { getModelForClass, getName, pre, prop, index } from '@typegoose/typegoose';
+import { getModelForClass, pre, prop, index, getName } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
 import { Types, type ObjectId } from 'mongoose';
 import { UserClass } from './user';
@@ -356,9 +356,11 @@ export class BundleClass implements IBundle {
   }
 }
 
+
 clearModelInDevelopment(getName(BundleClass));
-// Specify collection name to avoid name changes due to minification in production
-const BundleModel = getModelForClass(BundleClass, { schemaOptions: { collection: 'bundles' } });
+const BundleModel = getModelForClass(BundleClass, {
+  schemaOptions: { collection: 'bundles' },
+});
 
 export { BundleModel as Bundle };
 export type Bundle = DocumentType<BundleClass>;
