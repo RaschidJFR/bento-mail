@@ -154,7 +154,7 @@ export class BundleClass implements IBundle {
           },
         },
         { $unwind: '$user' },
-        { $match: { 'user.email': user } },
+        { $match: { $or: [{ 'user.email': user }, { 'user.aliasEmail': user }] } },
         { $sort: { sendOn: 1, _id: -1 } },
         { $limit: 1 },
       ]);
@@ -355,7 +355,6 @@ export class BundleClass implements IBundle {
     return map;
   }
 }
-
 
 clearModelInDevelopment(getName(BundleClass));
 const BundleModel = getModelForClass(BundleClass, {

@@ -30,3 +30,12 @@ services:
       - NODE_ENV=production
       - MONGODB_URI=${MONGODB_URI}
       - DATABASE_NAME=${DATABASE_NAME}
+  # Development only mail server
+  # mail:
+  #   build: .
+  #   command: node scripts/start-mail-server.mjs
+  #   ports:
+  #     - '1025:1025'
+  #   environment:
+  #     - NODE_ENV=production
+  #     - APP_URL=http://web:3000 # Internal network URL to access the web service API

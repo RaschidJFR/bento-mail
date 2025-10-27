@@ -55,6 +55,17 @@ describe('/api/bundle', () => {
       const { result } = await res.json();
       expect(result).toBeNull();
     });
+
+    it('can get a bundle for a user by their aliasEmail', async () => {
+      await user.set({ aliasEmail: 'alias@bar.com' }).save();
+      const bundle = await Bundle.create({ user: user._id, newsletters: ['nid'], articles: [], sent: false });
+
+      const req = mockGetReq(user.aliasEmail);
+      const res = await GET(req as any);
+      expect(res.status).toBe(200);
+      const { result } = await res.json();
+      expect(result.user._id).toStrictEqual(String(bundle.user._id));
+    });
   });
 
   describe('POST', () => {
@@ -115,7 +126,7 @@ describe('/api/bundle', () => {
       expect(updated?.articles).toContain('aid');
     });
 
-    it('creates new bundle if none exists (newsletter)', async () => {
+    it('receives a newsletter and creates a new bundle if none exists', async () => {
       const req = mockPostReq({ email: user.email, newsletters: ['nid'], articles: [] });
       const res = await POST(req as any);
       const { result } = await res.json();
@@ -125,7 +136,7 @@ describe('/api/bundle', () => {
       expect(bundle!.user._id).toStrictEqual(user._id);
     });
 
-    it('creates new bundle if none exists (article)', async () => {
+    it('receives an article and creates a new bundle if none exists', async () => {
       const req = mockPostReq({ email: user.email, newsletters: [], articles: ['aid'] });
       const res = await POST(req as any);
       const { result } = await res.json();
@@ -133,6 +144,15 @@ describe('/api/bundle', () => {
       expect(res.status).toBe(201);
       expect(bundle!.articles).toContain('aid');
       expect(bundle!.user._id).toStrictEqual(user._id);
+    });
+
+    it('can create a bundle for a user with their aliasEmail', async () => {
+      const aliasUser = await User.create({ email: 'email@bar.com', aliasEmail: 'alias@bar.com' });
+      const req = mockPostReq({ email: aliasUser.aliasEmail, newsletters: ['nid'], articles: [] });
+      const res = await POST(req as any);
+      expect(res.status).toBe(201);
+      const { result } = await res.json();
+      expect(result.user).toStrictEqual(String(aliasUser._id));
     });
   });
 });

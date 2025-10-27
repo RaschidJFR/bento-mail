@@ -17,7 +17,7 @@ export default async function (req: NextRequest) {
     }
 
     // Find user by email
-    const user = await User.findOne({ email: userEmail.trim() }).lean();
+    const user = await User.find().findByEmail(userEmail.trim()).lean();
     if (!user) {
       return Response.json({ error: 'User not found.' }, { status: 404 });
     }
@@ -27,6 +27,7 @@ export default async function (req: NextRequest) {
     if (!bundle) {
       return Response.json({ result: null } as ResponseData, { status: 200 });
     }
+
     return Response.json({ result: bundle } as ResponseData, { status: 200 });
   } catch (error: any) {
     console.error(error.stack, '\n');
