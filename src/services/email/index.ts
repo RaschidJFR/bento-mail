@@ -7,6 +7,9 @@ const API_URL = process.env.APP_URL || 'http://localhost:3000';
 
 type Email = Pick<ParsedMail, 'from' | 'to' | 'subject' | 'text' | 'html'>;
 
+/**
+ *  Process a new incoming email and create/update relevant resources.
+ */
 export async function processNewEmail(email: Email) {
   try {
     if (Array.isArray(email.from) && email.from.length > 1) {
