@@ -10,14 +10,8 @@ services:
       - MONGODB_URI=${MONGODB_URI}
       - DATABASE_NAME=${DATABASE_NAME}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-  mail:
-    build: .
-    command: node scripts/start-mail-server.mjs
-    ports:
-      - '1025:1025'
-    environment:
-      - NODE_ENV=production
-      - APP_URL=http://web:3000 # Internal network URL to access the web service
+      - ALLOWED_EMAIL_HOSTS=${ALLOWED_EMAIL_HOSTS}
+      - APP_URL=${APP_URL}
   worker:
     build: .
     command: node scripts/start-worker.mjs

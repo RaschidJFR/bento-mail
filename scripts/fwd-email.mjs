@@ -12,8 +12,8 @@ import { simpleParser } from 'mailparser';
 
 const SMTP_PORT = process.env.SMTP_PORT || 1025;
 const SMTP_HOST = process.env.SMTP_HOST || 'localhost';
-const MAIL_FROM = process.argv[3] || 'random-user@example.com';
-const MAIL_RCPT = 'test-server@localhost';
+const MAIL_FROM = process.argv[3] || 'random.source@example.com';
+const MAIL_RCPT = 'test.recipient@localhost.me';
 
 const emlPath = process.argv[2];
 if (!emlPath) {

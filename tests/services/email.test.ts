@@ -3,22 +3,19 @@ import { processNewEmail } from '@services/email';
 import { AxiosError } from 'axios';
 import { ResponseData as PostNewsletterResponse } from '@app/api/newsletter/route';
 import { ResponseData as PostBundleResponse } from '@app/api/bundle/post';
-import { IBundle } from '@lib/models';
+import { Newsletter, type IBundle } from '@lib/models';
 
-function getMockEmailData({ from = 'user@example.com', subject = 'Test Subject', text = 'Test Content' }) {
+function getMockEmailData({ to = 'user@example.com', subject = 'Test Subject', text = 'Test Content' }) {
   return {
-    envelope: {
-      from: {
-        address: from,
-      },
-    },
+    to: [{ value: [{ address: to }] }],
     subject,
     text,
+    html: '',
   };
 }
 
 describe('Email processing', () => {
-  it('creates newsletter and adds to bundle', async () => {
+  it('calls API (user exists)', async () => {
     const user = { email: 'user@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };
     const bundle = { _id: 'bundleid', newsletters: ['newsletterid'], user } as unknown as IBundle;
@@ -31,16 +28,17 @@ describe('Email processing', () => {
       })
       // Create newsletter
       .mockImplementationOnce(async (url, data) => {
-        return { data: { result: newsletter } as PostNewsletterResponse};
+        return { data: { result: newsletter } as PostNewsletterResponse };
       })
       // Create bundle
       .mockImplementationOnce(async (url, data) => {
         return { data: { result: bundle } as PostBundleResponse };
       });
 
-    await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));
+    await processNewEmail(getMockEmailData({ to: user.email, text: 'Test newsletter content' }) as any);
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/user'), {
       email: user.email,
+      aliasEmail: user.email,
     });
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
       content: 'Test newsletter content',
@@ -53,7 +51,7 @@ describe('Email processing', () => {
     });
   });
 
-  it('finds existing newsletter and adds to bundle', async () => {
+  it('calls API (newsletter exists)', async () => {
     const user = { email: 'user@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };
     const bundle = { _id: 'bundleid', newsletters: [newsletter._id], user } as unknown as IBundle;
@@ -76,7 +74,7 @@ describe('Email processing', () => {
         return { data: { result: bundle } as PostBundleResponse };
       });
 
-    await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));
+    await processNewEmail(getMockEmailData({ to: user.email, text: 'Test newsletter content' }) as any);
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
       content: 'Test newsletter content',
       format: 'text',
@@ -88,7 +86,7 @@ describe('Email processing', () => {
     });
   });
 
-  it('creates user if not found', async () => {
+  it('calls API (new user)', async () => {
     const user = { email: 'newuser@example.com', _id: 'userid' };
     const newsletter = { _id: 'newsletterid' };
     const bundle = { _id: 'bundleid', newsletters: [newsletter._id], user: user } as unknown as IBundle;
@@ -97,7 +95,7 @@ describe('Email processing', () => {
     vi.spyOn(axios, 'post')
       // Create user
       .mockImplementationOnce(async () => {
-        throw new AxiosError('', '', undefined, null, { status: 409, data: { result: { id: user._id } } } as any);
+        return { status: 201, data: { result: { id: user._id } } } as any;
       })
       // Create newsletter
       .mockImplementationOnce(async () => {
@@ -107,10 +105,11 @@ describe('Email processing', () => {
         return { data: { result: bundle } as PostBundleResponse };
       });
 
-    await processNewEmail(getMockEmailData({ from: user.email, text: 'Test newsletter content' }));
+    await processNewEmail(getMockEmailData({ to: user.email, text: 'Test newsletter content' }) as any);
 
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/user'), {
       email: user.email,
+      aliasEmail: user.email,
     });
     expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
       content: 'Test newsletter content',
