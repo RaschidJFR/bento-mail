@@ -1,47 +1,38 @@
-'use client';
-import React, { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React from 'react';
+import { redirect } from 'next/navigation';
 import type { IBundle } from '@lib/models/types';
 
-function HomePageContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const email = searchParams.get('email');
-  const [error, setError] = useState('');
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const email = (await searchParams)?.email;
+  let error = '';
 
-  useEffect(() => {
-    if (!email) {
-      setError('No email parameter provided in the URL');
-      return;
-    }
+  if (!email || Array.isArray(email)) {
+    error = 'No valid email parameter provided';
+  } else {
     // Fetch the bundle for the given email and redirect
-    fetch(`/api/bundle?userEmail=${encodeURIComponent(email)}`).then(async (res) => {
-      if (!res.ok) {
-        console.error('Failed to fetch bundle', res.statusText);
-        setError('Failed to fetch bundle: ' + res.statusText);
-        return;
-      }
-      const { result: bundle }: { result: IBundle } = await res.json();
+    const res = await fetch(`${process.env.APP_URL}/api/bundle?userEmail=${encodeURIComponent(email)}`);
+    if (!res.ok) {
+      console.error('Failed to fetch bundle', res.statusText);
+      error = 'Failed to fetch bundle: ' + res.statusText;
+    } else {
+      const { result: bundle }: { result: IBundle | null } = await res.json();
       if (!bundle) {
         console.warn('No bundle found for this user');
-        setError('No bundle found for this user');
-        return;
+        error = 'No bundle found for this user';
+      } else if (bundle?._id) {
+        redirect(`/bundle/${String(bundle._id)}`);
       }
-      const bundleId = String(bundle._id);
-      router.replace(`/bundle/${bundleId}`);
-    });
-  }, [email, router]);
+    }
+  }
 
-  return <main>{!!error && <p className="text-gray-500">{error}</p>}</main>;
-}
-
-export default function HomePage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
       <h1 className="text-2xl font-bold mb-4">Welcome to Bento Mail</h1>
-      <Suspense fallback={<p className="text-gray-500">Redirecting to your bundle...</p>}>
-        <HomePageContent />
-      </Suspense>
+      {!!error ? <p className="text-gray-500">{error}</p> : <p className="text-gray-500">Redirecting...</p>}
     </main>
   );
 }
