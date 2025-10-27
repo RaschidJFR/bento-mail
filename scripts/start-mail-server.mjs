@@ -8,7 +8,7 @@ try {
   const { processNewEmail } = await import('../dist/services/email/index.mjs');
   const { saveEmailSample, fetchRawEmailFromMaildev } = await import('../dist/services/email/utils.mjs');
   server.on('new', async (email) => {
-    if (process.NODE_ENV === 'development') {
+    if (process.env.NODE_ENV === 'development') {
       saveEmailSample(email);
     }
     const rawEmail = await fetchRawEmailFromMaildev(email.id);

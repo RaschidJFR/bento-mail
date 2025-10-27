@@ -16,7 +16,7 @@ export async function processNewEmail(email: Email) {
       console.warn('[email] Multiple sender addresses found, using the first one.');
     }
     const aliasEmail = Array.isArray(email.to) ? email.to[0].value[0].address : email.to?.value[0].address;
-    if (!aliasEmail) throw new Error('Email missing sender address');
+    if (!aliasEmail) throw new Error('Email missing recipient address');
     console.log(`[email] Processing email received for %o: "%o"...`, aliasEmail, email.subject);
 
     // Zod email validation

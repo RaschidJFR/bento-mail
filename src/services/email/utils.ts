@@ -15,7 +15,7 @@ export async function fetchRawEmailFromMaildev(id: string): Promise<string | nul
     }
     return null;
   } catch (error) {
-    console.error(`[email] Failed to fetch raw email from Maildev: `, error);
+    console.error(`[email] Failed to fetch raw email from MailDev: `, error);
     return null;
   }
 }
