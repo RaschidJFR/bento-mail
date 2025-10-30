@@ -16,7 +16,8 @@ COPY --from=deps /app ./
 # Make this variable visible to Next.js build
 ARG NEXT_PUBLIC_SOCKET_URL
 ENV NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
-RUN NODE_OPTIONS=--max_old_space_size=4096 npm run build
+ENV NODE_OPTIONS="--max_old_space_size=4096"
+RUN npm run build
 
 
 # Production image, copy all the files and run next

@@ -12,6 +12,7 @@ export interface INewsletter {
   date?: string;
   name?: string;
   error?: string;
+  url?: string;
 }
 
 function generateId(this: DocumentType<NewsletterClass>) {
@@ -59,6 +60,8 @@ export class NewsletterClass implements INewsletter {
   public date?: string;
   @prop({ default: '', type: String })
   public name?: string = '';
+  @prop({ type: String })
+  public url?: string;
 
   /**
    * Error message from the last extraction attempt, if any.

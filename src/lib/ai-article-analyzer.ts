@@ -21,7 +21,15 @@ export type BasicArticleProps = Omit<ArticleDataProps, 'summaries'> & { content:
 export type NewsletterDataProps = Omit<INewsletter, '_id' | 'content' | 'articles'> & {
   articles: BasicArticleProps[];
 };
-export type ArticleOrNewsletterResponse = { type: 'article' | 'newsletter' | 'unknown'; reason: string };
+export type ArticleOrNewsletterResponse = {
+  type: 'article' | 'newsletter' | 'unknown';
+  reason: string;
+};
+export type ClassificationResponse = {
+  type: 'article' | 'newsletter' | 'link' | 'unknown';
+  reason: string;
+  data?: string;
+};
 
 const BasicArticleSchema = z.object({
   header: z.string().describe('The title of the article. 100 characters max.'),
@@ -62,6 +70,14 @@ const ArticleOrNewsletterSchema = z.object({
     .enum(['article', 'newsletter', 'unknown'])
     .describe('Whether the text is a single article, a newsletter, or unknown'),
   reason: z.string().describe('Brief explanation of the classification decision'),
+});
+
+const ClassificationSchema = z.object({
+  type: z
+    .enum(['article', 'newsletter', 'link', 'unknown'])
+    .describe('Whether the text is a single article, a newsletter, or unknown'),
+  reason: z.string().describe('Brief explanation of the classification decision'),
+  data: z.string().optional().default('').describe('The extracted URL if type is link, else empty'),
 });
 
 /**
@@ -190,6 +206,9 @@ ${textContent}
   return result;
 }
 
+/**
+ * @deprecated Use classifyContent() instead
+ */
 export async function isArticleOrNewsletter(textContent: string): Promise<ArticleOrNewsletterResponse['type']> {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
@@ -218,6 +237,42 @@ ${textContent}
       .withStructuredOutput(ArticleOrNewsletterSchema)
       .invoke([new SystemMessage(prompt)]);
     return result.type;
+  } catch (error: any) {
+    console.error('[ai-article-analyzer] Error classifying text:');
+    console.error(error.stack, '\n');
+    return 'unknown';
+  }
+}
+
+export async function classifyContent(textContent: string): Promise<ClassificationResponse> {
+  if (!textContent || textContent.trim().length === 0) {
+    throw new Error('Text content is empty or invalid.');
+  }
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  }
+
+  const prompt = `
+Given the following newsletter/article text, determine if there is a main article/featured story or not.
+- if there is one **main** article (even if there are other recommended articles), classify it as "article".
+- If there are multiple articles with no main featured story, classify it as "newsletter".
+- If there is no article content, only a link or url, classify it as "link".
+- if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown".
+- Note: a main article must have a substantial content, and a longer length compared to other articles.
+
+Text:
+
+\`\`\`markdown
+${textContent}
+\`\`\`
+`;
+
+  try {
+    // @ts-ignore
+    const result: ClassificationResponse = await model
+      .withStructuredOutput(ClassificationSchema)
+      .invoke([new SystemMessage(prompt)]);
+    return result;
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
     console.error(error.stack, '\n');
