@@ -7,7 +7,7 @@
   "scripts": {
     "start": "npm run dev & npm run mail & npm run worker & npm run rtdb",
     "dev": "NODE_OPTIONS=--enable-source-maps npm run build:services -- --watch --no-minify --sourcemap & next dev",
-    "build": "npm run build:services -- --minify && next build",
+    "build": "NODE_OPTIONS='--max_old_space_size=6144' npm run build:services -- --minify && NODE_OPTIONS='--max_old_space_size=6144' next build",
     "build:services": "tsup src/services --format esm --out-dir dist/services --tsconfig tsconfig.services.json",
     "lint": "next lint",
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",

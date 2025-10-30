@@ -276,6 +276,6 @@ ${textContent}
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
     console.error(error.stack, '\n');
-    return 'unknown';
+    return { type: 'unknown', reason: error.message };
   }
 }
