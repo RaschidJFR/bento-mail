@@ -10,7 +10,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body className="min-h-dvh">
-        <main className="container mx-auto p-6">{children}</main>
+        <main className="container mx-auto py-6 px-0 md:px-6">{children}</main>
       </body>
     </html>
   );

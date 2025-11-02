@@ -35,7 +35,13 @@ async function upsertReaction({
   return await res.json();
 }
 
-export const ArticleCard = ({ article: initialArticle, userId, reaction, job: initialJob, onRemove }: ArticleCardProps) => {
+export const ArticleCard = ({
+  article: initialArticle,
+  userId,
+  reaction,
+  job: initialJob,
+  onRemove,
+}: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isLiked, setIsLiked] = useState(reaction === ReactionsEnum.UPVOTE);
   const [isSkip, setIsSkip] = useState(reaction === ReactionsEnum.SKIP);
@@ -152,7 +158,7 @@ export const ArticleCard = ({ article: initialArticle, userId, reaction, job: in
       {/* Main content area */}
       <div
         className={`relative overflow-hidden bg-surface-elevated border-border 
-        transition-all duration-300 max-h-screen
+        transition-all duration-300 max-h-[200vh]
         hover:border-brand-primary/30 hover:shadow-lg hover:shadow-brand-primary/10 group 
         ${isLiked || isSkip || isFlagged || isProcessing ? 'opacity-60' : ''} 
       `}
@@ -213,7 +219,7 @@ export const ArticleCard = ({ article: initialArticle, userId, reaction, job: in
               {/* Details with smooth animation */}
               <div
                 className={`transition-all duration-300 ease-out ${
-                  isDetailsOpen ? 'max-h-96 opacity-100 mt-4' : 'max-h-0 opacity-0 overflow-hidden'
+                  isDetailsOpen ? 'mt-4' : 'max-h-0 opacity-0 overflow-hidden'
                 }`}
               >
                 <div className="pt-3 border-t border-border/50">

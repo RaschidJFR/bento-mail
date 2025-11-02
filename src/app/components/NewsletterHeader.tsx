@@ -15,7 +15,7 @@ interface NewsletterHeaderProps {
 
 export const NewsletterHeader = ({ newsletter }: NewsletterHeaderProps) => {
   return (
-    <header className="mb-12">
+    <header className="mb-12 overflow-x-hidden">
       <div className="space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-gradient-to-br from-brand-primary to-brand-accent rounded-lg"></div>
