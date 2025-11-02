@@ -40,13 +40,16 @@ export async function processNewEmail(email: Email) {
       }
     }
 
-    let object: INewsletter | IArticle;
+    let newNewsletter: INewsletter | undefined;
+    let newArticle: IArticle | undefined;
     const classification = await classifyContent(email.text || email.html || '');
-    try {
-      // Create article
-      if (classification.type === 'link') {
-        const link = classification.data as string;
-        const content = await fetchHtmlContent(link);
+
+    // Create article
+    if (classification.type === 'link') {
+      const link = classification.data as string;
+      const content = await fetchHtmlContent(link);
+
+      try {
         const response = await axios.post(`${API_URL}/api/article`, {
           content,
           format: 'html',
@@ -54,38 +57,46 @@ export async function processNewEmail(email: Email) {
         });
         const { result } = response?.data || {};
         console.log(`[email] Article created with id %o`, result._id);
-        object = result;
-      } else if (classification.type === 'article' || classification.type === 'newsletter') {
-        // Create newsletter
+        newArticle = result;
+      } catch (err) {
+        if (!axios.isAxiosError(err) || err.response?.status != 409) {
+          throw err;
+        }
+        const { result } = err.response?.data || {};
+        console.log(`[email] Article already exists: %o`, result._id);
+        newArticle = result;
+      }
+    } else if (classification.type === 'article' || classification.type === 'newsletter') {
+      // Create newsletter
+      try {
         const response = await axios.post(`${API_URL}/api/newsletter`, {
           content: email.text || email.html,
           format: email.text ? 'text' : 'html',
         });
         const { result } = response?.data || {};
         console.log(`[email] Newsletter created with id %o`, result._id);
-        object = result;
-      } else {
-        throw new Error(`Unsupported content type: ${classification.type}`);
+        newNewsletter = result;
+      } catch (err) {
+        if (!axios.isAxiosError(err) || err.response?.status != 409) {
+          throw err;
+        }
+        const { result } = err.response?.data || {};
+        console.log(`[email] Newsletter already exists: %o`, result._id);
+        newNewsletter = result;
       }
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status == 409) {
-        const { result, type } = err.response?.data || {};
-        console.log(`[email] ${type} already exists: %o`, result._id);
-        object = result;
-      } else {
-        throw err;
-      }
+    } else {
+      throw new Error(`Unsupported content type: ${classification.type}`);
     }
 
     // Add object to bundle
     const bundleRes = await axios.post(`${API_URL}/api/bundle`, {
       email: aliasEmail,
-      newsletters: classification.type === 'newsletter' ? [object._id] : [],
-      articles: classification.type === 'link' ? [object._id] : [],
+      newsletters: newNewsletter ? [newNewsletter._id] : [],
+      articles: newArticle ? [newArticle._id] : [],
     });
     const { result: bundle } = (await bundleRes.data) || {};
-    console.log(`[email] Bundle %o updated with ${classification.type} %o\n`, bundle._id, object?._id);
-    return object;
+    console.log(`[email] Added ${classification.type} to bundle %o\n`, bundle._id);
+    return bundle;
   } catch (error: any) {
     if (axios.isAxiosError(error)) {
       console.error(

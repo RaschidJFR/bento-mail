@@ -134,7 +134,7 @@ describe('Email processing', () => {
     });
   });
 
-  it('calls article API if content is link', async () => {
+  it('calls article API endpoint if content is link', async () => {
     const user = { email: 'user@example.com', _id: 'userid' };
     const article = { _id: 'articleid', content: 'Article parsed content', url: 'https://example.com/test-article' };
     const bundle = { _id: 'bundleid', articles: [article._id], user: user } as unknown as IBundle;
@@ -184,6 +184,52 @@ describe('Email processing', () => {
       articles: [article._id],
     });
 
-    expect(result?._id).toBe(article._id);
+    expect(result?._id).toBe(bundle._id);
+  });
+
+  it('calls newsletter API endpoint if content is article', async () => {
+    const user = { email: 'user@example.com', _id: 'userid' };
+    const newsletter = { _id: 'newsletterId', content: 'Newsletter content', articles: ['articleId'] };
+    const bundle = { _id: 'bundleid', newsletters: [newsletter._id], user: user } as unknown as IBundle;
+
+    const aiAnalyzer = await import('@lib/ai-article-analyzer');
+    vi.spyOn(aiAnalyzer, 'classifyContent').mockResolvedValue({
+      type: 'article',
+      reason: '',
+    });
+
+    const { default: axios } = await import('axios');
+    vi.spyOn(axios, 'post')
+      // Create user
+      .mockImplementationOnce(async () => {
+        return { status: 201, data: { result: { id: user._id } } } as any;
+      })
+      // Create article
+      .mockImplementationOnce(async () => {
+        return { data: { result: newsletter } };
+      })
+      // Create bundle
+      .mockImplementationOnce(async () => {
+        return { data: { result: bundle } as PostBundleResponse };
+      });
+
+    const result = await processNewEmail(getMockEmailData({ to: user.email, text: 'Newsletter content' }) as any);
+
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/user'), {
+      email: user.email,
+      aliasEmail: user.email,
+    });
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/newsletter'), {
+      content: 'Newsletter content',
+      format: 'text',
+    });
+
+    expect(axios.post).toHaveBeenCalledWith(expect.stringContaining('/api/bundle'), {
+      email: user.email,
+      articles: [],
+      newsletters: [newsletter._id],
+    });
+
+    expect(result?._id).toBe(bundle._id);
   });
 });
