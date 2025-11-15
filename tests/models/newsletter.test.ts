@@ -60,7 +60,7 @@ describe('Newsletter', () => {
       };
 
       const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockData);
 
       const newsletter = await Newsletter.create({
@@ -96,7 +96,7 @@ describe('Newsletter', () => {
       };
 
       const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockData);
 
       const newsletter = await Newsletter.create({ content: 'The content in the newsletter' });
@@ -129,7 +129,7 @@ describe('Newsletter', () => {
         },
       } as ArticleDetailsProps;
       const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('article');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'article', reason: '' });
       vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockArticle);
 
       const newsletter = await Newsletter.create({ content: 'Single article content' });
@@ -159,13 +159,47 @@ describe('Newsletter', () => {
         },
       } as ArticleDetailsProps;
       const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('article');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'article', reason: '' });
       vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockArticleData);
 
       const newsletter = await Newsletter.create({ content: 'Single-article newsletter content' });
       await newsletter.extractArticles();
       await expect(newsletter.extractArticles({ force: true })).resolves.toBe(0);
       expect(analyzer.extractArticleDetails).toHaveBeenCalledTimes(2);
+    });
+
+    it('can re-process multi-article newsletter', async () => {
+      const articles: BasicArticleProps[] = [
+        {
+          header: 'Article 1',
+          content: 'Content of article 1',
+          sourceName: '', // To be defaulted to newsletter name
+          date: '2000-10-01',
+        },
+        {
+          header: 'Article 2',
+          content: 'Content of article 2',
+          sourceName: 'Original Source',
+          date: '', // To be defaulted to newsletter date
+        },
+      ];
+
+      const mockNewsletterData: NewsletterDataProps = {
+        articles,
+        name: 'Newsletter Name',
+        date: '2023-10-10',
+      };
+
+      const analyzer = await import('@lib/ai-article-analyzer');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
+      vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockNewsletterData);
+
+      const newsletter = await Newsletter.create({ content: 'The content in the newsletter' });
+      await newsletter.extractArticles();
+      expect(newsletter.articles.length).toBe(2);
+      await expect(newsletter.extractArticles({ force: true })).resolves.toBe(0);
+      expect(analyzer.extractArticlesFromNewsletter).toHaveBeenCalledTimes(2);
+      expect(newsletter.articles.length).toBe(2);
     });
 
     it('should not re-process nor fail if `articles` is already populated', async () => {
@@ -176,7 +210,7 @@ describe('Newsletter', () => {
       };
 
       const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       const extractArticlesFromNewsletter = vi
         .spyOn(analyzer, 'extractArticlesFromNewsletter')
         .mockResolvedValue(mockData);
@@ -205,7 +239,7 @@ describe('Newsletter', () => {
 
     it('update error property accordingly', async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter')
         .mockRejectedValueOnce(new Error('AI service error'))
         .mockResolvedValue({ articles: [], name: '', date: '' });
@@ -225,7 +259,7 @@ describe('Newsletter', () => {
 
     it('skip if previous error exists', async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+      vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       const extractArticlesFromNewsletter = vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue({
         articles: [],
         name: '',
