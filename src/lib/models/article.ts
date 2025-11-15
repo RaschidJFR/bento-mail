@@ -1,5 +1,5 @@
 import { prop, getModelForClass, DocumentType, index, getName } from '@typegoose/typegoose';
-import { extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';
+import { BasicArticleProps, extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';
 import { fetchHtmlContent, htmlToMarkdown, hash } from '@lib/utils';
 import { clearModelInDevelopment } from './utils';
 
@@ -17,6 +17,7 @@ export interface IArticle {
     details: string;
   };
   lastError?: string;
+  linkedArticles?: BasicArticleProps[];
 }
 
 function generateId(article: DocumentType<ArticleClass>) {
@@ -45,6 +46,8 @@ export class ArticleClass implements IArticle {
   public sourceName: string = '';
   @prop({ type: Object })
   public summaries: IArticle['summaries'];
+  @prop({ type: Array })
+  public linkedArticles?: BasicArticleProps[];
 
   /**
    * Error message from the last processing attempt, if any.
