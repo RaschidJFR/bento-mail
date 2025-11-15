@@ -166,9 +166,10 @@ export async function extractArticleDetails(textContent: string, { skipVerify = 
 
   // First ensure this is an article
   if (skipVerify == false) {
-    const type = await isArticleOrNewsletter(textContent);
-    if (type !== 'article') {
-      throw new Error(`[ai-analyzer] Content is not a single article (detected type: ${type})`);
+    const result = await classifyContent(textContent);
+    if (result.type !== 'article') {
+      console.log('[ai-analyzer] Content classification result:', result);
+      throw new Error(`[ai-analyzer] Content is not a single article (detected type: ${result.type})`);
     }
   }
 
