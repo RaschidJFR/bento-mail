@@ -261,7 +261,7 @@ Given the following newsletter text, determine if there is a main article/featur
 - if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown".
 
 - Notes: 
-  - A main article must be substantially longer compared to the other articles. If it is not longer, it is not a main story.
+  - A main article must have more than one paragraph and be substantially longer compared to the other articles. If it is not longer, it is not a main story.
   - Beware of false positives from headers like "The Big Story" or "Breaking News" that do not indicate a main article.
 
 Text:
