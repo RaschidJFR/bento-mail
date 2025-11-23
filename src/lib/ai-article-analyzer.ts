@@ -166,9 +166,10 @@ export async function extractArticleDetails(textContent: string, { skipVerify = 
 
   // First ensure this is an article
   if (skipVerify == false) {
-    const type = await isArticleOrNewsletter(textContent);
-    if (type !== 'article') {
-      throw new Error(`[ai-analyzer] Content is not a single article (detected type: ${type})`);
+    const result = await classifyContent(textContent);
+    if (result.type !== 'article') {
+      console.log('[ai-analyzer] Content classification result:', result);
+      throw new Error(`[ai-analyzer] Content is not a single article (detected type: ${result.type})`);
     }
   }
 
@@ -253,12 +254,15 @@ export async function classifyContent(textContent: string): Promise<Classificati
   }
 
   const prompt = `
-Given the following newsletter/article text, determine if there is a main article/featured story or not.
+Given the following newsletter text, determine if there is a main article/featured story or not.
 - if there is one **main** article (even if there are other recommended articles), classify it as "article".
 - If there are multiple articles with no main featured story, classify it as "newsletter".
 - If there is no article content, only a link or url, classify it as "link".
 - if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown".
-- Note: a main article must have a substantial content, and a longer length compared to other articles.
+
+- Notes: 
+  - A main article must have more than one paragraph and be substantially longer compared to the other articles. If it is not longer, it is not a main story.
+  - Beware of false positives from headers like "The Big Story" or "Breaking News" that do not indicate a main article.
 
 Text:
 

@@ -2,7 +2,11 @@ import { hash, applyInBatches } from '@lib/utils';
 import { prop, getModelForClass, Ref, pre, index, queryMethod, getName } from '@typegoose/typegoose';
 import type { DocumentType, ReturnModelType, types } from '@typegoose/typegoose';
 import { Article, ArticleClass, IArticle } from './article';
-import { extractArticlesFromNewsletter, isArticleOrNewsletter, extractArticleDetails } from '@lib/ai-article-analyzer';
+import {
+  extractArticlesFromNewsletter,
+  extractArticleDetails,
+  classifyContent,
+} from '@lib/ai-article-analyzer';
 import { clearModelInDevelopment } from './utils';
 
 export interface INewsletter {
@@ -100,7 +104,14 @@ export class NewsletterClass implements INewsletter {
 
     try {
       console.log(`Extracting articles for newsletter %o...`, this._id);
-      const contentType = await isArticleOrNewsletter(content);
+      const classification = await classifyContent(content);
+      console.log(
+        `Classified newsletter %o as type: %o. Reason: %s`,
+        this._id,
+        classification.type,
+        classification.reason
+      );
+      const contentType = classification.type;
       const articles: Article[] = [];
       let errCount = 0;
       let dArticles = [] as Partial<IArticle>[];
@@ -114,15 +125,18 @@ export class NewsletterClass implements INewsletter {
         const data = await extractArticlesFromNewsletter(content);
         this.set({ ...data }); // Update name/date and other newsletter props if extracted
         dArticles = data.articles;
+        console.log(`Identified ${dArticles.length} articles in newsletter %o.`, this._id);
       } else {
         throw new Error('Content could not be classified as an article or newsletter.');
       }
 
+      // Create articles (if not existing)
       await applyInBatches(dArticles, async (a) => {
         try {
           const articleContent = a.content || content || '';
           const id = hash(articleContent);
-          const art = (await Article.findById({ _id: id })) || new Article({ content: articleContent, ...a });
+          let art = await Article.findById(id);
+          art = art || new Article({ content: articleContent, ...a });
           art.header = art.header || a.header || a.summaries?.oneliner || '';
           art.sourceName = art.sourceName || this.name || existingNewsletter.name || '';
           art.date = art.date || this.date || existingNewsletter.date || '';
@@ -136,10 +150,7 @@ export class NewsletterClass implements INewsletter {
 
       // Update newsletter with articles and clear any previous error
       await this.set({ articles, error: '' }).save();
-      console.log(
-        `Extracted and saved ${articles.length} articles for newsletter %o with ${errCount} errors.\n`,
-        this._id
-      );
+      console.log(`Created ${articles.length} articles for newsletter %o with ${errCount} errors.\n`, this._id);
       return errCount;
     } catch (error: any) {
       console.error(`Error extracting articles for newsletter %o:\n`, this._id, error, '\n');

@@ -44,7 +44,7 @@ export async function processNewEmail(email: Email) {
     let newArticle: IArticle | undefined;
     const classification = await classifyContent(email.text || email.html || '');
 
-    // Create article
+    // Create article from link
     if (classification.type === 'link') {
       const link = classification.data as string;
       const content = await fetchHtmlContent(link);
@@ -67,7 +67,7 @@ export async function processNewEmail(email: Email) {
         newArticle = result;
       }
     } else if (classification.type === 'article' || classification.type === 'newsletter') {
-      // Create newsletter
+      // Create newsletter/article from content
       try {
         const response = await axios.post(`${API_URL}/api/newsletter`, {
           content: email.text || email.html,
