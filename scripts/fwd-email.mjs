@@ -2,7 +2,10 @@
 
 /**
  * Simple script to forward a sample email (in .eml format) to the test SMTP server.
- * Usage: node scripts/fwd-email.mjs <path-to-eml-file> [from-address]
+ * Just save an email as .eml file and call this script.
+ * 
+ * Usage:
+ *    node scripts/fwd-email.mjs <path-to-eml-file> <your-email-address>
  */
 
 import 'dotenv/config';
@@ -12,8 +15,8 @@ import { simpleParser } from 'mailparser';
 
 const SMTP_PORT = process.env.SMTP_PORT || 1025;
 const SMTP_HOST = process.env.SMTP_HOST || 'localhost';
-const MAIL_FROM = process.argv[3] || 'random.source@example.com';
-const MAIL_RCPT = 'test.recipient@localhost.me';
+const MAIL_FROM = 'random.source@example.com';
+const MAIL_RCPT = process.argv[3] || 'test.recipient@localhost.me';
 
 const emlPath = process.argv[2];
 if (!emlPath) {

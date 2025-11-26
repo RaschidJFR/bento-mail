@@ -6,7 +6,7 @@ services:
     ports:
       - '3000:3000'
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
       - DATABASE_NAME=${DATABASE_NAME}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -16,7 +16,7 @@ services:
     build: .
     command: node scripts/start-worker.mjs
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
       - DATABASE_NAME=${DATABASE_NAME}
       - WORKER_PROCESSING_INTERVAL=${WORKER_PROCESSING_INTERVAL}
@@ -27,15 +27,14 @@ services:
     ports:
       - '4001:4001'
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
       - DATABASE_NAME=${DATABASE_NAME}
-  # Development only mail server
-  # mail:
-  #   build: .
-  #   command: node scripts/start-mail-server.mjs
-  #   ports:
-  #     - '1025:1025'
-  #   environment:
-  #     - NODE_ENV=production
-  #     - APP_URL=http://web:3000 # Internal network URL to access the web service API
+  mail: # Development only mail server
+    build: .
+    command: node scripts/start-mail-server.mjs
+    ports:
+      - '1025:1025'
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - APP_URL=http://web:3000 # Internal network URL to access the web service API
