@@ -39,10 +39,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!article) return notFound();
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <ArticleCard article={article} showToolbar={false} />
+    <main>
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <section>
+            <ArticleCard article={article} showToolbar={false} />
+          </section>
+          <section>
+            <div className="text-center mt-10 text-muted-foreground">
+              <p>Drowning in newsletters?</p>
+              <p>Forward them to us and get info bites like this.</p>
+            </div>
+          </section>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
