@@ -3,7 +3,7 @@ import type { IArticle } from '@lib/models/types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw, AlertCircle } from 'lucide-react';
+import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw, AlertCircle, Share } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
@@ -14,6 +14,7 @@ interface ArticleCardProps {
   userId?: string;
   reaction?: ReactionsEnum;
   job?: ITaskArticleProcess;
+  showToolbar?: boolean;
   onRemove?: (articleId: string) => void;
 }
 
@@ -40,6 +41,7 @@ export const ArticleCard = ({
   userId,
   reaction,
   job: initialJob,
+  showToolbar = true,
   onRemove,
 }: ArticleCardProps) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -138,6 +140,16 @@ export const ArticleCard = ({
     } catch (err) {
       setIsProcessing(false);
       console.error(err);
+    }
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/article/${article._id}`;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('Article link copied to clipboard!');
+    } catch (err) {
+      alert('Failed to copy link to clipboard!');
     }
   };
 
@@ -248,50 +260,61 @@ export const ArticleCard = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1 ml-auto">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLike}
-              className={`flex items-center gap-1 ${
-                isLiked ? 'text-red-500' : 'text-muted-foreground'
-              } hover:text-red-500 px-2`}
-            >
-              <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-            </Button>
+          {showToolbar !== false && (
+            <div className="flex items-center gap-1 ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLike}
+                className={`flex items-center gap-1 ${
+                  isLiked ? 'text-red-500' : 'text-muted-foreground'
+                } hover:text-red-500 px-2`}
+              >
+                <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+              </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSkip}
-              className={`flex items-center gap-1 ${
-                isSkip ? 'text-red-500' : 'text-muted-foreground'
-              } hover:text-red-600 px-2`}
-            >
-              <X className="w-4 h-4" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSkip}
+                className={`flex items-center gap-1 ${
+                  isSkip ? 'text-red-500' : 'text-muted-foreground'
+                } hover:text-red-600 px-2`}
+              >
+                <X className="w-4 h-4" />
+              </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleFlag}
-              className={`flex items-center gap-1 ${
-                isFlagged ? 'text-orange-500' : 'text-muted-foreground'
-              } hover:text-orange-500 px-2`}
-            >
-              <Flag className="w-4 h-4" />
-            </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleFlag}
+                className={`flex items-center gap-1 ${
+                  isFlagged ? 'text-orange-500' : 'text-muted-foreground'
+                } hover:text-orange-500 px-2`}
+              >
+                <Flag className="w-4 h-4" />
+              </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleProcess}
-              disabled={isProcessing}
-              className="flex items-center gap-1 text-muted-foreground hover:text-blue-500 px-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleProcess}
+                disabled={isProcessing}
+                className="flex items-center gap-1 text-muted-foreground hover:text-blue-500 px-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleShare}
+                className="flex items-center gap-1 text-muted-foreground hover:text-blue-500 px-2"
+              >
+                <Share className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </Card>

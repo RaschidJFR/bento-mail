@@ -39,8 +39,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!article) return notFound();
 
   return (
-    <div className="space-y-6">
-      <ArticleCard article={article} />
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <ArticleCard article={article} showToolbar={false} />
+      </div>
     </div>
   );
 }
