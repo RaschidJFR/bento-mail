@@ -1,11 +1,9 @@
 'use client';
-import type { INewsletter, IArticle } from '@lib/models/types';
+import type { INewsletter } from '@lib/models/types';
 import { NewsletterHeader } from './NewsletterHeader';
 import { ArticleCard } from './ArticleCard';
 import { ReactionsEnum } from '@lib/models/enums';
-import { useEffect } from 'react';
 import { ITaskArticleProcess, useTasks } from '@app/hooks/useTasks';
-import { socket } from '@app/hooks/getSocket';
 import { useArticles } from '@app/hooks/useArticles';
 
 export function NewsletterDisplay({

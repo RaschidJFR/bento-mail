@@ -1,9 +1,8 @@
 import { Badge } from './ui/badge';
-import type { INewsletter } from '@lib/models/types';
 import { Calendar } from 'lucide-react';
 import { formatDate } from './utils';
 
-const devEnv = process.env.NODE_ENV !== 'production';
+const devEnv = typeof process !== 'undefined' && process.env.NODE_ENV !== 'production';
 
 interface NewsletterHeaderProps {
   newsletter?: {
