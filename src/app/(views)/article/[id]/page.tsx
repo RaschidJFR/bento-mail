@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { Article } from '@lib/models';
 import type { IArticle } from '@lib/models';
 import { ArticleCard } from '@components/ArticleCard';
+import type { Metadata, ResolvingMetadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,56 @@ async function getArticle(id: string) {
   const article = await Article.findById(id).lean();
   if (!article) return null;
   return article as IArticle;
+}
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ id: string }> },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const { id } = await params;
+  const article = await getArticle(id);
+  if (!article) {
+    return {
+      title: 'Article Not Found',
+      description: 'The requested article could not be found.',
+    };
+  }
+
+  const { oneliner = '', overview = '', details = '' } = article.summaries || {};
+  const description = overview || '';
+
+  return {
+    title: `${oneliner || 'Article summary'} | Bento Mail`,
+    description,
+    robots: {
+      index: false,
+      follow: false,
+    },
+    openGraph: {
+      title: oneliner || 'See this article summary',
+      description,
+      url: process.env.APP_URL ? `${process.env.APP_URL}/article/${article._id}` : undefined,
+      siteName: 'Bento Mail',
+      images: article.coverImg
+        ? [
+            {
+              url: article.coverImg,
+              width: 862, // The current ArticleCard cover image size
+              height: 485,
+              alt: oneliner,
+            },
+          ]
+        : undefined,
+      locale: 'en_US',
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: oneliner,
+      description: overview || '',
+      images: article.coverImg ? [article.coverImg] : undefined,
+    },
+  };
 }
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
