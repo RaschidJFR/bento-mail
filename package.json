@@ -23,6 +23,7 @@
     "@langchain/core": "^0.3.21",
     "@langchain/openai": "^0.6.13",
     "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@typegoose/typegoose": "^12.19.0",
     "axios": "^1.7.0",
     "chronos-jobs": "^1.0.5",

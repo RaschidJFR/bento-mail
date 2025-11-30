@@ -3,7 +3,19 @@ import type { IArticle } from '@lib/models/types';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Calendar, ExternalLink, Loader2, Heart, X, Flag, RefreshCw, AlertCircle, Share } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import {
+  Calendar,
+  ExternalLink,
+  Loader2,
+  CircleCheckBig,
+  ThumbsDown,
+  Flag,
+  RefreshCw,
+  AlertCircle,
+  Share,
+  ChevronDown,
+} from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { formatDate } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
@@ -52,6 +64,7 @@ export const ArticleCard = ({
   const [isRemoving, setIsRemoving] = useState(false);
   const [job, setJob] = useState(initialJob);
   const [article, setArticle] = useState(initialArticle);
+  const [showCopied, setShowCopied] = useState('');
 
   useEffect(() => {
     setArticle(initialArticle);
@@ -147,9 +160,11 @@ export const ArticleCard = ({
     const shareUrl = `${window.location.origin}/article/${article._id}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
-      alert('Article link copied to clipboard!');
+      setShowCopied('Link copied!');
     } catch (err) {
-      alert('Failed to copy link to clipboard!');
+      setShowCopied('Failed to copy link!');
+    } finally {
+      setTimeout(() => setShowCopied(''), 2000);
     }
   };
 
@@ -187,7 +202,10 @@ export const ArticleCard = ({
         )}
 
         {/* Clickable area to toggle details */}
-        <div className={isDetailsOpen ? '' : 'cursor-pointer'} onClick={() => setIsDetailsOpen(true)}>
+        <div
+          className={isDetailsOpen ? '' : 'cursor-pointer hover:bg-surface-secondary/30 transition-colors duration-200'}
+          onClick={() => !isDetailsOpen && setIsDetailsOpen(true)}
+        >
           {/* Cover Image */}
           {article.coverImg && (
             <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
@@ -220,12 +238,24 @@ export const ArticleCard = ({
             </div>
 
             {/* Overview & Details */}
-            <div className="transition-all duration-300 hover:text-brand-primary/80">
+            <div className="transition-all duration-300">
               {/* Overview with fade effect when collapsed */}
               <div className="relative">
                 <p className="text-text-body leading-relaxed transition-all duration-300">
                   {article.summaries?.overview || ''}
                 </p>
+
+                {/* Expand indicator - only shown when details are collapsed */}
+                {!isDetailsOpen && article.summaries?.details && (
+                  <div className="flex items-center justify-center mt-3">
+                    <button
+                      className="w-8 h-8 rounded-full bg-brand-primary/10 hover:bg-brand-primary/20 flex items-center justify-center transition-all duration-200 hover:scale-110"
+                      aria-label="Expand details"
+                    >
+                      <ChevronDown className="w-4 h-4 text-brand-primary" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Details with smooth animation */}
@@ -261,59 +291,96 @@ export const ArticleCard = ({
 
           {/* Action Buttons */}
           {showToolbar !== false && (
-            <div className="flex items-center gap-1 ml-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLike}
-                className={`flex items-center gap-1 ${
-                  isLiked ? 'text-red-500' : 'text-muted-foreground'
-                } hover:text-red-500 px-2`}
-              >
-                <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
-              </Button>
+            <TooltipProvider>
+              <div className="flex items-center gap-1 ml-auto">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLike}
+                      className={`flex items-center gap-1 ${
+                        isLiked ? 'text-brand-primary' : 'text-muted-foreground'
+                      } hover:text-brand-primary/80 hover:bg-slate-700 px-2`}
+                    >
+                      <CircleCheckBig className={`w-4 h-4`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Mark as read</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleSkip}
-                className={`flex items-center gap-1 ${
-                  isSkip ? 'text-red-500' : 'text-muted-foreground'
-                } hover:text-red-600 px-2`}
-              >
-                <X className="w-4 h-4" />
-              </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleSkip}
+                      className={`flex items-center gap-1 ${
+                        isSkip ? 'text-brand-primary fill-current' : 'text-muted-foreground'
+                      } hover:text-brand-primary/80 hover:bg-slate-700 px-2`}
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Not relevant</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleFlag}
-                className={`flex items-center gap-1 ${
-                  isFlagged ? 'text-orange-500' : 'text-muted-foreground'
-                } hover:text-orange-500 px-2`}
-              >
-                <Flag className="w-4 h-4" />
-              </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleFlag}
+                      className={`flex items-center gap-1 ${
+                        isFlagged ? 'text-brand-primary' : 'text-muted-foreground'
+                      } hover:text-brand-primary/80 hover:bg-slate-700 px-2`}
+                    >
+                      <Flag className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Report problem</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleProcess}
-                disabled={isProcessing}
-                className="flex items-center gap-1 text-muted-foreground hover:text-blue-500 px-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
-              </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleProcess}
+                      disabled={isProcessing}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-brand-primary/80 hover:bg-slate-700 px-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Reprocess article</p>
+                  </TooltipContent>
+                </Tooltip>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleShare}
-                className="flex items-center gap-1 text-muted-foreground hover:text-blue-500 px-2"
-              >
-                <Share className="w-4 h-4" />
-              </Button>
-            </div>
+                <Tooltip open={showCopied ? true : undefined}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleShare}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-brand-primary/80 hover:bg-slate-700 px-2"
+                    >
+                      <Share className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className={showCopied ? 'bg-pink-600 text-white' : ''}>
+                    <p>{showCopied}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
           )}
         </div>
       </div>
