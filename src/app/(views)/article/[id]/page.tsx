@@ -47,18 +47,19 @@ export async function generateMetadata(
     };
   }
 
-  const { oneliner = '', overview = '', details = '' } = article.summaries || {};
+  const { oneliner = '', overview = '' } = article.summaries || {};
   const description = overview || '';
+  const title = article.header || oneliner;
 
   return {
-    title: `${oneliner || 'Article summary'} | Bento Mail`,
+    title: `${title || oneliner || 'Article summary'} | Bento Mail`,
     description,
     robots: {
       index: false,
       follow: false,
     },
     openGraph: {
-      title: oneliner || 'See this article summary',
+      title: title || oneliner || 'See this article summary',
       description,
       url: process.env.APP_URL ? `${process.env.APP_URL}/article/${article._id}` : undefined,
       siteName: 'Bento Mail',
