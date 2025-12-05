@@ -1,17 +1,35 @@
 import React from 'react';
 import { redirect } from 'next/navigation';
+import { auth } from '@lib/auth';
+import { headers } from 'next/headers';
+import { GoogleLoginButton } from './components/GoogleLoginButton';
 import type { IBundle } from '@lib/models/types';
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const email = (await searchParams)?.email;
+export default async function HomePage() {
+  const headersList = await headers();
+  const session = await auth.api.getSession({
+    headers: headersList,
+  });
+
+  if (!session) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center p-8">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold mb-2">Welcome to Bento Mail</h1>
+            <p className="text-gray-600">Sign in with your Google account to continue</p>
+          </div>
+          <GoogleLoginButton />
+        </div>
+      </main>
+    );
+  }
+
+  const email = session.user.email;
   let error = '';
 
-  if (!email || Array.isArray(email)) {
-    error = 'No valid email parameter provided';
+  if (!email) {
+    error = 'No email found in session';
   } else {
     // Fetch the bundle for the given email and redirect
     const res = await fetch(`${process.env.APP_URL}/api/bundle?userEmail=${encodeURIComponent(email)}`);

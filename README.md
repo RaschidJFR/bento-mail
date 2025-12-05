@@ -30,9 +30,27 @@
 
 - Node.js 22+
 - MongoDB (local or cloud)
-- OpenAI API key with access to GPT-5-mini
+- OpenAI API key with access to GPT-4-mini
+- Google OAuth credentials (see [Google OAuth Setup](#google-oauth-setup))
 - [Optional] Account on [ForwardEmail.net](https://forwardemail.net/) (required if deploying to a cloud server)
 - [Optional] Docker (for containerized setup)
+
+### Google OAuth Setup
+
+To enable Google login, you need to set up Google OAuth credentials:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google+ API
+4. Go to **Credentials** and create an **OAuth 2.0 Client ID** (Application type: Web application)
+5. Add authorized redirect URIs:
+   - For local development: `http://localhost:3000/api/auth/callback/google`
+   - For production: `https://yourdomain.com/api/auth/callback/google`
+6. Copy the **Client ID** and **Client Secret** to your `.env` file:
+   ```
+   GOOGLE_CLIENT_ID=your_client_id_here
+   GOOGLE_CLIENT_SECRET=your_client_secret_here
+   ```
 
 ### Development
 
@@ -83,18 +101,17 @@
 
 ## Operation
 
-1. Send an email containing a newsletter or a link to an article to the app's server:
+1. Access the web interface at `http://localhost:3000`
+2. Sign in with your Google account using the **Sign in with Google** button
+3. Send an email containing a newsletter or a link to an article to the app's server:
    1. If you're running the app locally you have two options for this:
       1. You can get started by forward emails programmatically with this [script](./scripts/fwd-email.mjs).
       2. Or you can [configure your local mail app](./docs/setup-mail-client.md#When-Bento-is-running-locally).
    2. If you've deployed the app to a cloud server: 
       1. You'll need an email server that supports webhooks. [See this guide](./docs/setup-mail-client.md#setup-mail-forwarding-service).
-      2. 
-2. After a couple of minutes\*, you can access your processed content via the web interface. If you're running it locally, it should be something like `http://localhost:3000?user=<your@email.address>`\*\*.
+4. After a couple of minutes*, you can view your processed content via the web interface.
 
 \* _Processing of email messages takes a few minutes, depending on the amount of articles found in the content._
-
-\*\* _For now, the user email is passed via URL query parameters._
 
 ## Deployment
 
