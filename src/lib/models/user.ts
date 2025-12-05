@@ -6,6 +6,8 @@ import { Base } from '@typegoose/typegoose/lib/defaultClasses';
 export interface IUser extends Base {
   email: string;
   aliasEmail?: string;
+  name?: string;
+  image?: string;
 }
 
 interface QueryHelpers {
@@ -31,6 +33,12 @@ export class UserClass implements IUser {
 
   @prop({ type: String })
   public aliasEmail?: string;
+
+  @prop({ type: String })
+  public name?: string;
+
+  @prop({ type: String })
+  public image?: string;
 }
 
 clearModelInDevelopment(getName(UserClass));
