@@ -1,26 +1,28 @@
 import { NextRequest } from 'next/server';
-import { Bundle, IBundle, User } from '@lib/models';
+import { headers } from 'next/headers';
+import { Bundle, IBundle } from '@lib/models';
+import { auth } from '@lib/auth';
 
 export interface ResponseData {
   result: IBundle | null;
 }
 
 /**
- * Get the next bundle for a user by email
+ * Get the next bundle for the authenticated user
  */
 export default async function (req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const userEmail = searchParams.get('userEmail');
-    if (!userEmail || typeof userEmail !== 'string' || !userEmail.trim()) {
-      return Response.json({ error: 'Missing or invalid userEmail parameter.' }, { status: 400 });
+    // Get session from authenticated user
+    const headersList = await headers();
+    const session = await auth.api.getSession({
+      headers: headersList,
+    });
+
+    if (!session?.user?.email) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Find user by email
-    const user = await User.find().findByEmail(userEmail.trim()).lean();
-    if (!user) {
-      return Response.json({ error: 'User not found.' }, { status: 404 });
-    }
+    const userEmail = session.user.email;
 
     // Find first unsent bundle with earliest sendOn date
     const bundle = await Bundle.findNextToSend(userEmail);

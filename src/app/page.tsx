@@ -25,25 +25,24 @@ export default async function HomePage() {
     );
   }
 
-  const email = session.user.email;
   let error = '';
 
-  if (!email) {
-    error = 'No email found in session';
+  // Fetch the bundle for the authenticated user
+  // Forward the headers from the incoming request to authenticate the API call
+  const res = await fetch(`${process.env.APP_URL}/api/bundle`, {
+    headers: headersList
+  });
+
+  if (!res.ok) {
+    console.error('Failed to fetch bundle', res.statusText);
+    error = 'Failed to fetch bundle: ' + res.statusText;
   } else {
-    // Fetch the bundle for the given email and redirect
-    const res = await fetch(`${process.env.APP_URL}/api/bundle?userEmail=${encodeURIComponent(email)}`);
-    if (!res.ok) {
-      console.error('Failed to fetch bundle', res.statusText);
-      error = 'Failed to fetch bundle: ' + res.statusText;
-    } else {
-      const { result: bundle }: { result: IBundle | null } = await res.json();
-      if (!bundle) {
-        console.warn('No bundle found for this user');
-        error = 'No bundle found for this user';
-      } else if (bundle?._id) {
-        redirect(`/bundle/${String(bundle._id)}`);
-      }
+    const { result: bundle }: { result: IBundle | null } = await res.json();
+    if (!bundle) {
+      console.warn('No bundle found for this user');
+      error = 'No bundle found for this user';
+    } else if (bundle?._id) {
+      redirect(`/bundle/${String(bundle._id)}`);
     }
   }
 

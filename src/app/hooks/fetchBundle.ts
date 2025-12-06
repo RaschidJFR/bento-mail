@@ -2,6 +2,8 @@ import { Bundle, IArticle, IBundle, INewsletter } from '@lib/models';
 import type { ReactionsEnum } from '@lib/models/enums';
 import { JobNames, Task, ITask } from '@services/worker';
 
+// TODO: this should be moved out of lib as it is not frontend compatible.
+
 // Mock articles strictly following IArticle interface from /lib/models/article.ts
 const mockArticles: IArticle[] = [
   {
