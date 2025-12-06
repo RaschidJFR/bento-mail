@@ -19,4 +19,9 @@ export const auth = betterAuth({
   trustedOrigins: [process.env.APP_URL || 'http://localhost:3000'],
   appName: 'Bento Mail',
   basePath: '/api/auth',
+  schema: {
+    user: {
+      modelName: 'users',
+    },
+  },
 });
