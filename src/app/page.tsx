@@ -5,11 +5,12 @@ import { headers } from 'next/headers';
 import { GoogleLoginButton } from './components/GoogleLoginButton';
 import type { IBundle } from '@lib/models/types';
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams?: Record<string, string> }) {
   const headersList = await headers();
-  const session = await auth.api.getSession({
-    headers: headersList,
-  });
+  const session = await auth.api.getSession({ headers: headersList });
+
+  // Get callbackURL from search params if present
+  const callbackURL = searchParams?.callbackURL;
 
   if (!session) {
     return (
@@ -19,7 +20,7 @@ export default async function HomePage() {
             <h1 className="text-3xl font-bold mb-2">Welcome to Bento Mail</h1>
             <p className="text-gray-600">Sign in with your Google account to continue</p>
           </div>
-          <GoogleLoginButton />
+          <GoogleLoginButton callbackURL={callbackURL} />
         </div>
       </main>
     );
@@ -42,7 +43,12 @@ export default async function HomePage() {
       console.warn('No bundle found for this user');
       error = 'No bundle found for this user';
     } else if (bundle?._id) {
-      redirect(`/bundle/${String(bundle._id)}`);
+      // If callbackURL is present, redirect there, else to bundle
+      if (callbackURL) {
+        redirect(callbackURL);
+      } else {
+        redirect(`/bundle/${String(bundle._id)}`);
+      }
     }
   }
 

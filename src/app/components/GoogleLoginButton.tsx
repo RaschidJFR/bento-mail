@@ -1,10 +1,9 @@
 'use client';
 
 import { signIn } from '@lib/auth/client';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-export function GoogleLoginButton() {
+export function GoogleLoginButton({ callbackURL }: { callbackURL?: string }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +13,7 @@ export function GoogleLoginButton() {
       setError(null);
       await signIn.social({
         provider: 'google',
-        callbackURL: '/',
+        callbackURL: callbackURL || '/',
       });
     } catch (err) {
       console.error('Sign in error:', err);

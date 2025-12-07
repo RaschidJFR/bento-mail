@@ -13,18 +13,21 @@ export default async function Page({
   params: Promise<{ id: string }>;
   searchParams?: Promise<Record<string, string>>;
 }) {
-  // Redirect to root if unauthenticated
+  // Redirect to root if unauthenticated, preserving intended destination
   const headersList = await headers();
+  const { id } = await params;
+  const debug = (await searchParams)?.debug;
+
   const session = await auth.api.getSession({ headers: headersList });
-  if (!session) redirect('/');
+  if (!session) {
+    redirect(`/?callbackURL=/bundle/${id}${debug == '1' ? `?debug=1` : ''}`);
+  }
 
   // Fetch the bundle and check ownership
-  const { id } = await params;
   const bundle = await Bundle.findOne({ _id: id, user: session.user.id }).lean();
   if (!bundle) return notFound();
 
   // Fetch bundle data
-  const debug = (await searchParams)?.debug;
   const data = await fetchBundleData(id, debug == '1');
   if (!data) return notFound();
 
@@ -62,7 +65,7 @@ export default async function Page({
                   )
               )
             ) : (
-              <p className="text-center text-muted-foreground">No articles available.</p>
+              <p className="text-center text-muted-foreground">No fresh articles in this bundle.</p>
             )}
           </div>
         </main>
