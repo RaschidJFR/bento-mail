@@ -1,7 +1,10 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { NewsletterDisplay } from '@components/NewsletterDisplay';
 import { ArticleCard } from '@app/components/ArticleCard';
 import { fetchBundleData } from '@app/hooks/fetchBundle';
+import { auth } from '@lib/auth';
+import { headers } from 'next/headers';
+import { Bundle } from '@lib/models';
 
 export default async function Page({
   params,
@@ -10,7 +13,17 @@ export default async function Page({
   params: Promise<{ id: string }>;
   searchParams?: Promise<Record<string, string>>;
 }) {
+  // Redirect to root if unauthenticated
+  const headersList = await headers();
+  const session = await auth.api.getSession({ headers: headersList });
+  if (!session) redirect('/');
+
+  // Fetch the bundle and check ownership
   const { id } = await params;
+  const bundle = await Bundle.findOne({ _id: id, user: session.user.id }).lean();
+  if (!bundle) return notFound();
+
+  // Fetch bundle data
   const debug = (await searchParams)?.debug;
   const data = await fetchBundleData(id, debug == '1');
   if (!data) return notFound();
