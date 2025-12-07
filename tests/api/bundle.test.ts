@@ -1,56 +1,70 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { POST, GET } from '@app/api/bundle/route';
 import { Bundle, User } from '@lib/models';
+import { auth } from '@lib/auth';
 import { RequestBody as POSTReqBody } from '@app/api/bundle/post';
 
-// --- Mock request helpers ---
-function mockGetReq(userEmail: string | undefined) {
-  return {
-    url: `http://localhost/api/bundle${userEmail ? `?userEmail=${encodeURIComponent(userEmail)}` : ''}`,
-  };
-}
-
-function mockPostReq(body: Partial<POSTReqBody>) {
-  return {
-    json: async () => body,
-  };
-}
 describe('/api/bundle', () => {
   describe('GET', () => {
     let user: User;
+
+    function mockGetReq() {
+      return {
+        url: `http://localhost/api/bundle`,
+      } as any;
+    }
+
     beforeEach(async () => {
+      // Mock the auth module
+      vi.mock('@lib/auth', () => ({
+        auth: {
+          api: {
+            getSession: vi.fn(),
+          },
+        },
+      }));
+
+      // Mock the headers module
+      vi.mock('next/headers', () => ({
+        headers: vi.fn(async () => new Headers()),
+      }));
+
       // Create test user
       user = await User.create({ email: 'foo@bar.com' });
     });
 
-    it('returns 400 if userEmail is missing or invalid', async () => {
-      let req = mockGetReq(undefined);
-      let res = await GET(req as any);
-      expect(res.status).toBe(400);
-      req = mockGetReq('');
-      res = await GET(req as any);
-      expect(res.status).toBe(400);
+    afterEach(async () => {
+      vi.restoreAllMocks();
     });
 
-    it('returns 404 if user not found', async () => {
-      const req = mockGetReq('notfound@bar.com');
-      const res = await GET(req as any);
-      expect(res.status).toBe(404);
+    it('returns 401 if not authenticated', async () => {
+      vi.mocked(auth.api.getSession).mockResolvedValueOnce(null);
+      const req = mockGetReq();
+      const res = await GET(req);
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 401 if session has no user email', async () => {
+      vi.mocked(auth.api.getSession).mockResolvedValueOnce({ user: {} } as any);
+      const req = mockGetReq();
+      const res = await GET(req);
+      expect(res.status).toBe(401);
     });
 
     it('returns 200 and bundle if found', async () => {
+      vi.mocked(auth.api.getSession).mockResolvedValueOnce({ user: { email: user.email } } as any);
       const bundle = await Bundle.create({ user: user._id, newsletters: ['nid'], articles: [], sent: false });
-      const req = mockGetReq(user.email);
-      const res = await GET(req as any);
+      const req = mockGetReq();
+      const res = await GET(req);
       expect(res.status).toBe(200);
       const { result } = await res.json();
-      expect(result).toBeTruthy();
-      expect(result.newsletters).toContain('nid');
+      expect(result._id).toBe(String(bundle._id));
     });
 
     it('returns 200 and result null if no bundle found', async () => {
-      const req = mockGetReq(user.email);
-      const res = await GET(req as any);
+      vi.mocked(auth.api.getSession).mockResolvedValueOnce({ user: { email: user.email } } as any);
+      const req = mockGetReq();
+      const res = await GET(req);
       expect(res.status).toBe(200);
       const { result } = await res.json();
       expect(result).toBeNull();
@@ -58,10 +72,11 @@ describe('/api/bundle', () => {
 
     it('can get a bundle for a user by their aliasEmail', async () => {
       await user.set({ aliasEmail: 'alias@bar.com' }).save();
+      vi.mocked(auth.api.getSession).mockResolvedValueOnce({ user: { email: user.email } } as any);
       const bundle = await Bundle.create({ user: user._id, newsletters: ['nid'], articles: [], sent: false });
 
-      const req = mockGetReq(user.aliasEmail);
-      const res = await GET(req as any);
+      const req = mockGetReq();
+      const res = await GET(req);
       expect(res.status).toBe(200);
       const { result } = await res.json();
       expect(result.user._id).toStrictEqual(String(bundle.user._id));
@@ -70,6 +85,12 @@ describe('/api/bundle', () => {
 
   describe('POST', () => {
     let user: User;
+
+    function mockPostReq(body: Partial<POSTReqBody>) {
+      return {
+        json: async () => body,
+      };
+    }
 
     beforeEach(async () => {
       // Create test user

@@ -10,7 +10,7 @@ export interface ResponseData {
 /**
  * Get the next bundle for the authenticated user
  */
-export default async function (req: NextRequest) {
+export default async function (_req: NextRequest) {
   try {
     // Get session from authenticated user
     const headersList = await headers();
