@@ -26,6 +26,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@typegoose/typegoose": "^12.19.0",
     "axios": "^1.7.0",
+    "better-auth": "^1.4.5",
     "chronos-jobs": "^1.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

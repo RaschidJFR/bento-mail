@@ -2,6 +2,8 @@ import { Bundle, IArticle, IBundle, INewsletter } from '@lib/models';
 import type { ReactionsEnum } from '@lib/models/enums';
 import { JobNames, Task, ITask } from '@services/worker';
 
+// TODO: this should be moved out of lib as it is not frontend compatible.
+
 // Mock articles strictly following IArticle interface from /lib/models/article.ts
 const mockArticles: IArticle[] = [
   {
@@ -67,29 +69,29 @@ export async function fetchBundleData(id: string, debug = false) {
   const articlesWithReactions = Array.from(reactionMap.keys());
 
   // Match filters
-  const noErrors = debug ? {} : { $or: [{ lastError: '' }, { lastError: { $exists: false } }] };
-  const noReactions = debug ? {} : { _id: { $nin: articlesWithReactions } };
+  const excludeWithErrors = debug ? {} : { $or: [{ lastError: '' }, { lastError: { $exists: false } }] };
+  const excludeWithReactions = debug ? {} : { _id: { $nin: articlesWithReactions } };
 
   const bundleData: IBundle | null = await Bundle.findById(id)
     .populate([
       {
         path: 'articles',
         match: {
-          ...noErrors,
-          ...noReactions,
+          ...excludeWithErrors,
+          ...excludeWithReactions,
         },
       },
       {
         path: 'newsletters',
         match: {
-          ...noErrors,
+          ...excludeWithErrors,
         },
         options: { sort: { date: -1 } },
         populate: {
           path: 'articles',
           match: {
-            ...noErrors,
-            ...noReactions,
+            ...excludeWithErrors,
+            ...excludeWithReactions,
           },
         },
       },
