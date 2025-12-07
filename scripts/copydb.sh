@@ -8,12 +8,19 @@ if [ -z "$SOURCE" ] || [ -z "$DESTINATION" ]; then
   exit 1
 fi
 
-mongodump --uri="$SOURCE/production" --gzip --archive=production.db.gz
-mongorestore --gzip --archive=production.db.gz \
+TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+DB_FILE="production_$TIMESTAMP.db.gz"
+AGENDA_FILE="agenda_$TIMESTAMP.db.gz"
+
+mongodump --uri="$SOURCE/production" --gzip --archive=$DB_FILE
+mongorestore --gzip --archive=$DB_FILE \
   --nsFrom="production.*" --nsTo="development.*" \
   --uri="$DESTINATION"
-mongodump --uri="$SOURCE/agenda" --gzip --archive=agenda.db.gz
-mongorestore --gzip --archive=agenda.db.gz \
+rm $DB_FILE
+
+mongodump --uri="$SOURCE/agenda" --gzip --archive=$AGENDA_FILE
+mongorestore --gzip --archive=$AGENDA_FILE \
   --nsFrom="agenda.*" --nsTo="agenda.*" \
   --uri="$DESTINATION"
+rm $AGENDA_FILE
   
