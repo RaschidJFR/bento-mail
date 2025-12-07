@@ -5,12 +5,12 @@ import { headers } from 'next/headers';
 import { GoogleLoginButton } from './components/GoogleLoginButton';
 import type { IBundle } from '@lib/models/types';
 
-export default async function HomePage({ searchParams }: { searchParams?: Record<string, string> }) {
+export default async function HomePage({ searchParams }: { searchParams?: Promise<Record<string, string>> }) {
   const headersList = await headers();
   const session = await auth.api.getSession({ headers: headersList });
 
   // Get callbackURL from search params if present
-  const callbackURL = searchParams?.callbackURL;
+  const callbackURL = (await searchParams)?.callbackURL;
 
   if (!session) {
     return (
@@ -18,7 +18,12 @@ export default async function HomePage({ searchParams }: { searchParams?: Record
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
             <h1 className="text-3xl font-bold mb-2">Welcome to Bento Mail</h1>
-            <p className="text-gray-600">Sign in with your Google account to continue</p>
+            <div className="text-center space-y-1 pb-2">
+              <p className="text-sm font-medium text-foreground">This service is currently by invitation only</p>
+              <p className="text-xs text-muted-foreground">
+                If you&apos;ve been invited, sign in with your Google account below
+              </p>
+            </div>
           </div>
           <GoogleLoginButton callbackURL={callbackURL} />
         </div>
@@ -31,7 +36,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Record
   // Fetch the bundle for the authenticated user
   // Forward the headers from the incoming request to authenticate the API call
   const res = await fetch(`${process.env.APP_URL}/api/bundle`, {
-    headers: headersList
+    headers: headersList,
   });
 
   if (!res.ok) {
