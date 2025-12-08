@@ -46,7 +46,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
     const { result: bundle }: { result: IBundle | null } = await res.json();
     if (!bundle) {
       console.warn('No bundle found for this user');
-      error = 'No bundle found for this user';
+      error = 'No bundle found for this user. Has your account been set up yet?';
     } else if (bundle?._id) {
       // If callbackURL is present, redirect there, else to bundle
       if (callbackURL) {

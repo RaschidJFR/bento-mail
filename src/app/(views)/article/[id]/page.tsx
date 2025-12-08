@@ -100,7 +100,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <section>
             <div className="text-center mt-10 text-muted-foreground">
               <p>Drowning in newsletters?</p>
-              <p>Forward them to us and get info bites like this.</p>
+              <p>Forward them to <a href='/' className='text-brand-accent'>Bento Mail</a> and get info bites like this.</p>
             </div>
           </section>
         </div>
