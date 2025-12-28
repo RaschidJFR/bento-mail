@@ -376,7 +376,7 @@ export const ArticleCard = ({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent className={showCopied ? 'bg-pink-600 text-white' : ''}>
-                    <p>{showCopied}</p>
+                    <p>{showCopied || 'Copy link'}</p>
                   </TooltipContent>
                 </Tooltip>
               </div>
