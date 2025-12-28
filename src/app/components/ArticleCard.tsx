@@ -17,7 +17,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { formatDate } from './utils';
+import { formatDate, normalizeImageUrl } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
 import { isTaskActive, ITaskArticleProcess } from '@app/hooks/useTasks';
 
@@ -209,7 +209,11 @@ export const ArticleCard = ({
           {/* Cover Image */}
           {article.coverImg && (
             <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
-              <img src={article.coverImg} alt={article.header} className="w-full h-full object-contain" />
+              <img
+                src={normalizeImageUrl(article.coverImg, article.url)}
+                alt={article.header}
+                className="w-full h-full object-contain"
+              />
             </div>
           )}
 
