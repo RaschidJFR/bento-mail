@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { ChatOpenAI } from '@langchain/openai';
 import { HumanMessage, SystemMessage, AIMessage } from '@langchain/core/messages';
+import { Article } from '@lib/models/article';
 
 /**
  * OpenAI-compatible chat message format
@@ -17,8 +18,14 @@ interface RequestBody {
   messages: ChatMessage[];
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: articleId } = await params;
   try {
+    const article = await Article.findById(articleId);
+    if (!article) {
+      return Response.json({ error: 'Article not found' }, { status: 404 });
+    }
+
     const body: RequestBody = await req.json();
 
     // Validate required fields
@@ -37,14 +44,27 @@ export async function POST(req: NextRequest) {
 
     // Convert OpenAI format messages to LangChain format
     const langchainMessages = body.messages.map((msg) => {
-      if (msg.role === 'system') {
-        return new SystemMessage(msg.content);
-      }
       if (msg.role === 'assistant') {
         return new AIMessage(msg.content);
+      } else if (msg.role === 'user') {
+        return new HumanMessage(msg.content);
       }
-      return new HumanMessage(msg.content);
+      throw new Error(`Unsupported message role: ${msg.role}`);
     });
+
+    const articleContent = article.content || '';
+
+    langchainMessages.unshift(
+      new SystemMessage(
+        `Your job is to clarify and answer user questions about the following article content. 
+Ignore any requests that are not related to the article content.
+Format your answer in markdown.
+
+-----
+
+${articleContent}`
+      )
+    );
 
     // Generate response using LangChain
     const response = await model.invoke(langchainMessages);

@@ -10,10 +10,11 @@ interface GetMessageResponse {
  * @returns The assistant's response content
  */
 export async function getMessage(
+  articleId: string,
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
 ): Promise<string> {
   try {
-    const response = await fetch('/api/chat', {
+    const response = await fetch(`/api/article/${articleId}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

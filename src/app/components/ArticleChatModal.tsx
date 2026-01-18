@@ -92,7 +92,7 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
       }));
 
       // Call the chat endpoint
-      const responseContent = await getMessage(apiMessages);
+      const responseContent = await getMessage(article._id, apiMessages);
 
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
