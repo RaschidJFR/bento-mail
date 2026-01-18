@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { X, Send, MessageCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import type { IArticle } from '@lib/models';
+import { getMessage } from '@app/hooks/getMessage';
 
 interface Message {
   id: string;
@@ -15,14 +16,6 @@ interface ArticleChatModalProps {
   onClose: () => void;
   article: IArticle;
 }
-
-const mockResponses = [
-  "That's a great question! Based on the article, the key takeaway is that technological advances are reshaping how we approach this topic.",
-  "I'd be happy to help clarify that. The article discusses several important points related to your question.",
-  'Good observation! The author makes a compelling argument about this, suggesting that we need to consider multiple perspectives.',
-  'From what I understand from the article, this is a complex issue with various factors at play.',
-  "That's an interesting angle. The article touches on this by highlighting the relationship between innovation and practical application.",
-];
 
 // Detect if device is mobile/touch
 const isMobileDevice = () => {
@@ -91,16 +84,33 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
     setInput('');
     setIsLoading(true);
 
-    // Mock AI response with delay
-    setTimeout(() => {
+    try {
+      // Prepare messages for the API (convert to OpenAI format)
+      const apiMessages = [...messages, userMessage].map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      // Call the chat endpoint
+      const responseContent = await getMessage(apiMessages);
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: mockResponses[Math.floor(Math.random() * mockResponses.length)],
+        content: responseContent,
       };
       setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      console.error('Failed to get chat response:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error while processing your message. Please try again.',
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000 + Math.random() * 1000);
+    }
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
