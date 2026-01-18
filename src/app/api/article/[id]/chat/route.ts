@@ -52,6 +52,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       throw new Error(`Unsupported message role: ${msg.role}`);
     });
 
+    const articleSummary =
+      article.summaries?.oneliner + '\n' + article.summaries?.overview + '\n' + article.summaries?.details;
     const articleContent = article.content || '';
 
     langchainMessages.unshift(
@@ -59,10 +61,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         `Your job is to clarify and answer user questions about the following article content. 
 Ignore any requests that are not related to the article content.
 Format your answer in markdown.
+Be concise.
 
------
+SUMMARY
 
-${articleContent}`
+---
+
+${articleSummary}
+
+---
+
+FULL CONTENT (May content other articles)
+
+---
+
+${articleContent}
+`
       )
     );
 
