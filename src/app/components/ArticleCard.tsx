@@ -15,7 +15,9 @@ import {
   AlertCircle,
   Share,
   ChevronDown,
+  MessageCircle,
 } from 'lucide-react';
+import { ArticleChatModal } from './ArticleChatModal';
 import { useState, useEffect } from 'react';
 import { formatDate, normalizeImageUrl } from './utils';
 import { ReactionsEnum } from '@lib/models/enums';
@@ -65,6 +67,7 @@ export const ArticleCard = ({
   const [job, setJob] = useState(initialJob);
   const [article, setArticle] = useState(initialArticle);
   const [showCopied, setShowCopied] = useState('');
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
     setArticle(initialArticle);
@@ -368,6 +371,22 @@ export const ArticleCard = ({
                   </TooltipContent>
                 </Tooltip>
 
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsChatOpen(true)}
+                      className="flex items-center gap-1 text-muted-foreground hover:text-brand-primary/80 hover:bg-slate-700 px-2"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Ask about this article</p>
+                  </TooltipContent>
+                </Tooltip>
+
                 <Tooltip open={showCopied ? true : undefined}>
                   <TooltipTrigger asChild>
                     <Button
@@ -388,6 +407,13 @@ export const ArticleCard = ({
           )}
         </div>
       </div>
+
+      {/* Chat Modal */}
+      <ArticleChatModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        article={article}
+      />
     </Card>
   );
 };
