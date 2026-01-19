@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         `Your job is to clarify and answer user questions about the following article content. 
 Ignore any requests that are not related to the article content.
 Format your answer in markdown.
-Be concise.
+Be concise, limit your answer to 300 chars.
 
 SUMMARY
 
