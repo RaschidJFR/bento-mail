@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { X, Send, MessageCircle, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Button } from './ui/button';
 import type { IArticle } from '@lib/models';
 import { getMessage } from '@app/hooks/getMessage';
@@ -181,7 +182,18 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
                     : 'bg-surface-elevated border border-border text-foreground rounded-bl-md'
                 }`}
               >
-                {message.content}
+                {message.role === 'assistant' ? (
+                  <ReactMarkdown
+                    components={{
+                      a: ({ ...props }) => <a {...props} />,
+                      code: (props) => <code {...props} />,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  message.content
+                )}
               </div>
             </div>
           ))}
