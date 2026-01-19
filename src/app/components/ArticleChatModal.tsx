@@ -1,8 +1,9 @@
 'use client';
 import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import { X, Send, MessageCircle, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Button } from './ui/button';
-import type { IArticle } from '@lib/models';
+import type { IArticle } from '@lib/models/types';
 import { getMessage } from '@app/hooks/getMessage';
 
 interface Message {
@@ -59,17 +60,26 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
     }
   }, [isOpen, isMobile]);
 
-  // Prevent body scroll when modal is open
+  // Prevent body scroll when modal is open and handle ESC key
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+
+      const handleEscKey = (e: globalThis.KeyboardEvent) => {
+        if (e.key === 'Escape' && !isMobile) {
+          onClose();
+        }
+      };
+
+      document.addEventListener('keydown', handleEscKey);
+      return () => {
+        document.body.style.overflow = '';
+        document.removeEventListener('keydown', handleEscKey);
+      };
     } else {
       document.body.style.overflow = '';
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isOpen]);
+  }, [isOpen, isMobile, onClose]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -142,12 +152,18 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-surface-elevated">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-brand-primary/20 flex items-center justify-center">
-              <MessageCircle className="w-4 h-4 text-brand-primary" />
+            <div className="w-10 h-10 rounded-md overflow-hidden bg-brand-primary/20 flex items-center justify-center shrink-0">
+              {article.coverImg ? (
+                <img src={article.coverImg} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <MessageCircle className="w-5 h-5 text-brand-primary" />
+              )}
             </div>
             <div className="flex flex-col">
-              <h3 className="font-semibold text-foreground text-sm sm:text-base">Ask about this article</h3>
-              <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[300px]">{article.header}</p>
+              <h3 className="font-semibold text-foreground text-sm sm:text-base">{article.header || ''}</h3>
+              <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[300px]">
+                {article.summaries?.oneliner || ''}
+              </p>
             </div>
           </div>
           <Button
@@ -177,11 +193,56 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
               <div
                 className={`max-w-[85%] sm:max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                   message.role === 'user'
-                    ? 'bg-brand-primary text-white rounded-br-md'
+                    ? 'bg-brand-accent text-white rounded-br-md'
                     : 'bg-surface-elevated border border-border text-foreground rounded-bl-md'
                 }`}
               >
-                {message.content}
+                {message.role === 'assistant' ? (
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ ...props }) => <h1 className="text-lg font-bold mt-4 mb-2 first:mt-0" {...props} />,
+                      h2: ({ ...props }) => <h2 className="text-base font-semibold mt-3 mb-2 first:mt-0" {...props} />,
+                      h3: ({ ...props }) => <h3 className="text-sm font-semibold mt-2 mb-1 first:mt-0" {...props} />,
+                      p: ({ ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                      ul: ({ ...props }) => <ul className="list-disc list-inside mb-2 space-y-1" {...props} />,
+                      ol: ({ ...props }) => <ol className="list-decimal list-inside mb-2 space-y-1" {...props} />,
+                      li: ({ ...props }) => <li className="ml-2" {...props} />,
+                      a: ({ ...props }) => (
+                        <a
+                          className="text-brand-primary hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          {...props}
+                        />
+                      ),
+                      code: ({ className, ...props }) => {
+                        const isInline = !className;
+                        return isInline ? (
+                          <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+                        ) : (
+                          <code
+                            className="block bg-muted p-3 rounded-lg text-xs font-mono overflow-x-auto my-2"
+                            {...props}
+                          />
+                        );
+                      },
+                      pre: ({ ...props }) => <pre className="bg-muted rounded-lg overflow-x-auto my-2" {...props} />,
+                      blockquote: ({ ...props }) => (
+                        <blockquote
+                          className="border-l-2 border-brand-primary/50 pl-3 italic my-2 text-muted-foreground"
+                          {...props}
+                        />
+                      ),
+                      strong: ({ ...props }) => <strong className="font-semibold" {...props} />,
+                      em: ({ ...props }) => <em className="italic" {...props} />,
+                      hr: ({ ...props }) => <hr className="my-3 border-border" {...props} />,
+                    }}
+                  >
+                    {message.content}
+                  </ReactMarkdown>
+                ) : (
+                  message.content
+                )}
               </div>
             </div>
           ))}
@@ -205,6 +266,7 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              maxLength={500}
               placeholder="Type your question..."
               rows={1}
               className="flex-1 resize-none bg-background border border-border rounded-xl px-4 py-3 text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all"
@@ -213,7 +275,7 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
             <Button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="bg-brand-primary hover:bg-brand-primary/90 text-white h-[46px] px-4 rounded-xl shrink-0"
+              className="bg-brand-accent hover:bg-brand-accent/90 text-white h-[46px] px-4 rounded-xl shrink-0"
             >
               <Send className="w-4 h-4" />
               <span className="ml-2 hidden sm:inline">Send</span>
