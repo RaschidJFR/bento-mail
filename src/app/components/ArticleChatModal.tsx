@@ -64,13 +64,13 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      
+
       const handleEscKey = (e: globalThis.KeyboardEvent) => {
         if (e.key === 'Escape' && !isMobile) {
           onClose();
         }
       };
-      
+
       document.addEventListener('keydown', handleEscKey);
       return () => {
         document.body.style.overflow = '';
@@ -154,18 +154,16 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-md overflow-hidden bg-brand-primary/20 flex items-center justify-center shrink-0">
               {article.coverImg ? (
-                <img 
-                  src={article.coverImg} 
-                  alt="" 
-                  className="w-full h-full object-cover"
-                />
+                <img src={article.coverImg} alt="" className="w-full h-full object-cover" />
               ) : (
                 <MessageCircle className="w-5 h-5 text-brand-primary" />
               )}
             </div>
             <div className="flex flex-col">
-              <h3 className="font-semibold text-foreground text-sm sm:text-base">Ask about this article</h3>
-              <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[300px]">{article.header}</p>
+              <h3 className="font-semibold text-foreground text-sm sm:text-base">{article.header || ''}</h3>
+              <p className="text-xs text-muted-foreground truncate max-w-[200px] sm:max-w-[300px]">
+                {article.summaries?.oneliner || ''}
+              </p>
             </div>
           </div>
           <Button
@@ -209,15 +207,32 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
                       ul: ({ ...props }) => <ul className="list-disc list-inside mb-2 space-y-1" {...props} />,
                       ol: ({ ...props }) => <ol className="list-decimal list-inside mb-2 space-y-1" {...props} />,
                       li: ({ ...props }) => <li className="ml-2" {...props} />,
-                      a: ({ ...props }) => <a className="text-brand-primary hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                      a: ({ ...props }) => (
+                        <a
+                          className="text-brand-primary hover:underline"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          {...props}
+                        />
+                      ),
                       code: ({ className, ...props }) => {
                         const isInline = !className;
-                        return isInline 
-                          ? <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
-                          : <code className="block bg-muted p-3 rounded-lg text-xs font-mono overflow-x-auto my-2" {...props} />;
+                        return isInline ? (
+                          <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono" {...props} />
+                        ) : (
+                          <code
+                            className="block bg-muted p-3 rounded-lg text-xs font-mono overflow-x-auto my-2"
+                            {...props}
+                          />
+                        );
                       },
                       pre: ({ ...props }) => <pre className="bg-muted rounded-lg overflow-x-auto my-2" {...props} />,
-                      blockquote: ({ ...props }) => <blockquote className="border-l-2 border-brand-primary/50 pl-3 italic my-2 text-muted-foreground" {...props} />,
+                      blockquote: ({ ...props }) => (
+                        <blockquote
+                          className="border-l-2 border-brand-primary/50 pl-3 italic my-2 text-muted-foreground"
+                          {...props}
+                        />
+                      ),
                       strong: ({ ...props }) => <strong className="font-semibold" {...props} />,
                       em: ({ ...props }) => <em className="italic" {...props} />,
                       hr: ({ ...props }) => <hr className="my-3 border-border" {...props} />,
@@ -251,6 +266,7 @@ export const ArticleChatModal = ({ isOpen, onClose, article }: ArticleChatModalP
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              maxLength={500}
               placeholder="Type your question..."
               rows={1}
               className="flex-1 resize-none bg-background border border-border rounded-xl px-4 py-3 text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-all"

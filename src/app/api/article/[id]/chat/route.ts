@@ -18,6 +18,7 @@ interface RequestBody {
   messages: ChatMessage[];
 }
 
+// TODO: Add testing
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: articleId } = await params;
   try {
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       new SystemMessage(
         `Your job is to clarify and answer user questions about the following article content. 
 Ignore any requests that are not related to the article content.
-Format your answer in markdown.
+If the answer is not in the article but you know it, call it out and answer it **only if it is related to the article**.
+Format your answer in markdown. Images and links as well.
 Be concise, limit your answer to 300 chars.
 
 SUMMARY
