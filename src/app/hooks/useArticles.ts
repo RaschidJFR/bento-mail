@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import type { IArticle, INewsletter } from '@lib/models';
-import { socket } from './getSocket';
+import { getSocket } from './getSocket';
 
 interface ArticleChange {
   _id: IArticle['_id'];
@@ -16,6 +16,9 @@ export function useArticles(newsletter: INewsletter): [IArticle[], Dispatch<SetS
         ? setArticles((prev) => findAndUpdateElement(articleId, art, prev))
         : setArticles((prev) => findAndRemoveElement(articleId, prev));
     };
+
+    const socket = getSocket();
+    if (!socket) return;
 
     socket.emit('joinNewsletter', newsletter._id);
     socket.on('articleChanged', handler);
