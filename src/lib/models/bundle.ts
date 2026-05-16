@@ -108,7 +108,7 @@ export class BundleClass implements IBundle {
   addNewsletterOrArticle(
     this: DocumentType<BundleClass>,
     elements: Newsletter | Newsletter[] | Article | Article[] | string | string[],
-    type: 'newsletter' | 'article'
+    type: 'newsletter' | 'article',
   ) {
     if (!Array.isArray(elements)) {
       elements = [elements as any];
@@ -117,7 +117,7 @@ export class BundleClass implements IBundle {
     if (Array.isArray(elements)) {
       if (typeof elements[0] === 'string') {
         const nls = (elements as string[]).map((_id) =>
-          type === 'article' ? Article.hydrate({ _id }) : Newsletter.hydrate({ _id })
+          type === 'article' ? Article.hydrate({ _id }) : Newsletter.hydrate({ _id }),
         );
         this.addElements(nls as any);
       } else if (elements[0] instanceof Newsletter || elements[0] instanceof Article) {
@@ -181,7 +181,7 @@ export class BundleClass implements IBundle {
 
     // Convert all elements to Class instances
     const newsletters = (bundle?.newsletters || []).map((o) =>
-      typeof o === 'string' ? Newsletter.hydrate({ _id: o }) : (o as Newsletter)
+      typeof o === 'string' ? Newsletter.hydrate({ _id: o }) : (o as Newsletter),
     );
 
     const erroCount = await Newsletter.extractArticles(newsletters, { pulsecheck } as any);
@@ -208,7 +208,7 @@ export class BundleClass implements IBundle {
       console.warn(
         `[Bundle.processArticles] Bundle ${this._id} has been previously processed (${
           ProcessingStagesEnum[existing.processingStage]
-        }). Processing again...`
+        }). Processing again...`,
       );
     }
 
@@ -245,7 +245,7 @@ export class BundleClass implements IBundle {
             errorCount++;
           }
         },
-        { pulsecheck }
+        { pulsecheck },
       );
 
       this.processingStage =
@@ -287,6 +287,7 @@ export class BundleClass implements IBundle {
   /**
    * Get a map of article IDs to the user's reactions for all articles in the bundle.
    * Ignores "ACKNOWLEDGED" reactions.
+   * @note This generates a high data load if the bundle contains many articles, so use with caution.
    */
   public static async getReactionMap(this: ReturnModelType<typeof BundleClass>, bundleId: string | ObjectId) {
     const pipeline = [
@@ -353,6 +354,106 @@ export class BundleClass implements IBundle {
       });
     }
     return map;
+  }
+
+  public static async getArticlesWithoutReactions(
+    this: ReturnModelType<typeof BundleClass>,
+    bundleId: string | ObjectId,
+  ): Promise<string[]> {
+    const pipeline = [
+      {
+        $match: {
+          _id: typeof bundleId === 'string' ? new Types.ObjectId(bundleId) : bundleId,
+        },
+      },
+      {
+        $lookup: {
+          from: Newsletter.collection.name,
+          localField: 'newsletters',
+          foreignField: '_id',
+          as: 'newsletterDetails',
+        },
+      },
+      {
+        $unwind: '$newsletterDetails',
+      },
+      {
+        $unwind: '$newsletterDetails.articles',
+      },
+      {
+        $group: {
+          _id: '$_id',
+          user: {
+            $first: '$user',
+          },
+          newsletters: {
+            $first: '$newsletters',
+          },
+          articles: {
+            $first: '$articles',
+          },
+          newsletterArticles: {
+            $addToSet: '$newsletterDetails.articles',
+          },
+        },
+      },
+      {
+        $project: {
+          user: 1,
+          articlesUnion: {
+            $setUnion: ['$articles', '$newsletterArticles'],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: Reaction.collection.name,
+          let: { articleIds: '$articlesUnion', userId: '$user' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [{ $in: ['$article', '$$articleIds'] }, { $eq: ['$user', '$$userId'] }],
+                },
+              },
+            },
+            {
+              $project: {
+                article: 1,
+              },
+            },
+          ],
+          as: 'reactions',
+        },
+      },
+      {
+        $set: {
+          articlesWithReactions: {
+            $map: {
+              input: '$reactions',
+              as: 'reaction',
+              in: '$$reaction.article',
+            },
+          },
+        },
+      },
+      {
+        $set: {
+          articlesWithoutReactions: {
+            $setDifference: ['$articlesUnion', '$articlesWithReactions'],
+          },
+        },
+      },
+      {
+        $project: {
+          articles: '$articlesWithoutReactions',
+        },
+      },
+    ];
+    const results = await this.aggregate(pipeline).exec();
+    console.debug(`[Bundle.getArticlesWithoutReactions] Found ${results[0]?.articles?.length || 0} articles without reactions for bundle ${bundleId}`);
+    
+    return results[0]?.articles//?.map((id: ObjectId) => id.toString()) || [];
   }
 }
 

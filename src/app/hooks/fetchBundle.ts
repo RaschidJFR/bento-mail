@@ -65,13 +65,22 @@ export async function fetchBundleData(id: string, debug = false) {
     };
   }
 
-  const reactionMap = await Bundle.getReactionMap(id);
-  const articlesWithReactions = Array.from(reactionMap.keys());
-
   // Match filters
   const excludeWithErrors = debug ? {} : { $or: [{ lastError: '' }, { lastError: { $exists: false } }] };
-  const excludeWithReactions = debug ? {} : { _id: { $nin: articlesWithReactions } };
+  let excludeWithReactions = {};
+  let reactionMap = new Map<string, ReactionsEnum>();
 
+  if (debug) {
+    // Only for debug mode, fetch reactions to show in the UI since it's an expensive query.
+    reactionMap = await Bundle.getReactionMap(id);
+    const articlesWithReactions = Array.from(reactionMap.keys());
+    excludeWithReactions = { _id: { $nin: articlesWithReactions } };
+  } else {
+    const articlesWithoutReactions = await Bundle.getArticlesWithoutReactions(id);
+    excludeWithReactions = { _id: { $in: articlesWithoutReactions } };
+  }
+
+  console.debug(`excludeWithReactions filter: ${JSON.stringify(excludeWithReactions)}`);
   const bundleData: IBundle | null = await Bundle.findById(id)
     .populate([
       {
