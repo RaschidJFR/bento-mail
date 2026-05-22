@@ -4,8 +4,9 @@ import { MongoClient } from 'mongodb';
 import 'dotenv/config';
 
 const mongoUri = process.env.MONGODB_URI!;
+const dbName = process.env.BETTER_AUTH_DBNAME || 'auth';
 const client = new MongoClient(mongoUri);
-const db = client.db();
+const db = client.db(dbName);
 const trustedOrigins = process.env.APP_URL
   ? [process.env.APP_URL]
   : process.env.NODE_ENV === 'development'
