@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import 'dotenv/config';
 import { MongoCluster } from 'mongodb-runner';
+import { ConnectionString } from 'mongodb-connection-string-url';
 import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
@@ -11,12 +12,13 @@ export async function setup() {
   // Clear API keys to prevent accidental usage during tests
   process.env.OPENAI_API_KEY = '';
 
-  // Use a separate test database (see @models/index.ts)
-  process.env.DATABASE_NAME = '_test';
+  // Set test databases
+  const cs = new ConnectionString(cluster.connectionString);
+  cs.pathname = '/_test';
+  process.env.MONGODB_URI = cs.toString();
   process.env.AGENDA_DB_NAME = 'agenda_test';
-  process.env.MONGODB_URI = cluster.connectionString;
 
-  await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.DATABASE_NAME });
+  await mongoose.connect(process.env.MONGODB_URI!);
 }
 
 export async function teardown() {

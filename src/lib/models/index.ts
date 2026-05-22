@@ -15,7 +15,7 @@ export type { ITask } from '@services/worker/task';
 
 // Connect to the database when this module is imported
 if (process.env.MONGODB_URI) {
-  await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.DATABASE_NAME || 'development' });
+  await mongoose.connect(process.env.MONGODB_URI!);
 } else {
   console.warn('MONGODB_URI not set. Skipping database connection for models.');
 }

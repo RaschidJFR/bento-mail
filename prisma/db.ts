@@ -4,5 +4,5 @@ import contractJson from './contract.json' with { type: 'json' };
 
 export const db = mongo<Contract>({
   contractJson,
-  url: process.env['DATABASE_URL']!,
+  url: process.env['MONGODB_URI']!,
 });
