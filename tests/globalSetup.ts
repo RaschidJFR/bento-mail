@@ -15,6 +15,7 @@ export async function setup() {
   // Set test databases
   const cs = new ConnectionString(cluster.connectionString);
   cs.pathname = '/_test';
+  cs.hosts = [cs.hosts[0]]; // Prisma does not support multiple hosts in the connection string. See https://github.com/prisma/prisma-next/issues/578
   process.env.MONGODB_URI = cs.toString();
   process.env.AGENDA_DB_NAME = 'agenda_test';
 
