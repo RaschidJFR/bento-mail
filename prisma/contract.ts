@@ -1,3 +1,10 @@
+// To bootstrap or update the database from this contract, use:
+//   npx prisma-next contract emit
+//   npx prisma-next migration plan --yes
+//   npx prisma-next migration apply --db "$DATABASE_URL" --yes
+// Do NOT use `npx prisma-next db init`: it currently fails on any contract
+// that declares an index. See https://github.com/prisma/prisma-next/issues/579.
+
 import mongoFamily from "@prisma-next/family-mongo/pack";
 import { defineContract } from "@prisma-next/mongo-contract-ts/contract-builder";
 import mongoTarget from "@prisma-next/target-mongo/pack";
