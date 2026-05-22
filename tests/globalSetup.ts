@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import 'dotenv/config';
 import { MongoCluster } from 'mongodb-runner';
 import { ConnectionString } from 'mongodb-connection-string-url';
+import { spawnSync } from 'node:child_process';
 import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
@@ -19,7 +20,26 @@ export async function setup() {
   process.env.MONGODB_URI = cs.toString();
   process.env.AGENDA_DB_NAME = 'agenda_test';
 
+  applyContractToTestDb(process.env.MONGODB_URI!);
   await mongoose.connect(process.env.MONGODB_URI!);
+}
+
+// Apply the prisma-next contract (collections, indexes) to the test database.
+// `db init` is avoided because it fails on contracts that declare indexes —
+// see https://github.com/prisma/prisma-next/issues/579.
+function applyContractToTestDb(url: string) {
+  runCli(['contract', 'emit']);
+  runCli(['migration', 'plan', '--yes']);
+  runCli(['migration', 'apply', '--db', url, '--yes']);
+  
+  function runCli(args: string[]) {
+    const result = spawnSync('npx', ['prisma-next', ...args], { encoding: 'utf8' });
+    if (result.status !== 0) {
+      throw new Error(
+        `\`prisma-next ${args.join(' ')}\` failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`,
+      );
+    }
+  }
 }
 
 export async function teardown() {

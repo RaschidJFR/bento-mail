@@ -53,6 +53,6 @@ describe('Reaction Model', () => {
       date: null,
     });
     const found = await Reaction.where({ article: articleId }).all().toArray();
-    expect(String(found[0]?._id)).toBe(String(original._id));
+    expect(String(found[0]?.article)).toBe(String(original.article));
   });
 });

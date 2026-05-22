@@ -13,7 +13,7 @@ import type {
 } from '@prisma-next/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'sha256:e174db077d7fa58c3f75c5e6f2ff48ca68012f4741155efce6cf538fb2eed9f5'>;
+  StorageHashBase<'sha256:509a34b49b16b5988021cc862454f66ecd10b7409508039fa39fa344e82d8a5f'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'sha256:840de65fba7eb950a31487f74ee420b9c21205f38bce58579026747e0264e840'>;
@@ -21,26 +21,386 @@ export type ProfileHash =
 export type CodecTypes = MongoCodecTypes;
 export type OperationTypes = Record<string, never>;
 
+export type SummariesOutput = {
+  readonly oneliner: CodecTypes['mongo/string@1']['output'];
+  readonly overview: CodecTypes['mongo/string@1']['output'];
+  readonly details: CodecTypes['mongo/string@1']['output'];
+};
+export type SummariesInput = {
+  readonly oneliner: CodecTypes['mongo/string@1']['input'];
+  readonly overview: CodecTypes['mongo/string@1']['input'];
+  readonly details: CodecTypes['mongo/string@1']['input'];
+};
+export type BasicArticleOutput = {
+  readonly content: CodecTypes['mongo/string@1']['output'];
+  readonly header: CodecTypes['mongo/string@1']['output'];
+  readonly url: CodecTypes['mongo/string@1']['output'] | null;
+  readonly date: CodecTypes['mongo/string@1']['output'] | null;
+  readonly coverImg: CodecTypes['mongo/string@1']['output'] | null;
+  readonly sourceName: CodecTypes['mongo/string@1']['output'] | null;
+  readonly lastError: CodecTypes['mongo/string@1']['output'] | null;
+};
+export type BasicArticleInput = {
+  readonly content: CodecTypes['mongo/string@1']['input'];
+  readonly header: CodecTypes['mongo/string@1']['input'];
+  readonly url: CodecTypes['mongo/string@1']['input'] | null;
+  readonly date: CodecTypes['mongo/string@1']['input'] | null;
+  readonly coverImg: CodecTypes['mongo/string@1']['input'] | null;
+  readonly sourceName: CodecTypes['mongo/string@1']['input'] | null;
+  readonly lastError: CodecTypes['mongo/string@1']['input'] | null;
+};
 export type FieldOutputTypes = {
+  readonly Article: {
+    readonly _id: CodecTypes['mongo/string@1']['output'];
+    readonly content: CodecTypes['mongo/string@1']['output'] | null;
+    readonly header: CodecTypes['mongo/string@1']['output'];
+    readonly url: CodecTypes['mongo/string@1']['output'] | null;
+    readonly date: CodecTypes['mongo/string@1']['output'] | null;
+    readonly coverImg: CodecTypes['mongo/string@1']['output'] | null;
+    readonly sourceName: CodecTypes['mongo/string@1']['output'];
+    readonly summaries: SummariesOutput | null;
+    readonly linkedArticles: ReadonlyArray<BasicArticleOutput> | null;
+    readonly lastError: CodecTypes['mongo/string@1']['output'] | null;
+  };
+  readonly Bundle: {
+    readonly _id: CodecTypes['mongo/objectId@1']['output'];
+    readonly sendOn: CodecTypes['mongo/date@1']['output'] | null;
+    readonly user: CodecTypes['mongo/objectId@1']['output'];
+    readonly newsletters: ReadonlyArray<CodecTypes['mongo/string@1']['output']> | null;
+    readonly articles: ReadonlyArray<CodecTypes['mongo/string@1']['output']> | null;
+    readonly processingStage: CodecTypes['mongo/int32@1']['output'];
+  };
+  readonly Newsletter: {
+    readonly _id: CodecTypes['mongo/string@1']['output'];
+    readonly content: CodecTypes['mongo/string@1']['output'];
+    readonly articles: ReadonlyArray<CodecTypes['mongo/string@1']['output']>;
+    readonly date: CodecTypes['mongo/string@1']['output'] | null;
+    readonly name: CodecTypes['mongo/string@1']['output'] | null;
+    readonly url: CodecTypes['mongo/string@1']['output'] | null;
+    readonly error: CodecTypes['mongo/string@1']['output'] | null;
+  };
+  readonly Reaction: {
+    readonly _id: CodecTypes['mongo/objectId@1']['output'];
+    readonly user: CodecTypes['mongo/objectId@1']['output'];
+    readonly article: CodecTypes['mongo/string@1']['output'];
+    readonly reaction: CodecTypes['mongo/int32@1']['output'];
+    readonly date: CodecTypes['mongo/date@1']['output'] | null;
+  };
   readonly User: {
     readonly _id: CodecTypes['mongo/objectId@1']['output'];
     readonly email: CodecTypes['mongo/string@1']['output'];
+    readonly aliasEmail: CodecTypes['mongo/string@1']['output'] | null;
+    readonly name: CodecTypes['mongo/string@1']['output'] | null;
+    readonly image: CodecTypes['mongo/string@1']['output'] | null;
   };
 };
 export type FieldInputTypes = {
+  readonly Article: {
+    readonly _id: CodecTypes['mongo/string@1']['input'];
+    readonly content: CodecTypes['mongo/string@1']['input'] | null;
+    readonly header: CodecTypes['mongo/string@1']['input'];
+    readonly url: CodecTypes['mongo/string@1']['input'] | null;
+    readonly date: CodecTypes['mongo/string@1']['input'] | null;
+    readonly coverImg: CodecTypes['mongo/string@1']['input'] | null;
+    readonly sourceName: CodecTypes['mongo/string@1']['input'];
+    readonly summaries: SummariesInput | null;
+    readonly linkedArticles: ReadonlyArray<BasicArticleInput> | null;
+    readonly lastError: CodecTypes['mongo/string@1']['input'] | null;
+  };
+  readonly Bundle: {
+    readonly _id: CodecTypes['mongo/objectId@1']['input'];
+    readonly sendOn: CodecTypes['mongo/date@1']['input'] | null;
+    readonly user: CodecTypes['mongo/objectId@1']['input'];
+    readonly newsletters: ReadonlyArray<CodecTypes['mongo/string@1']['input']> | null;
+    readonly articles: ReadonlyArray<CodecTypes['mongo/string@1']['input']> | null;
+    readonly processingStage: CodecTypes['mongo/int32@1']['input'];
+  };
+  readonly Newsletter: {
+    readonly _id: CodecTypes['mongo/string@1']['input'];
+    readonly content: CodecTypes['mongo/string@1']['input'];
+    readonly articles: ReadonlyArray<CodecTypes['mongo/string@1']['input']>;
+    readonly date: CodecTypes['mongo/string@1']['input'] | null;
+    readonly name: CodecTypes['mongo/string@1']['input'] | null;
+    readonly url: CodecTypes['mongo/string@1']['input'] | null;
+    readonly error: CodecTypes['mongo/string@1']['input'] | null;
+  };
+  readonly Reaction: {
+    readonly _id: CodecTypes['mongo/objectId@1']['input'];
+    readonly user: CodecTypes['mongo/objectId@1']['input'];
+    readonly article: CodecTypes['mongo/string@1']['input'];
+    readonly reaction: CodecTypes['mongo/int32@1']['input'];
+    readonly date: CodecTypes['mongo/date@1']['input'] | null;
+  };
   readonly User: {
     readonly _id: CodecTypes['mongo/objectId@1']['input'];
     readonly email: CodecTypes['mongo/string@1']['input'];
+    readonly aliasEmail: CodecTypes['mongo/string@1']['input'] | null;
+    readonly name: CodecTypes['mongo/string@1']['input'] | null;
+    readonly image: CodecTypes['mongo/string@1']['input'] | null;
   };
 };
 export type TypeMaps = MongoTypeMaps<CodecTypes, OperationTypes, FieldOutputTypes, FieldInputTypes>;
 
 type ContractBase = ContractType<
   {
-    readonly collections: { readonly users: Record<string, never> };
+    readonly collections: {
+      readonly users: {
+        readonly indexes: readonly [
+          {
+            readonly keys: readonly [{ readonly field: 'email'; readonly direction: 1 }];
+            readonly unique: true;
+            readonly partialFilterExpression: { readonly email: { readonly $type: 'string' } };
+          },
+          {
+            readonly keys: readonly [{ readonly field: 'aliasEmail'; readonly direction: 1 }];
+            readonly unique: true;
+            readonly partialFilterExpression: { readonly aliasEmail: { readonly $type: 'string' } };
+          },
+        ];
+      };
+      readonly articles: {
+        readonly indexes: readonly [
+          {
+            readonly keys: readonly [{ readonly field: 'lastError'; readonly direction: 1 }];
+            readonly sparse: true;
+          },
+          {
+            readonly keys: readonly [
+              { readonly field: 'sourceName'; readonly direction: 1 },
+              { readonly field: 'date'; readonly direction: -1 },
+              { readonly field: '_id'; readonly direction: 1 },
+            ];
+          },
+        ];
+      };
+      readonly newsletters: {
+        readonly indexes: readonly [
+          {
+            readonly keys: readonly [{ readonly field: 'error'; readonly direction: 1 }];
+            readonly sparse: true;
+          },
+          { readonly keys: readonly [{ readonly field: 'date'; readonly direction: -1 }] },
+        ];
+      };
+      readonly bundles: {
+        readonly indexes: readonly [
+          {
+            readonly keys: readonly [
+              { readonly field: 'processingStage'; readonly direction: 1 },
+              { readonly field: 'sendOn'; readonly direction: 1 },
+              { readonly field: 'user'; readonly direction: 1 },
+              { readonly field: '_id'; readonly direction: -1 },
+            ];
+            readonly unique: true;
+          },
+        ];
+      };
+      readonly reactions: {
+        readonly indexes: readonly [
+          {
+            readonly keys: readonly [
+              { readonly field: 'user'; readonly direction: 1 },
+              { readonly field: 'article'; readonly direction: 1 },
+            ];
+            readonly unique: true;
+          },
+        ];
+      };
+    };
     readonly storageHash: StorageHash;
   },
   {
+    readonly Article: {
+      readonly fields: {
+        readonly _id: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly content: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly header: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly url: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly date: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly coverImg: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly sourceName: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly summaries: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'valueObject'; readonly name: 'Summaries' };
+        };
+        readonly linkedArticles: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'valueObject'; readonly name: 'BasicArticle' };
+          readonly many: true;
+        };
+        readonly lastError: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+      };
+      readonly relations: Record<string, never>;
+      readonly storage: { readonly collection: 'articles' };
+    };
+    readonly Bundle: {
+      readonly fields: {
+        readonly _id: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/objectId@1' };
+        };
+        readonly sendOn: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/date@1' };
+        };
+        readonly user: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/objectId@1' };
+        };
+        readonly newsletters: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+          readonly many: true;
+        };
+        readonly articles: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+          readonly many: true;
+        };
+        readonly processingStage: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/int32@1' };
+        };
+      };
+      readonly relations: {
+        readonly userRef: {
+          readonly to: 'User';
+          readonly cardinality: 'N:1';
+          readonly on: {
+            readonly localFields: readonly ['user'];
+            readonly targetFields: readonly ['_id'];
+          };
+        };
+        readonly newsletterRefs: {
+          readonly to: 'Newsletter';
+          readonly cardinality: '1:N';
+          readonly on: {
+            readonly localFields: readonly ['newsletters'];
+            readonly targetFields: readonly ['_id'];
+          };
+        };
+        readonly articleRefs: {
+          readonly to: 'Article';
+          readonly cardinality: '1:N';
+          readonly on: {
+            readonly localFields: readonly ['articles'];
+            readonly targetFields: readonly ['_id'];
+          };
+        };
+      };
+      readonly storage: { readonly collection: 'bundles' };
+    };
+    readonly Newsletter: {
+      readonly fields: {
+        readonly _id: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly content: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly articles: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+          readonly many: true;
+        };
+        readonly date: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly name: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly url: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly error: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+      };
+      readonly relations: {
+        readonly articleRefs: {
+          readonly to: 'Article';
+          readonly cardinality: '1:N';
+          readonly on: {
+            readonly localFields: readonly ['articles'];
+            readonly targetFields: readonly ['_id'];
+          };
+        };
+      };
+      readonly storage: { readonly collection: 'newsletters' };
+    };
+    readonly Reaction: {
+      readonly fields: {
+        readonly _id: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/objectId@1' };
+        };
+        readonly user: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/objectId@1' };
+        };
+        readonly article: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly reaction: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/int32@1' };
+        };
+        readonly date: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/date@1' };
+        };
+      };
+      readonly relations: {
+        readonly userRef: {
+          readonly to: 'User';
+          readonly cardinality: 'N:1';
+          readonly on: {
+            readonly localFields: readonly ['user'];
+            readonly targetFields: readonly ['_id'];
+          };
+        };
+        readonly articleRef: {
+          readonly to: 'Article';
+          readonly cardinality: 'N:1';
+          readonly on: {
+            readonly localFields: readonly ['article'];
+            readonly targetFields: readonly ['_id'];
+          };
+        };
+      };
+      readonly storage: { readonly collection: 'reactions' };
+    };
     readonly User: {
       readonly fields: {
         readonly _id: {
@@ -51,6 +411,18 @@ type ContractBase = ContractType<
           readonly nullable: false;
           readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
         };
+        readonly aliasEmail: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly name: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly image: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
       };
       readonly relations: Record<string, never>;
       readonly storage: { readonly collection: 'users' };
@@ -59,11 +431,66 @@ type ContractBase = ContractType<
 > & {
   readonly target: 'mongo';
   readonly targetFamily: 'mongo';
-  readonly roots: { readonly users: 'User' };
+  readonly roots: {
+    readonly users: 'User';
+    readonly articles: 'Article';
+    readonly newsletters: 'Newsletter';
+    readonly bundles: 'Bundle';
+    readonly reactions: 'Reaction';
+  };
   readonly capabilities: {};
   readonly extensionPacks: {};
   readonly meta: {};
-
+  readonly valueObjects: {
+    readonly Summaries: {
+      readonly fields: {
+        readonly oneliner: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly overview: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly details: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+      };
+    };
+    readonly BasicArticle: {
+      readonly fields: {
+        readonly content: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly header: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly url: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly date: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly coverImg: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly sourceName: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly lastError: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+      };
+    };
+  };
   readonly profileHash: ProfileHash;
 };
 
