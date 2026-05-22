@@ -1,5 +1,6 @@
 import { getModelForClass, pre, prop, index, getName } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
+import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
 import { Types, type ObjectId } from 'mongoose';
 import { UserClass } from './user';
 import { INewsletter, NewsletterClass } from './newsletter';
@@ -7,7 +8,6 @@ import { ArticleClass } from './article';
 import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
 import { Reaction, Article, User, Newsletter } from '.';
-import { IReaction } from './reaction';
 import { ReactionsEnum } from './enums';
 
 export interface IBundle {
@@ -343,13 +343,13 @@ export class BundleClass implements IBundle {
     if (ids.length > 0) {
       const user = results[0]?.user;
 
-      const reactions: IReaction[] = await Reaction.find({
-        article: { $in: ids },
-        user,
-        reaction: { $ne: ReactionsEnum.ACKNOWLEDGED },
-      }).lean();
+      const reactions = await Reaction.where({ user: String(user) })
+        .where(MongoFieldFilter.in('article', ids))
+        .where(MongoFieldFilter.neq('reaction', ReactionsEnum.ACKNOWLEDGED))
+        .all()
+        .toArray();
       reactions.forEach(({ article, reaction }) => {
-        map.set(article.toString(), reaction);
+        map.set(article, reaction as ReactionsEnum);
       });
     }
     return map;

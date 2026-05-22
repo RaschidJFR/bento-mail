@@ -42,7 +42,7 @@ describe('GET /api/reaction', () => {
   });
 
   it('returns reactions for user+article', async () => {
-    const reactionData = { user: user.id, article: article.id, reaction: 1 };
+    const reactionData = { user: user.id, article: article.id, reaction: 1, date: null };
     await Reaction.create(reactionData);
     const req = mockReq(`http://localhost/api/reaction?user=${user._id}&article=${article._id}`);
     const res = await GET(req);
@@ -58,7 +58,7 @@ describe('GET /api/reaction', () => {
   });
 
   it('returns reactions for bundle', async () => {
-    const reactionData = { user: user.id, article: article.id, reaction: 1 };
+    const reactionData = { user: user.id, article: article.id, reaction: 1, date: null };
     await Reaction.create(reactionData);
     const req = mockReq(`http://localhost/api/reaction?bundle=${bundle._id}`);
     const res = await GET(req);

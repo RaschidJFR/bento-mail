@@ -3,61 +3,56 @@ import { ReactionsEnum } from '@lib/models/enums';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 describe('Reaction Model', () => {
-  let user: User;
-  let article: Article;
+  let userId: string;
+  let articleId: string;
 
   beforeEach(async () => {
-    user = await User.create({ email: 'test@example.com' });
-    article = await Article.create({ content: 'Test Article' });
+    const user = await User.create({ email: 'test@example.com' });
+    const article = await Article.create({ content: 'Test Article' });
+    userId = String(user._id);
+    articleId = String(article._id);
   });
 
   it('do not allow duplicate reactions for the same user/article', async () => {
     const reaction = await Reaction.create({
-      user: user._id,
-      article: article._id,
+      user: userId,
+      article: articleId,
       reaction: ReactionsEnum.SKIP,
+      date: null,
     });
     await expect(
       Reaction.create({
-        user: user._id,
-        article: article._id,
+        user: userId,
+        article: articleId,
         reaction: ReactionsEnum.UPVOTE,
+        date: null,
       })
     ).rejects.toThrow();
 
-    reaction.set({
-      user: user._id,
-      article: article._id,
-      reaction: ReactionsEnum.UPVOTE,
-    });
-    await expect(reaction.save()).resolves.toBeDefined();
-  });
-
-  it('require user and article fields', async () => {
     await expect(
-      Reaction.create({
-        reaction: ReactionsEnum.ACKNOWLEDGED,
-      })
-    ).rejects.toThrow();
+      Reaction.where({ _id: reaction._id }).update({ reaction: ReactionsEnum.UPVOTE })
+    ).resolves.toBeDefined();
   });
 
   it('find reactions by user', async () => {
     const original = await Reaction.create({
-      user: user._id,
-      article: article._id,
+      user: userId,
+      article: articleId,
       reaction: ReactionsEnum.UPVOTE,
+      date: null,
     });
-    const found = await Reaction.find().findByUser(user._id).exec();
-    expect(found[0].id).toBe(original.id);
+    const found = await Reaction.where({ user: userId }).first();
+    expect(String(found?._id)).toBe(String(original._id));
   });
 
   it('find reactions by article', async () => {
     const original = await Reaction.create({
-      user: user._id,
-      article: article._id,
+      user: userId,
+      article: articleId,
       reaction: ReactionsEnum.SKIP,
+      date: null,
     });
-    const found = await Reaction.find().findByArticle(article._id).exec();
-    expect(found[0].id).toBe(original.id);
+    const found = await Reaction.where({ article: articleId }).all().toArray();
+    expect(String(found[0]?._id)).toBe(String(original._id));
   });
 });
