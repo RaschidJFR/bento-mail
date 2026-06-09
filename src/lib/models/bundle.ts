@@ -1,6 +1,7 @@
 import { getModelForClass, pre, prop, index, getName } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
-import { Types, type ObjectId } from 'mongoose';
+import { ObjectId } from 'mongodb';
+import type { PipelineStage } from 'mongoose';
 import { UserClass } from './user';
 import { INewsletter, NewsletterClass } from './newsletter';
 import { ArticleClass } from './article';
@@ -9,6 +10,7 @@ import { applyInBatches } from '@lib/utils';
 import { Reaction, Article, User, Newsletter } from '.';
 import { IReaction } from './reaction';
 import { ReactionsEnum } from './enums';
+import { Pipeline, Collection } from '@pipesafe/core';
 
 export interface IBundle {
   _id: ObjectId;
@@ -27,6 +29,26 @@ enum ProcessingStagesEnum {
   CONTENT_PROCESSED = 2,
   SENT = 3,
 }
+
+type TBundle = {
+  _id: ObjectId;
+  sendOn?: Date;
+  user: ObjectId;
+  newsletters?: string[];
+  articles?: string[];
+  processingStage: ProcessingStagesEnum;
+};
+
+type TNewsletter = {
+  _id: string;
+  articles: string[];
+};
+
+type TUser = {
+  _id: ObjectId;
+  email: string;
+  aliasEmail?: string;
+};
 
 @pre<BundleClass>('save', async function () {
   const user = this.user as User;
@@ -136,28 +158,29 @@ export class BundleClass implements IBundle {
   public static async findNextToSend(this: ReturnModelType<typeof BundleClass>, user: User | ObjectId | string) {
     if (typeof user === 'string') {
       // Use aggregation pipeline to match user by email
-      const [result] = await this.aggregate([
-        {
-          $match: {
-            $or: [
-              { processingStage: { $eq: ProcessingStagesEnum.NOT_STARTED } },
-              { processingStage: { $exists: false } },
-            ],
-          },
-        },
-        {
-          $lookup: {
-            from: User.collection.name,
-            localField: 'user',
-            foreignField: '_id',
-            as: 'user',
-          },
-        },
-        { $unwind: '$user' },
-        { $match: { $or: [{ 'user.email': user }, { 'user.aliasEmail': user }] } },
-        { $sort: { sendOn: 1, _id: -1 } },
-        { $limit: 1 },
-      ]);
+      const usersCollection = new Collection<TUser>({
+        collectionName: User.collection.name,
+      });
+
+      const pipeline = new Pipeline<TBundle>()
+        .match({
+          $or: [
+            { processingStage: { $eq: ProcessingStagesEnum.NOT_STARTED } },
+            { processingStage: { $exists: false } },
+          ],
+        })
+        .lookup({
+          from: usersCollection,
+          localField: 'user',
+          foreignField: '_id',
+          as: 'user',
+        })
+        .unwind('$user')
+        .match({ $or: [{ 'user.email': user }, { 'user.aliasEmail': user }] })
+        .sort({ sendOn: 1, _id: -1 })
+        .limit(1);
+
+      const [result] = await this.aggregate(pipeline.getPipeline() as PipelineStage[]);
       return (result && BundleModel.hydrate(result)) || null;
     } else {
       return this.findOne({
@@ -289,54 +312,49 @@ export class BundleClass implements IBundle {
    * Ignores "ACKNOWLEDGED" reactions.
    */
   public static async getReactionMap(this: ReturnModelType<typeof BundleClass>, bundleId: string | ObjectId) {
-    const pipeline = [
-      {
-        $match: {
-          _id: typeof bundleId === 'string' ? new Types.ObjectId(bundleId) : bundleId,
-        },
-      },
-      {
-        $lookup: {
-          from: Newsletter.collection.name,
-          localField: 'newsletters',
-          foreignField: '_id',
-          as: 'newsletterDetails',
-        },
-      },
-      {
-        $unwind: '$newsletterDetails',
-      },
-      {
-        $unwind: '$newsletterDetails.articles',
-      },
-      {
-        $group: {
-          _id: '$_id',
-          user: {
-            $first: '$user',
-          },
-          newsletters: {
-            $first: '$newsletters',
-          },
-          articles: {
-            $first: '$articles',
-          },
-          newsletterArticles: {
-            $addToSet: '$newsletterDetails.articles',
-          },
-        },
-      },
-      {
-        $project: {
-          user: 1,
-          articlesUnion: {
-            $setUnion: ['$articles', '$newsletterArticles'],
-          },
-        },
-      },
-    ];
+    bundleId = typeof bundleId === 'string' ? new ObjectId(bundleId) : bundleId;
 
-    const results = await this.aggregate(pipeline).exec();
+    const newslettersCollection = new Collection<TNewsletter>({
+      collectionName: Newsletter.collection.name,
+    });
+
+    const pipeline = new Pipeline<TBundle>()
+      .match({
+        _id: bundleId,
+      })
+      .lookup({
+        from: newslettersCollection,
+        localField: 'newsletters',
+        foreignField: '_id',
+        as: 'newsletterDetails',
+      })
+      .unwind('$newsletterDetails')
+      .unwind('$newsletterDetails.articles')
+      .group({
+        _id: '$_id',
+        user: {
+          $first: '$user',
+        },
+        newsletters: {
+          $first: '$newsletters',
+        },
+        articles: {
+          $first: '$articles',
+        },
+        newsletterArticles: {
+          $addToSet: '$newsletterDetails.articles',
+        },
+      })
+      .project({
+        user: 1,
+        articlesUnion: {
+          $setUnion: ['$articles', '$newsletterArticles'],
+        },
+      });
+
+    // Cast needed: pipesafe returns Document[] but Mongoose expects PipelineStage[]
+    // Both are functionally equivalent at runtime
+    const results = await this.aggregate(pipeline.getPipeline() as PipelineStage[]).exec();
     const ids: string[] = results[0]?.articlesUnion || [];
     const map = new Map<string, ReactionsEnum>();
 
