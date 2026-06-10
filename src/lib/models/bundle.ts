@@ -4,13 +4,13 @@ import { ObjectId } from 'mongodb';
 import type { PipelineStage } from 'mongoose';
 import { UserClass } from './user';
 import { INewsletter, NewsletterClass } from './newsletter';
-import { ArticleClass } from './article';
+import { ArticleClass, IArticle } from './article';
 import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
 import { Reaction, Article, User, Newsletter } from '.';
 import { IReaction } from './reaction';
 import { ReactionsEnum } from './enums';
-import { Pipeline, Collection } from '@pipesafe/core';
+import { Pipeline, Collection, InferOutputType } from '@pipesafe/core';
 
 export interface IBundle {
   _id: ObjectId;
@@ -48,6 +48,22 @@ type TUser = {
   _id: ObjectId;
   email: string;
   aliasEmail?: string;
+};
+
+type TArticle = {
+  _id: string;
+  content?: string;
+  header: string;
+  url?: string;
+  date?: string;
+  coverImg?: string;
+  sourceName?: string;
+  summaries?: {
+    oneliner: string;
+    overview: string;
+    details: string;
+  };
+  lastError?: string;
 };
 
 @pre<BundleClass>('save', async function () {
@@ -288,6 +304,7 @@ export class BundleClass implements IBundle {
 
   /**
    * Unwrap all articles in this bundle, including those from newsletters.
+   * @note Requires populating articles and newsletters before call.
    */
   public static unwrapArticleIds(this: typeof BundleModel, bundle: IBundle): string[] {
     if (!bundle.articles || !bundle.newsletters) {
@@ -371,6 +388,89 @@ export class BundleClass implements IBundle {
       });
     }
     return map;
+  }
+
+  /**
+   * [WIP] Get the IDs of articles in this bundle that the user has not reacted to yet.
+   * @todo 
+   *    - Exclude articles and newsletters with errors
+   *    - Populate articles and newsletters
+   */
+  public async getUnreadArticles(this: DocumentType<BundleClass>) {
+    type AfterReactionsLookup = {
+      user: ObjectId;
+      allArticleIds: string[];
+      reactions: Array<{ article: string }>;
+    };
+
+    const newslettersCollection = new Collection<TNewsletter>({
+      collectionName: Newsletter.collection.name,
+    });
+
+    const pipeline = new Pipeline<TBundle>()
+      .match({
+        _id: this._id,
+      })
+      // Lookup newsletters to access their articles
+      .lookup({
+        from: newslettersCollection,
+        localField: 'newsletters',
+        foreignField: '_id',
+        as: 'newsletterArticles',
+      })
+      // Collect all article IDs from both direct articles and newsletter articles
+      .project({
+        user: 1,
+        allArticleIds: {
+          $setUnion: [
+            { $ifNull: ['$articles', []] },
+            {
+              $reduce: {
+                input: '$newsletterArticles',
+                initialValue: [],
+                in: { $concatArrays: ['$$value', { $ifNull: ['$$this.articles', []] }] },
+              },
+            },
+          ],
+        },
+      })
+      // Lookup reactions for this user
+      // Custom stage needed in order to use `pipeline`
+      .custom<AfterReactionsLookup>([
+        {
+          $lookup: {
+            from: Reaction.collection.name,
+            let: { articleIds: '$allArticleIds', userId: '$user' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $in: ['$article', '$$articleIds'] },
+                      { $eq: ['$user', '$$userId'] },
+                    ],
+                  },
+                },
+              },
+              { $project: { article: 1, _id: 0 } },
+            ],
+            as: 'reactions',
+          },
+        },
+      ])
+      .project({
+        unreadArticleIds: {
+          // This projection is not correctly inferred, it doesn't recognize $setDifference
+          $setDifference: ['$allArticleIds', { $map: { input: '$reactions', in: '$$this.article' } }],
+        },
+      })
+
+    const results = await BundleModel.aggregate<InferOutputType<typeof pipeline>>(
+      pipeline.getPipeline() as PipelineStage[]
+    ).exec();
+
+    // Cast needed due to limitations in type inference with custom stages
+    return (results[0]?.unreadArticleIds || []) as unknown as string[]; 
   }
 }
 
