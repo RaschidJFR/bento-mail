@@ -1,6 +1,7 @@
-import { Bundle, IArticle, IBundle, INewsletter } from '@lib/models';
+import { Bundle, IArticle, INewsletter } from '@lib/models';
 import type { ReactionsEnum } from '@lib/models/enums';
 import { JobNames, Task, ITask } from '@services/worker';
+import { ObjectId } from 'mongodb';
 
 // TODO: this should be moved out of lib as it is not frontend compatible.
 
@@ -65,43 +66,14 @@ export async function fetchBundleData(id: string, debug = false) {
     };
   }
 
-  const reactionMap = await Bundle.getReactionMap(id);
-  const articlesWithReactions = Array.from(reactionMap.keys());
+  /** @deprecated */
+  const reactionMap = new Map<string, ReactionsEnum>();
 
-  // Match filters
-  const excludeWithErrors = debug ? {} : { $or: [{ lastError: '' }, { lastError: { $exists: false } }] };
-  const excludeWithReactions = debug ? {} : { _id: { $nin: articlesWithReactions } };
-
-  const bundleData: IBundle | null = await Bundle.findById(id)
-    .populate([
-      {
-        path: 'articles',
-        match: {
-          ...excludeWithErrors,
-          ...excludeWithReactions,
-        },
-      },
-      {
-        path: 'newsletters',
-        match: {
-          ...excludeWithErrors,
-        },
-        options: { sort: { date: -1 } },
-        populate: {
-          path: 'articles',
-          match: {
-            ...excludeWithErrors,
-            ...excludeWithReactions,
-          },
-        },
-      },
-    ])
-    .sort({ sourceName: 1, date: -1 })
-    .lean();
+  const bundleData = await Bundle.getUnreadArticles(new ObjectId(id));
 
   if (!bundleData) return null;
 
-  const articleIds = Bundle.unwrapArticleIds(bundleData);
+  const articleIds = bundleData.allArticleIds || [];
 
   // Fetch processing jobs for articles in this bundle
   const activeTasks: ITask<{ id: string }>[] = await Task.find<ITask>({
