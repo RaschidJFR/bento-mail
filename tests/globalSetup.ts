@@ -24,13 +24,9 @@ export async function setup() {
   await mongoose.connect(process.env.MONGODB_URI!);
 }
 
-// Apply the prisma-next contract (collections, indexes) to the test database.
-// `db init` is avoided because it fails on contracts that declare indexes —
-// see https://github.com/prisma/prisma-next/issues/579.
 function applyContractToTestDb(url: string) {
   runCli(['contract', 'emit']);
-  runCli(['migration', 'plan', '--yes']);
-  runCli(['migration', 'apply', '--db', url, '--yes']);
+  runCli(['db', 'init', '--db', url, '--yes']);
   
   function runCli(args: string[]) {
     const result = spawnSync('npx', ['prisma-next', ...args], { encoding: 'utf8' });

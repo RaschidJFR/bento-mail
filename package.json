@@ -62,6 +62,7 @@
     "llm-scraper": "^1.6.0",
     "maildev": "^2.2.1",
     "mailparser": "^3.7.5",
+    "mongodb-connection-string-url": "^7.0.1",
     "mongodb-memory-server": "^11.2.0",
     "mongodb-runner": "^6.2.0",
     "nodemailer": "^7.0.6",
