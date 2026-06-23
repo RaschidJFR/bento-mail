@@ -2,574 +2,634 @@
   "schemaVersion": "1",
   "targetFamily": "mongo",
   "target": "mongo",
-  "profileHash": "sha256:840de65fba7eb950a31487f74ee420b9c21205f38bce58579026747e0264e840",
+  "profileHash": "sha256:cca47cfb902adf4e15c2f277dd98af4aff64a3a2c010b49ace1c897de1cc4510",
   "roots": {
-    "articles": "Article",
-    "bundles": "Bundle",
-    "newsletters": "Newsletter",
-    "reactions": "Reaction",
-    "users": "User"
-  },
-  "models": {
-    "Article": {
-      "fields": {
-        "_id": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "content": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "coverImg": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "date": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "header": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "lastError": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "linkedArticles": {
-          "many": true,
-          "nullable": true,
-          "type": {
-            "kind": "valueObject",
-            "name": "BasicArticle"
-          }
-        },
-        "sourceName": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "summaries": {
-          "nullable": true,
-          "type": {
-            "kind": "valueObject",
-            "name": "Summaries"
-          }
-        },
-        "url": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        }
-      },
-      "relations": {},
-      "storage": {
-        "collection": "articles"
-      }
+    "articles": {
+      "model": "Article",
+      "namespace": "__unbound__"
     },
-    "Bundle": {
-      "fields": {
-        "_id": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/objectId@1",
-            "kind": "scalar"
-          }
-        },
-        "articles": {
-          "many": true,
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "newsletters": {
-          "many": true,
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "processingStage": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/int32@1",
-            "kind": "scalar"
-          }
-        },
-        "sendOn": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/date@1",
-            "kind": "scalar"
-          }
-        },
-        "user": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/objectId@1",
-            "kind": "scalar"
-          }
-        }
-      },
-      "relations": {
-        "articleRefs": {
-          "cardinality": "1:N",
-          "on": {
-            "localFields": [
-              "articles"
-            ],
-            "targetFields": [
-              "_id"
-            ]
-          },
-          "to": "Article"
-        },
-        "newsletterRefs": {
-          "cardinality": "1:N",
-          "on": {
-            "localFields": [
-              "newsletters"
-            ],
-            "targetFields": [
-              "_id"
-            ]
-          },
-          "to": "Newsletter"
-        },
-        "userRef": {
-          "cardinality": "N:1",
-          "on": {
-            "localFields": [
-              "user"
-            ],
-            "targetFields": [
-              "_id"
-            ]
-          },
-          "to": "User"
-        }
-      },
-      "storage": {
-        "collection": "bundles"
-      }
+    "bundles": {
+      "model": "Bundle",
+      "namespace": "__unbound__"
     },
-    "Newsletter": {
-      "fields": {
-        "_id": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "articles": {
-          "many": true,
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "content": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "date": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "error": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "name": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "url": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        }
-      },
-      "relations": {
-        "articleRefs": {
-          "cardinality": "1:N",
-          "on": {
-            "localFields": [
-              "articles"
-            ],
-            "targetFields": [
-              "_id"
-            ]
-          },
-          "to": "Article"
-        }
-      },
-      "storage": {
-        "collection": "newsletters"
-      }
+    "newsletters": {
+      "model": "Newsletter",
+      "namespace": "__unbound__"
     },
-    "Reaction": {
-      "fields": {
-        "_id": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/objectId@1",
-            "kind": "scalar"
-          }
-        },
-        "article": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "date": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/date@1",
-            "kind": "scalar"
-          }
-        },
-        "reaction": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/int32@1",
-            "kind": "scalar"
-          }
-        },
-        "user": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/objectId@1",
-            "kind": "scalar"
-          }
-        }
-      },
-      "relations": {
-        "articleRef": {
-          "cardinality": "N:1",
-          "on": {
-            "localFields": [
-              "article"
-            ],
-            "targetFields": [
-              "_id"
-            ]
-          },
-          "to": "Article"
-        },
-        "userRef": {
-          "cardinality": "N:1",
-          "on": {
-            "localFields": [
-              "user"
-            ],
-            "targetFields": [
-              "_id"
-            ]
-          },
-          "to": "User"
-        }
-      },
-      "storage": {
-        "collection": "reactions"
-      }
+    "reactions": {
+      "model": "Reaction",
+      "namespace": "__unbound__"
     },
-    "User": {
-      "fields": {
-        "_id": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/objectId@1",
-            "kind": "scalar"
-          }
-        },
-        "aliasEmail": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "email": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "image": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "name": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        }
-      },
-      "relations": {},
-      "storage": {
-        "collection": "users"
-      }
+    "users": {
+      "model": "User",
+      "namespace": "__unbound__"
     }
   },
-  "valueObjects": {
-    "BasicArticle": {
-      "fields": {
-        "content": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
+  "domain": {
+    "namespaces": {
+      "__unbound__": {
+        "models": {
+          "Article": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "content": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "coverImg": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "date": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "header": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "linkedArticles": {
+                "many": true,
+                "nullable": true,
+                "type": {
+                  "kind": "valueObject",
+                  "name": "BasicArticle"
+                }
+              },
+              "sourceName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "summaries": {
+                "nullable": true,
+                "type": {
+                  "kind": "valueObject",
+                  "name": "Summaries"
+                }
+              },
+              "url": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "collection": "articles"
+            }
+          },
+          "Bundle": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/objectId@1",
+                  "kind": "scalar"
+                }
+              },
+              "articles": {
+                "many": true,
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "newsletters": {
+                "many": true,
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "processingStage": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/int32@1",
+                  "kind": "scalar"
+                }
+              },
+              "sendOn": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "user": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/objectId@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "articleRefs": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "articles"
+                  ],
+                  "targetFields": [
+                    "_id"
+                  ]
+                },
+                "to": {
+                  "model": "Article",
+                  "namespace": "__unbound__"
+                }
+              },
+              "newsletterRefs": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "newsletters"
+                  ],
+                  "targetFields": [
+                    "_id"
+                  ]
+                },
+                "to": {
+                  "model": "Newsletter",
+                  "namespace": "__unbound__"
+                }
+              },
+              "userRef": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "user"
+                  ],
+                  "targetFields": [
+                    "_id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "collection": "bundles"
+            }
+          },
+          "Newsletter": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "articles": {
+                "many": true,
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "content": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "date": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "error": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "url": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "articleRefs": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "articles"
+                  ],
+                  "targetFields": [
+                    "_id"
+                  ]
+                },
+                "to": {
+                  "model": "Article",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "collection": "newsletters"
+            }
+          },
+          "Reaction": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/objectId@1",
+                  "kind": "scalar"
+                }
+              },
+              "article": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "date": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "reaction": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/int32@1",
+                  "kind": "scalar"
+                }
+              },
+              "user": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/objectId@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "articleRef": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "article"
+                  ],
+                  "targetFields": [
+                    "_id"
+                  ]
+                },
+                "to": {
+                  "model": "Article",
+                  "namespace": "__unbound__"
+                }
+              },
+              "userRef": {
+                "cardinality": "N:1",
+                "on": {
+                  "localFields": [
+                    "user"
+                  ],
+                  "targetFields": [
+                    "_id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "__unbound__"
+                }
+              }
+            },
+            "storage": {
+              "collection": "reactions"
+            }
+          },
+          "User": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/objectId@1",
+                  "kind": "scalar"
+                }
+              },
+              "aliasEmail": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "email": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "image": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "collection": "users"
+            }
           }
         },
-        "coverImg": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "date": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "header": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "lastError": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "sourceName": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "url": {
-          "nullable": true,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        }
-      }
-    },
-    "Summaries": {
-      "fields": {
-        "details": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "oneliner": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
-          }
-        },
-        "overview": {
-          "nullable": false,
-          "type": {
-            "codecId": "mongo/string@1",
-            "kind": "scalar"
+        "valueObjects": {
+          "BasicArticle": {
+            "fields": {
+              "content": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "coverImg": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "date": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "header": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "lastError": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceName": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "url": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            }
+          },
+          "Summaries": {
+            "fields": {
+              "details": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "oneliner": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "overview": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            }
           }
         }
       }
     }
   },
   "storage": {
-    "collections": {
-      "articles": {
-        "indexes": [
-          {
-            "keys": [
-              {
-                "direction": 1,
-                "field": "lastError"
-              }
-            ],
-            "sparse": true
-          },
-          {
-            "keys": [
-              {
-                "direction": 1,
-                "field": "sourceName"
-              },
-              {
-                "direction": -1,
-                "field": "date"
-              },
-              {
-                "direction": 1,
-                "field": "_id"
-              }
-            ]
-          }
-        ]
-      },
-      "bundles": {
-        "indexes": [
-          {
-            "keys": [
-              {
-                "direction": 1,
-                "field": "processingStage"
-              },
-              {
-                "direction": 1,
-                "field": "sendOn"
-              },
-              {
-                "direction": 1,
-                "field": "user"
-              },
-              {
-                "direction": -1,
-                "field": "_id"
-              }
-            ],
-            "unique": true
-          }
-        ]
-      },
-      "newsletters": {
-        "indexes": [
-          {
-            "keys": [
-              {
-                "direction": 1,
-                "field": "error"
-              }
-            ],
-            "sparse": true
-          },
-          {
-            "keys": [
-              {
-                "direction": -1,
-                "field": "date"
-              }
-            ]
-          }
-        ]
-      },
-      "reactions": {
-        "indexes": [
-          {
-            "keys": [
-              {
-                "direction": 1,
-                "field": "user"
-              },
-              {
-                "direction": 1,
-                "field": "article"
-              }
-            ],
-            "unique": true
-          }
-        ]
-      },
-      "users": {
-        "indexes": [
-          {
-            "keys": [
-              {
-                "direction": 1,
-                "field": "email"
-              }
-            ],
-            "partialFilterExpression": {
-              "email": {
-                "$type": "string"
-              }
+    "namespaces": {
+      "__unbound__": {
+        "entries": {
+          "collection": {
+            "articles": {
+              "indexes": [
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "lastError"
+                    }
+                  ],
+                  "kind": "mongo-index",
+                  "sparse": true
+                },
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "sourceName"
+                    },
+                    {
+                      "direction": -1,
+                      "field": "date"
+                    },
+                    {
+                      "direction": 1,
+                      "field": "_id"
+                    }
+                  ],
+                  "kind": "mongo-index"
+                }
+              ],
+              "kind": "mongo-collection"
             },
-            "unique": true
-          },
-          {
-            "keys": [
-              {
-                "direction": 1,
-                "field": "aliasEmail"
-              }
-            ],
-            "partialFilterExpression": {
-              "aliasEmail": {
-                "$type": "string"
-              }
+            "bundles": {
+              "indexes": [
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "processingStage"
+                    },
+                    {
+                      "direction": 1,
+                      "field": "sendOn"
+                    },
+                    {
+                      "direction": 1,
+                      "field": "user"
+                    },
+                    {
+                      "direction": -1,
+                      "field": "_id"
+                    }
+                  ],
+                  "kind": "mongo-index",
+                  "unique": true
+                }
+              ],
+              "kind": "mongo-collection"
             },
-            "unique": true
+            "newsletters": {
+              "indexes": [
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "error"
+                    }
+                  ],
+                  "kind": "mongo-index",
+                  "sparse": true
+                },
+                {
+                  "keys": [
+                    {
+                      "direction": -1,
+                      "field": "date"
+                    }
+                  ],
+                  "kind": "mongo-index"
+                }
+              ],
+              "kind": "mongo-collection"
+            },
+            "reactions": {
+              "indexes": [
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "user"
+                    },
+                    {
+                      "direction": 1,
+                      "field": "article"
+                    }
+                  ],
+                  "kind": "mongo-index",
+                  "unique": true
+                }
+              ],
+              "kind": "mongo-collection"
+            },
+            "users": {
+              "indexes": [
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "email"
+                    }
+                  ],
+                  "kind": "mongo-index",
+                  "partialFilterExpression": {
+                    "email": {
+                      "$type": "string"
+                    }
+                  },
+                  "unique": true
+                },
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "aliasEmail"
+                    }
+                  ],
+                  "kind": "mongo-index",
+                  "partialFilterExpression": {
+                    "aliasEmail": {
+                      "$type": "string"
+                    }
+                  },
+                  "unique": true
+                }
+              ],
+              "kind": "mongo-collection"
+            }
           }
-        ]
+        },
+        "id": "__unbound__",
+        "kind": "mongo-database"
       }
     },
-    "storageHash": "sha256:509a34b49b16b5988021cc862454f66ecd10b7409508039fa39fa344e82d8a5f"
+    "storageHash": "sha256:a3d2f2f531b5002cada389640b33976bee27f0059cd798f0f5df7566b845701c"
   },
   "capabilities": {},
   "extensionPacks": {},

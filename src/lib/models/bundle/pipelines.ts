@@ -1,4 +1,4 @@
-import { ObjectId } from 'mongodb';
+import { Types } from 'mongoose';
 import type { PipelineStage } from 'mongoose';
 
 const COLLECTION_NAMES = {
@@ -8,7 +8,7 @@ const COLLECTION_NAMES = {
   reactions: 'reactions',
 };
 
-export function populateUnreadArticles(bundleId: ObjectId) {
+export function populateUnreadArticles(bundleId: Types.ObjectId) {
   return [
     {
       $match: {

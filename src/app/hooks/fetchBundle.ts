@@ -1,7 +1,7 @@
 import { Bundle, IArticle, INewsletter } from '@lib/models';
 import type { ReactionsEnum } from '@lib/models/enums';
 import { JobNames, Task, ITask } from '@services/worker';
-import { ObjectId } from 'mongodb';
+import { Types } from 'mongoose';
 
 // TODO: this should be moved out of lib as it is not frontend compatible.
 
@@ -69,7 +69,7 @@ export async function fetchBundleData(id: string, debug = false) {
   /** @deprecated */
   const reactionMap = new Map<string, ReactionsEnum>();
 
-  const bundleData = await Bundle.getUnreadArticles(new ObjectId(id));
+  const bundleData = await Bundle.getUnreadArticles(new Types.ObjectId(id));
 
   if (!bundleData) return null;
 

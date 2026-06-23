@@ -1,6 +1,6 @@
 import { getModelForClass, pre, prop, index, getName } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
-import { ObjectId } from 'mongodb';
+import { Types } from 'mongoose';
 import type { PipelineStage } from 'mongoose';
 import { UserClass } from './user';
 import { INewsletter, NewsletterClass } from './newsletter';
@@ -11,7 +11,7 @@ import { Article, User, Newsletter } from '.';
 import { populateUnreadArticles } from './bundle/pipelines';
 
 export interface IBundle {
-  _id: ObjectId;
+  _id: Types.ObjectId;
   sendOn?: Date;
   user: Ref<UserClass>;
   newsletters?: Ref<NewsletterClass>[];
@@ -39,7 +39,7 @@ enum ProcessingStagesEnum {
 })
 @index({ processingStage: 1, sendOn: 1, user: 1, _id: -1 }, { unique: true }) // Optimized for findNextToSend
 export class BundleClass implements IBundle {
-  public _id!: ObjectId;
+  public _id!: Types.ObjectId;
   @prop({ type: Date })
   public sendOn?: Date;
   @prop({ ref: () => UserClass, required: true })
@@ -132,8 +132,8 @@ export class BundleClass implements IBundle {
    */
   public static findNextToSend(user: User): Promise<Bundle | null>;
   public static findNextToSend(email: string): Promise<Bundle | null>;
-  public static findNextToSend(userId: ObjectId): Promise<Bundle | null>;
-  public static async findNextToSend(this: ReturnModelType<typeof BundleClass>, user: User | ObjectId | string) {
+  public static findNextToSend(userId: Types.ObjectId): Promise<Bundle | null>;
+  public static async findNextToSend(this: ReturnModelType<typeof BundleClass>, user: User | Types.ObjectId | string) {
     if (typeof user === 'string') {
 
       const pipeline: PipelineStage[] = [
@@ -304,7 +304,7 @@ export class BundleClass implements IBundle {
    * Retrieve all articles in this bundle that the user has not reacted to yet.
    * This includes articles from newsletters in the bundle.
    */
-  public static async getUnreadArticles(bundleId: ObjectId) {
+  public static async getUnreadArticles(bundleId: Types.ObjectId) {
 
     const pipeline = populateUnreadArticles(bundleId);
     const results = await BundleModel.aggregate(pipeline).exec();

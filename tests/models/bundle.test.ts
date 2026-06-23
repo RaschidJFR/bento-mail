@@ -3,7 +3,7 @@ import { User, Newsletter, Article, Reaction } from '@lib/models';
 import { Bundle } from '@lib/models/bundle';
 import { afterEach } from 'node:test';
 import { ReactionsEnum } from '@lib/models/enums';
-import { ObjectId } from 'mongodb';
+import { Types } from 'mongoose';
 
 describe('Bundle', () => {
   it('should not save without an existing user', async () => {
@@ -238,7 +238,7 @@ describe('Bundle', () => {
     });
 
     it('returns null when bundle does not exist', async () => {
-      const nonExistingId = new ObjectId();
+      const nonExistingId = new Types.ObjectId();
       const result = await Bundle.getUnreadArticles(nonExistingId);
       expect(result).toBeNull();
     });

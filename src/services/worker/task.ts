@@ -1,9 +1,8 @@
 import 'dotenv/config';
 import type { IJobParameters } from 'chronos-jobs';
-import { ObjectId } from 'mongodb';
 import { DocumentType, getModelForClass, index, modelOptions, prop } from '@typegoose/typegoose';
 import { clearModelInDevelopment } from '@lib/models/utils';
-import mongoose from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import { COLLECTION_NAME, DB_NAME } from './vars';
 
 // Connect to the database when this module is imported
@@ -23,7 +22,7 @@ class JobClass<T = any> implements IJobParameters<T> {
   // Only a few selected fields are persisted to allow simple queries as the rest of the job data
   // is managed by the task scheduler (Chronos/Agenda).
 
-  public readonly _id!: ObjectId;
+  public readonly _id!: Types.ObjectId;
   @prop({ type: String })
   public readonly name!: string;
 
