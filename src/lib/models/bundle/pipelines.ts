@@ -25,6 +25,9 @@ export function populateUnreadArticles(bundleId: ObjectId) {
               $expr: { $in: ['$_id', '$$newsletterIds'] },
             },
           },
+          {
+            $unset: ['content'],
+          },
           { $sort: { date: -1 } },
         ],
         as: 'newsletters',
@@ -86,12 +89,15 @@ export function populateUnreadArticles(bundleId: ObjectId) {
               },
             },
           },
+          {
+            $unset: ['content'],
+          }
         ],
       },
     },
     {
       $set: {
-        articleMap: {
+        unreadArticles: {
           $arrayToObject: {
             $map: {
               input: '$unreadArticles',
@@ -111,7 +117,7 @@ export function populateUnreadArticles(bundleId: ObjectId) {
                 input: '$articles',
                 as: 'a',
                 in: {
-                  $ifNull: [{ $getField: { field: '$$a', input: '$articleMap' } }, null],
+                  $ifNull: [{ $getField: { field: '$$a', input: '$unreadArticles' } }, null],
                 },
               },
             },
@@ -134,7 +140,7 @@ export function populateUnreadArticles(bundleId: ObjectId) {
                           input: '$$n.articles',
                           as: 'a',
                           in: {
-                            $ifNull: [{ $getField: { field: '$$a', input: '$articleMap' } }, null],
+                            $ifNull: [{ $getField: { field: '$$a', input: '$unreadArticles' } }, null],
                           },
                         },
                       },
@@ -150,7 +156,7 @@ export function populateUnreadArticles(bundleId: ObjectId) {
       },
     },
     {
-      $unset: ['articleMap', 'unreadArticles'],
+      $unset: ['unreadArticles'],
     },
     {
       $project: {
