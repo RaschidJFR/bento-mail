@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { User, Newsletter, Article } from '@lib/models';
+import { User, Newsletter, Article, Reaction } from '@lib/models';
 import { Bundle } from '@lib/models/bundle';
 import { afterEach } from 'node:test';
+import { ReactionsEnum } from '@lib/models/enums';
+import { ObjectId } from 'mongodb';
 
 describe('Bundle', () => {
   it('should not save without an existing user', async () => {
@@ -145,6 +147,100 @@ describe('Bundle', () => {
       await bundle1.set({ processingStage: Bundle.ProcessingStages.NOT_STARTED }).save();
       next = await Bundle.findNextToSend(user.email);
       expect(next?._id).toStrictEqual(bundle1._id);
+    });
+  });
+
+  describe('getUnreadArticles()', () => {
+    let user: User;
+    let otherUser: User;
+    let bundle: Bundle;
+
+    beforeEach(async () => {
+      user = await User.create({ email: 'reader@example.com' });
+      otherUser = await User.create({ email: 'other-reader@example.com' });
+
+      // Direct bundle articles
+      const directUnread = await Article.create({ content: 'direct unread', header: 'Direct unread' });
+      const directUnread2 = await Article.create({ content: 'direct unread 2', header: 'Direct unread 2' });
+      const directReacted = await Article.create({ content: 'direct reacted', header: 'Direct reacted' });
+      const directWithError = await Article.create({
+        content: 'direct with error',
+        header: 'Direct with error',
+        lastError: 'failed processing',
+      });
+
+      // Newsletter articles
+      const newsletterUnread = await Article.create({
+        content: 'newsletter unread',
+        header: 'Newsletter unread',
+      });
+      const newsletterUnread2 = await Article.create({
+        content: 'newsletter unread 2',
+        header: 'Newsletter unread 2',
+      });
+      const newsletterReacted = await Article.create({
+        content: 'newsletter reacted',
+        header: 'Newsletter reacted',
+      });
+      const newsletterWithError = await Article.create({
+        content: 'newsletter with error',
+        header: 'Newsletter with error',
+        lastError: 'failed processing',
+      });
+
+      const newsletter = await Newsletter.create({
+        content: 'Digest #1',
+        articles: [newsletterUnread._id, newsletterUnread2._id, newsletterReacted._id, newsletterWithError._id],
+      });
+
+      bundle = await Bundle.create({
+        user: user._id,
+        articles: [directUnread._id, directUnread2._id, directReacted._id, directWithError._id],
+        newsletters: [newsletter._id],
+      });
+
+      // User has already reacted to one direct and one newsletter article
+      await Reaction.create({
+        user: user._id,
+        article: directReacted._id,
+        reaction: ReactionsEnum.UPVOTE,
+      });
+      await Reaction.create({
+        user: user._id,
+        article: newsletterReacted._id,
+        reaction: ReactionsEnum.SKIP,
+      });
+
+      // Reaction from another user must not affect unread results for `user`
+      await Reaction.create({
+        user: otherUser._id,
+        article: directUnread._id,
+        reaction: ReactionsEnum.SKIP,
+      });
+    });
+
+    it('returns only unread, error-free articles for both bundle and newsletter sources', async () => {
+      const result = await Bundle.getUnreadArticles(bundle._id);
+
+      expect(result).toBeTruthy();
+      expect(result?.user).toEqual(user._id);
+      expect(result?.allArticleIds?.length).toBe(8);
+
+      // Direct articles filtered to only unread + no lastError
+      expect(result?.articles).toHaveLength(2);
+      expect(result?.articles?.[0]?.header).toBe('Direct unread');
+      expect(result?.articles?.[1]?.header).toBe('Direct unread 2');
+      // Newsletter articles filtered to only unread + no lastError
+      expect(result?.newsletters).toHaveLength(1);
+      expect(result?.newsletters?.[0]?.articles).toHaveLength(2);
+      expect(result?.newsletters?.[0]?.articles?.[0]?.header).toBe('Newsletter unread');
+      expect(result?.newsletters?.[0]?.articles?.[1]?.header).toBe('Newsletter unread 2');
+    });
+
+    it('returns null when bundle does not exist', async () => {
+      const nonExistingId = new ObjectId();
+      const result = await Bundle.getUnreadArticles(nonExistingId);
+      expect(result).toBeNull();
     });
   });
 

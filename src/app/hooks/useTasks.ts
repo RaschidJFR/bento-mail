@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 import type { ITask } from '@lib/models';
-import { socket } from './getSocket';
+import { getSocket } from './getSocket';
 
 export type ITaskArticleProcess = Omit<ITask<{ id: string }>, '_id'> & { _id: string };
 
@@ -28,6 +28,9 @@ export function useTasks(
         ? setTasks((prev) => findAndUpdateTask(taskId, task, prev))
         : setTasks((prev) => findAndRemoveTask(taskId, prev));
     };
+
+    const socket = getSocket();
+    if (!socket) return;
 
     socket.emit('joinNewsletter', newsletterId);
     socket.on('taskChanged', handler);

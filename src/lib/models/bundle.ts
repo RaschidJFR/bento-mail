@@ -1,14 +1,14 @@
 import { getModelForClass, pre, prop, index, getName } from '@typegoose/typegoose';
 import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
-import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
-import { Types, type ObjectId } from 'mongoose';
+import { ObjectId } from 'mongodb';
+import type { PipelineStage } from 'mongoose';
 import { UserClass } from './user';
 import { INewsletter, NewsletterClass } from './newsletter';
 import { ArticleClass } from './article';
 import { clearModelInDevelopment } from './utils';
 import { applyInBatches } from '@lib/utils';
-import { Reaction, Article, User, Newsletter } from '.';
-import { ReactionsEnum } from './enums';
+import { Article, User, Newsletter } from '.';
+import { populateUnreadArticles } from './bundle/pipelines';
 
 export interface IBundle {
   _id: ObjectId;
@@ -108,7 +108,7 @@ export class BundleClass implements IBundle {
   addNewsletterOrArticle(
     this: DocumentType<BundleClass>,
     elements: Newsletter | Newsletter[] | Article | Article[] | string | string[],
-    type: 'newsletter' | 'article'
+    type: 'newsletter' | 'article',
   ) {
     if (!Array.isArray(elements)) {
       elements = [elements as any];
@@ -117,7 +117,7 @@ export class BundleClass implements IBundle {
     if (Array.isArray(elements)) {
       if (typeof elements[0] === 'string') {
         const nls = (elements as string[]).map((_id) =>
-          type === 'article' ? Article.hydrate({ _id }) : Newsletter.hydrate({ _id })
+          type === 'article' ? Article.hydrate({ _id }) : Newsletter.hydrate({ _id }),
         );
         this.addElements(nls as any);
       } else if (elements[0] instanceof Newsletter || elements[0] instanceof Article) {
@@ -135,8 +135,8 @@ export class BundleClass implements IBundle {
   public static findNextToSend(userId: ObjectId): Promise<Bundle | null>;
   public static async findNextToSend(this: ReturnModelType<typeof BundleClass>, user: User | ObjectId | string) {
     if (typeof user === 'string') {
-      // Use aggregation pipeline to match user by email
-      const [result] = await this.aggregate([
+
+      const pipeline: PipelineStage[] = [
         {
           $match: {
             $or: [
@@ -154,10 +154,16 @@ export class BundleClass implements IBundle {
           },
         },
         { $unwind: '$user' },
-        { $match: { $or: [{ 'user.email': user }, { 'user.aliasEmail': user }] } },
+        {
+          $match: {
+            $or: [{ 'user.email': user }, { 'user.aliasEmail': user }],
+          },
+        },
         { $sort: { sendOn: 1, _id: -1 } },
         { $limit: 1 },
-      ]);
+      ];
+
+      const [result] = await this.aggregate(pipeline);
       return (result && BundleModel.hydrate(result)) || null;
     } else {
       return this.findOne({
@@ -181,7 +187,7 @@ export class BundleClass implements IBundle {
 
     // Convert all elements to Class instances
     const newsletters = (bundle?.newsletters || []).map((o) =>
-      typeof o === 'string' ? Newsletter.hydrate({ _id: o }) : (o as Newsletter)
+      typeof o === 'string' ? Newsletter.hydrate({ _id: o }) : (o as Newsletter),
     );
 
     const erroCount = await Newsletter.extractArticles(newsletters, { pulsecheck } as any);
@@ -208,7 +214,7 @@ export class BundleClass implements IBundle {
       console.warn(
         `[Bundle.processArticles] Bundle ${this._id} has been previously processed (${
           ProcessingStagesEnum[existing.processingStage]
-        }). Processing again...`
+        }). Processing again...`,
       );
     }
 
@@ -245,7 +251,7 @@ export class BundleClass implements IBundle {
             errorCount++;
           }
         },
-        { pulsecheck }
+        { pulsecheck },
       );
 
       this.processingStage =
@@ -265,6 +271,7 @@ export class BundleClass implements IBundle {
 
   /**
    * Unwrap all articles in this bundle, including those from newsletters.
+   * @note Requires populating articles and newsletters before call.
    */
   public static unwrapArticleIds(this: typeof BundleModel, bundle: IBundle): string[] {
     if (!bundle.articles || !bundle.newsletters) {
@@ -285,74 +292,24 @@ export class BundleClass implements IBundle {
   }
 
   /**
-   * Get a map of article IDs to the user's reactions for all articles in the bundle.
-   * Ignores "ACKNOWLEDGED" reactions.
+   * [WIP] Get the IDs of articles in this bundle that the user has not reacted to yet.
+   * @todo 
+   *    - Populate articles and newsletters
    */
-  public static async getReactionMap(this: ReturnModelType<typeof BundleClass>, bundleId: string | ObjectId) {
-    const pipeline = [
-      {
-        $match: {
-          _id: typeof bundleId === 'string' ? new Types.ObjectId(bundleId) : bundleId,
-        },
-      },
-      {
-        $lookup: {
-          from: Newsletter.collection.name,
-          localField: 'newsletters',
-          foreignField: '_id',
-          as: 'newsletterDetails',
-        },
-      },
-      {
-        $unwind: '$newsletterDetails',
-      },
-      {
-        $unwind: '$newsletterDetails.articles',
-      },
-      {
-        $group: {
-          _id: '$_id',
-          user: {
-            $first: '$user',
-          },
-          newsletters: {
-            $first: '$newsletters',
-          },
-          articles: {
-            $first: '$articles',
-          },
-          newsletterArticles: {
-            $addToSet: '$newsletterDetails.articles',
-          },
-        },
-      },
-      {
-        $project: {
-          user: 1,
-          articlesUnion: {
-            $setUnion: ['$articles', '$newsletterArticles'],
-          },
-        },
-      },
-    ];
+  public async getUnreadArticles(this: DocumentType<BundleClass>) {
+    return BundleClass.getUnreadArticles(this._id);
+  }
 
-    const results = await this.aggregate(pipeline).exec();
-    const ids: string[] = results[0]?.articlesUnion || [];
-    const map = new Map<string, ReactionsEnum>();
+  /**
+   * Retrieve all articles in this bundle that the user has not reacted to yet.
+   * This includes articles from newsletters in the bundle.
+   */
+  public static async getUnreadArticles(bundleId: ObjectId) {
 
-    if (ids.length > 0) {
-      const user = results[0]?.user;
+    const pipeline = populateUnreadArticles(bundleId);
+    const results = await BundleModel.aggregate(pipeline).exec();
 
-      const reactions = await Reaction.where({ user: String(user) })
-        .where(MongoFieldFilter.in('article', ids))
-        .where(MongoFieldFilter.neq('reaction', ReactionsEnum.ACKNOWLEDGED))
-        .all()
-        .toArray();
-      reactions.forEach(({ article, reaction }) => {
-        map.set(article, reaction as ReactionsEnum);
-      });
-    }
-    return map;
+    return results[0] || null;
   }
 }
 
