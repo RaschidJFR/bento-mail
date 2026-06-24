@@ -1,19 +1,33 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GET } from '@app/api/reaction/route';
-import { Bundle, User, Article, Reaction } from '@lib/models';
+import { Bundle } from '@lib/models/bundle';
+import { User, IUser } from '@lib/models/user';
+import { Article, IArticle } from '@lib/models/article';
+import { Reaction } from '@lib/models/reaction';
 
 function mockReq(url: string) {
   return { url } as any;
 }
 
 describe('GET /api/reaction', () => {
-  let user: User;
-  let article: Article;
+  let user: IUser;
+  let article: IArticle;
   let bundle: Bundle;
 
   beforeEach(async () => {
-    user = await User.create({ email: 'foo@bar.com' });
-    article = await Article.create({ content: 'Test Article' });
+    user = await User.create({ email: 'foo@bar.com', aliasEmail: null, name: null, image: null });
+    article = await Article.create({
+      content: "Test Article",
+      header: "",
+      sourceName: "",
+      date: null,
+      coverImg: null,
+      summaries: null,
+      linkedArticles: null,
+      lastError: null,
+      url: null,
+    });
+
     bundle = await Bundle.create({ user: user._id, articles: [article._id], newsletters: [] });
   });
 
@@ -42,7 +56,7 @@ describe('GET /api/reaction', () => {
   });
 
   it('returns reactions for user+article', async () => {
-    const reactionData = { user: user.id, article: article.id, reaction: 1, date: null };
+    const reactionData = { user: user._id, article: article._id, reaction: 1, date: null };
     await Reaction.create(reactionData);
     const req = mockReq(`http://localhost/api/reaction?user=${user._id}&article=${article._id}`);
     const res = await GET(req);
@@ -58,7 +72,7 @@ describe('GET /api/reaction', () => {
   });
 
   it('returns reactions for bundle', async () => {
-    const reactionData = { user: user.id, article: article.id, reaction: 1, date: null };
+    const reactionData = { user: user._id, article: article._id, reaction: 1, date: null };
     await Reaction.create(reactionData);
     const req = mockReq(`http://localhost/api/reaction?bundle=${bundle._id}`);
     const res = await GET(req);

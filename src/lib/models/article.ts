@@ -1,146 +1,119 @@
-import { prop, getModelForClass, DocumentType, index, getName } from '@typegoose/typegoose';
-import { BasicArticleProps, extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';
+import type { InferRootRow, MongoWhereFilter } from '@prisma-next/mongo-orm';
+import type { Contract } from '@lib/prisma/contract.d';
+import { db } from '@lib/prisma/db';
+import { extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';
 import { fetchHtmlContent, htmlToMarkdown, hash } from '@lib/utils';
-import { clearModelInDevelopment } from './utils';
 
-export interface IArticle {
-  _id: string;
-  content?: string;
-  header: string;
-  url?: string;
-  date?: string;
-  coverImg?: string;
-  sourceName?: string;
-  summaries?: {
-    oneliner: string;
-    overview: string;
-    details: string;
-  };
-  lastError?: string;
-  linkedArticles?: BasicArticleProps[];
-}
+export type IArticle = InferRootRow<Contract, 'Article'>;
 
-function generateId(article: DocumentType<ArticleClass>) {
+const articles = db.orm.articles;
+const ormCreate = articles.create.bind(articles);
+
+type ArticleCreateInput = Parameters<typeof articles.create>[0];
+
+/**
+ * Generate a deterministic `_id` from `url` or `content`.
+ */
+function generateId(article: Pick<IArticle, 'url' | 'content'>): string {
   if (!article.url && !article.content) {
     throw new Error('Either url or content must be provided');
   }
   return hash((article.url || article.content) as string);
 }
 
-@index({ lastError: 1 }, { sparse: true }) // Optimized for fetching articles for a bundle
-@index({ sourceName: 1, date: -1, _id: 1 }) // Optimized for fetching articles for a bundle
-export class ArticleClass implements IArticle {
-  @prop({ type: String, default: generateId })
-  public _id: string = '';
-  @prop({ default: '', type: String })
-  public content?: string;
-  @prop({ default: '', type: String })
-  public header: string = '';
-  @prop({ default: '', type: String })
-  public url?: string;
-  @prop({ default: '', type: String })
-  public date?: string;
-  @prop({ default: '', type: String })
-  public coverImg?: string;
-  @prop({ default: '', type: String })
-  public sourceName: string = '';
-  @prop({ type: Object })
-  public summaries: IArticle['summaries'];
-  @prop({ type: Array })
-  public linkedArticles?: BasicArticleProps[];
+/**
+ * Create an article. If `_id` is omitted, it is derived from `url`/`content`
+ * via {@link generateId}.
+ */
+function create(input: ArticleCreateInput) {
+  const _id = input._id ?? generateId(input);
+  return ormCreate({ ...input, _id });
+}
 
-  /**
-   * Error message from the last processing attempt, if any.
-   */
-  @prop({ type: String })
-  public lastError?: string;
+/**
+ * Convenience method.
+ * Short for `articles.where(filter).select('_id').first()`
+ */
+async function exists(filter: MongoWhereFilter<Contract, 'Article'>): Promise<string | null> {
+  const result = await articles.where(filter).select('_id').first();
+  return result?._id ?? null;
+}
 
-  public isProcessed(this: DocumentType<ArticleClass>) {
-    return ArticleModel.isProcessed(this);
+/**
+ * Check if an article has been fully processed.
+ */
+function isProcessed(article: Pick<IArticle, 'summaries' | 'lastError'>): boolean {
+  return (
+    !!article.summaries?.oneliner &&
+    !!article.summaries?.overview &&
+    !!article.summaries?.details &&
+    !article.lastError
+  );
+}
+
+/**
+ * Process the article to extract details and summaries.
+ *
+ * If `summaries` already exist, the method will not re-process the article.
+ * If a previous processing attempt failed, it will retry.
+ */
+async function process(_id: string, { force = false, generateImage = false } = {}): Promise<void> {
+  let existing = await articles.where({ _id }).first();
+  if (!existing) {
+    throw new Error(`Article ${_id} not found`);
+  }
+  // Prevent re-processing if summaries already exist
+  if (isProcessed(existing) && !force) {
+    return;
   }
 
-  public static isProcessed(article: IArticle) {
-    return (
-      !!article.summaries?.oneliner &&
-      !!article.summaries?.overview &&
-      !!article.summaries?.details &&
-      !article.lastError
-    );
-  }
-
-  /**
-   * Process the article to extract details and summaries.
-   *
-   * If `summaries` already exist, the method will not re-process the article.
-   * If a previous processing attempt failed, it will retry.
-   */
-  public async process(this: DocumentType<ArticleClass>, { force = false, generateImage = false } = {}) {
-    let existing = (await ArticleModel.findById(this._id)) as Article;
-    if ((existing && this.isModified()) || !existing) {
-      throw new Error('You must save any changes to this object before processing');
+  try {
+    let content = existing.content ?? '';
+    try {
+      if (existing.url) {
+        const html = await fetchHtmlContent(existing.url);
+        content = htmlToMarkdown(html);
+      }
+    } catch (fetchError: any) {
+      console.warn(`Failed to fetch HTML content for article ${_id}: ${fetchError.message}`);
+      console.warn('Using existing content for processing');
     }
-    // Prevent re-processing if summaries already exist
-    if (this.isProcessed() && !force) {
+
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('Content is empty or invalid');
+    }
+
+    const data = await extractArticleDetails(content);
+
+    let coverImg = existing?.coverImg || data.coverImg || '';
+    if (!coverImg && generateImage) {
+      console.warn(`No cover image found for article %o. Attempting to generate.`, _id);
+      try {
+        const { oneliner, overview, details } = data.summaries!;
+        coverImg = await generateCoverImage(`Oneliner: ${oneliner}\nOverview: ${overview}\nDetails: ${details}`);
+      } catch (err: any) {
+        console.warn(`Failed to generate cover image for article %o:`, _id, err.message);
+        console.warn(err);
+      }
+    }
+
+    // Check again if it was processed in the meantime
+    existing = await articles.where({ _id }).first();
+    if (existing && isProcessed(existing) && !force) {
+      console.warn(`Article %o was processed in the meantime, skipping update`, _id);
       return;
     }
 
-    try {
-      try {
-        if (existing.url) {
-          const html = await fetchHtmlContent(existing.url);
-          this.content = existing.content = htmlToMarkdown(html);
-        }
-      } catch (fetchError: any) {
-        console.warn(`Failed to fetch HTML content for article ${this._id}: ${fetchError.message}`);
-        console.warn('Using existing content for processing');
-      }
-
-      if (typeof existing.content !== 'string' || !existing.content.trim()) {
-        throw new Error('Content is empty or invalid');
-      }
-
-      const data = await extractArticleDetails(existing.content);
-
-      let coverImg = existing?.coverImg || data.coverImg || '';
-      if (!coverImg && generateImage) {
-        console.warn(`No cover image found for article %o. Attempting to generate.`, this._id);
-        try {
-          const { oneliner, overview, details } = data.summaries!;
-          coverImg = await generateCoverImage(`Oneliner: ${oneliner}\nOverview: ${overview}\nDetails: ${details}`);
-        } catch (err: any) {
-          console.warn(`Failed to generate cover image for article %o:`, this._id, err.message);
-          console.warn(err);
-        }
-      }
-
-      // Check again if it was processed in the meantime
-      existing = (await ArticleModel.findById(this._id)) as Article;
-      if (existing.isProcessed() && !force) {
-        console.warn(`Article %o was processed in the meantime, skipping update`, this._id);
-        // Update props and unmark as modified
-        this.set(existing.toObject());
-        this.modifiedPaths().forEach((path) => this.unmarkModified(path));
-        return;
-      }
-
-      await this.set({
-        ...data,
-        coverImg,
-        lastError: '',
-      }).save();
-    } catch (error: any) {
-      this.lastError = error.message || String(error);
-      await this.save();
-      throw error;
-    }
+    await articles.where({ _id }).update({
+      content,
+      ...data,
+      coverImg,
+      lastError: '',
+    });
+  } catch (error: any) {
+    await articles.where({ _id }).update({ lastError: error.message || String(error) });
+    throw error;
   }
 }
 
-
-clearModelInDevelopment(getName(ArticleClass));
-const ArticleModel = getModelForClass(ArticleClass, {
-  schemaOptions: { collection: 'articles' },
-});
-
-export { ArticleModel as Article };
-export type Article = DocumentType<ArticleClass>;
+export const Article = Object.assign(articles, { create, exists, isProcessed, process, generateId });
