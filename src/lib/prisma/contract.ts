@@ -6,6 +6,14 @@ import mongoFamily from "@prisma-next/family-mongo/pack";
 import { defineContract } from "@prisma-next/mongo-contract-ts/contract-builder";
 import mongoTarget from "@prisma-next/target-mongo/pack";
 
+export const COLLECTION_NAMES = {
+  articles: 'articles',
+  bundles: 'bundles',
+  newsletters: 'newsletters',
+  reactions: 'reactions',
+  users: 'users',
+};
+
 export const contract = defineContract(
   { family: mongoFamily, target: mongoTarget }, // What's this line?
   ({ field, index, model, rel, valueObject }) => {
@@ -30,7 +38,7 @@ export const contract = defineContract(
     });
 
     const Article = model("Article", {
-      collection: "articles",
+      collection: COLLECTION_NAMES.articles,
       fields: {
         _id: field.string(),
         content: field.string().optional(),
@@ -50,13 +58,13 @@ export const contract = defineContract(
     });
 
     const User = model("User", {
-      collection: "users",
+      collection: COLLECTION_NAMES.users,
       fields: {
         _id: field.objectId(),
         email: field.string(),
         aliasEmail: field.string().optional(),
-        name: field.string().optional(),
-        image: field.string().optional(),
+        name: field.string().optional(),  // TODO: remove (not used)
+        image: field.string().optional(), // TODO: remove (not used)
       },
       indexes: [
         index(
@@ -77,7 +85,7 @@ export const contract = defineContract(
     });
 
     const Newsletter = model("Newsletter", {
-      collection: "newsletters",
+      collection: COLLECTION_NAMES.newsletters,
       fields: {
         _id: field.string(),
         content: field.string(),
@@ -97,7 +105,7 @@ export const contract = defineContract(
     });
 
     const Bundle = model("Bundle", {
-      collection: "bundles",
+      collection: COLLECTION_NAMES.bundles,
       fields: {
         _id: field.objectId(),
         sendOn: field.date().optional(),
@@ -126,7 +134,7 @@ export const contract = defineContract(
     });
 
     const Reaction = model("Reaction", {
-      collection: "reactions",
+      collection: COLLECTION_NAMES.reactions,
       fields: {
         _id: field.objectId(),
         user: field.objectId(),

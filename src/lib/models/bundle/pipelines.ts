@@ -1,12 +1,6 @@
 import { Types } from 'mongoose';
 import type { PipelineStage } from 'mongoose';
-
-const COLLECTION_NAMES = {
-  bundles: 'bundles',
-  newsletters: 'newsletters',
-  articles: 'articles',
-  reactions: 'reactions',
-};
+import { COLLECTION_NAMES } from '@lib/models/utils';
 
 export function populateUnreadArticles(bundleId: Types.ObjectId) {
   return [
