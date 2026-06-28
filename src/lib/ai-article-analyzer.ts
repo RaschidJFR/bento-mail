@@ -2,7 +2,6 @@ import { ChatOpenAI, DallEAPIWrapper } from '@langchain/openai';
 import { SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import 'dotenv/config';
-import type { IArticle, INewsletter } from './models';
 
 const model = new ChatOpenAI({
   modelName: 'gpt-5-mini',
@@ -13,14 +12,6 @@ if (!process.env.OPENAI_API_KEY) {
   console.warn('Warning: OPENAI_API_KEY environment variable is not set. Using mock API key.');
 }
 
-export type ArticleDataProps = Omit<IArticle, '_id'>;
-export type ArticleDetailsProps = Pick<ArticleDataProps, 'date' | 'summaries' | 'coverImg' | 'sourceName'> & {
-  linkedArticles?: BasicArticleProps[];
-};
-export type BasicArticleProps = Omit<ArticleDataProps, 'summaries'> & { content: string };
-export type NewsletterDataProps = Omit<INewsletter, '_id' | 'content' | 'articles'> & {
-  articles: BasicArticleProps[];
-};
 export type ArticleOrNewsletterResponse = {
   type: 'article' | 'newsletter' | 'unknown';
   reason: string;
@@ -85,7 +76,7 @@ const ClassificationSchema = z.object({
  * @param textContent - The Markdown content of the newsletter
  * @returns Array of article objects
  */
-export async function extractArticlesFromNewsletter(textContent: string): Promise<NewsletterDataProps> {
+export async function extractArticlesFromNewsletter(textContent: string) {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -117,7 +108,12 @@ ${textContent}
   const data = await model.withStructuredOutput(NewsletterSchema).invoke([new SystemMessage(prompt)]);
   return {
     ...data,
-    articles: data.articles.map((a: BasicArticleProps) => ({ ...a, sourceName: data.name })),
+    articles: data.articles?.map((a) => ({
+      ...a,
+      sourceName: data.name, 
+      url: a.url || '', 
+      coverImg: a.coverImg || '' 
+    })) || [],
   };
 }
 
@@ -155,6 +151,7 @@ ${textContent}
 /**
  * Extracts article details from Markdown content using AI
  * @param textContent - The Markdown content of a single article
+ * @param skipVerify - If true, skip the content classification step
  */
 export async function extractArticleDetails(textContent: string, { skipVerify = false } = {}) {
   if (!textContent || textContent.trim().length === 0) {
@@ -201,10 +198,17 @@ ${textContent}
 `;
 
   // @ts-ignore
-  const result: ArticleDetailsProps = await model
+  const result = await model
     .withStructuredOutput(FullArticleSchema)
     .invoke([new SystemMessage(prompt)]);
-  return result;
+  return {
+    ...result,
+    linkedArticles: result.linkedArticles?.map((a) => ({
+      ...a,
+      url: a.url || '',
+      coverImg: a.coverImg || '',
+    })) || [],
+  };
 }
 
 /**

@@ -52,6 +52,18 @@ export type BasicArticleInput = {
   readonly sourceName: CodecTypes['mongo/string@1']['input'] | null;
   readonly lastError: CodecTypes['mongo/string@1']['input'] | null;
 };
+export type LinkedArticleOutput = {
+  readonly header: CodecTypes['mongo/string@1']['output'];
+  readonly content: CodecTypes['mongo/string@1']['output'];
+  readonly url: CodecTypes['mongo/string@1']['output'] | null;
+  readonly coverImg: CodecTypes['mongo/string@1']['output'] | null;
+};
+export type LinkedArticleInput = {
+  readonly header: CodecTypes['mongo/string@1']['input'];
+  readonly content: CodecTypes['mongo/string@1']['input'];
+  readonly url: CodecTypes['mongo/string@1']['input'] | null;
+  readonly coverImg: CodecTypes['mongo/string@1']['input'] | null;
+};
 export type FieldOutputTypes = {
   readonly __unbound__: {
     readonly Article: {
@@ -63,7 +75,7 @@ export type FieldOutputTypes = {
       readonly coverImg: CodecTypes['mongo/string@1']['output'] | null;
       readonly sourceName: CodecTypes['mongo/string@1']['output'];
       readonly summaries: SummariesOutput | null;
-      readonly linkedArticles: ReadonlyArray<BasicArticleOutput> | null;
+      readonly linkedArticles: ReadonlyArray<LinkedArticleOutput> | null;
       readonly lastError: CodecTypes['mongo/string@1']['output'] | null;
     };
     readonly Bundle: {
@@ -110,7 +122,7 @@ export type FieldInputTypes = {
       readonly coverImg: CodecTypes['mongo/string@1']['input'] | null;
       readonly sourceName: CodecTypes['mongo/string@1']['input'];
       readonly summaries: SummariesInput | null;
-      readonly linkedArticles: ReadonlyArray<BasicArticleInput> | null;
+      readonly linkedArticles: ReadonlyArray<LinkedArticleInput> | null;
       readonly lastError: CodecTypes['mongo/string@1']['input'] | null;
     };
     readonly Bundle: {
@@ -303,7 +315,7 @@ type ContractBase = Omit<
               };
               readonly linkedArticles: {
                 readonly nullable: true;
-                readonly type: { readonly kind: 'valueObject'; readonly name: 'BasicArticle' };
+                readonly type: { readonly kind: 'valueObject'; readonly name: 'LinkedArticle' };
                 readonly many: true;
               };
               readonly lastError: {
@@ -552,6 +564,26 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly LinkedArticle: {
+            readonly fields: {
+              readonly header: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+              readonly content: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+              readonly url: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+              readonly coverImg: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+            };
+          };
         };
       };
     };
@@ -603,6 +635,26 @@ type ContractBase = Omit<
           readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
         };
         readonly lastError: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+      };
+    };
+    readonly LinkedArticle: {
+      readonly fields: {
+        readonly header: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly content: {
+          readonly nullable: false;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly url: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+        readonly coverImg: {
           readonly nullable: true;
           readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
         };

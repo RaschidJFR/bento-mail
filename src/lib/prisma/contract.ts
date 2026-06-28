@@ -37,6 +37,15 @@ export const contract = defineContract(
       },
     });
 
+    const LinkedArticle = valueObject("LinkedArticle", {
+      fields: {
+        header: field.string(),
+        content: field.string(),
+        url: field.string().optional(),
+        coverImg: field.string().optional(),
+      },
+    });
+
     const Article = model("Article", {
       collection: COLLECTION_NAMES.articles,
       fields: {
@@ -48,7 +57,7 @@ export const contract = defineContract(
         coverImg: field.string().optional(),
         sourceName: field.string(),
         summaries: field.valueObject(Summaries).optional(),
-        linkedArticles: field.valueObject(BasicArticle).many().optional(),
+        linkedArticles: field.valueObject(LinkedArticle).many().optional(),
         lastError: field.string().optional(),
       },
       indexes: [
@@ -154,7 +163,7 @@ export const contract = defineContract(
 
     return {
       models: { User, Article, Newsletter, Bundle, Reaction },
-      valueObjects: { Summaries, BasicArticle },
+      valueObjects: { Summaries, BasicArticle, LinkedArticle },
     };
   },
 );

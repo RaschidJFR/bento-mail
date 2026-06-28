@@ -78,7 +78,7 @@
                 "nullable": true,
                 "type": {
                   "kind": "valueObject",
-                  "name": "BasicArticle"
+                  "name": "LinkedArticle"
                 }
               },
               "sourceName": {
@@ -438,6 +438,38 @@
               },
               "sourceName": {
                 "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "url": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            }
+          },
+          "LinkedArticle": {
+            "fields": {
+              "content": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "coverImg": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "header": {
+                "nullable": false,
                 "type": {
                   "codecId": "mongo/string@1",
                   "kind": "scalar"
