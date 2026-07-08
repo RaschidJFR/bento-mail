@@ -1,229 +1,211 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { User, Newsletter, Article, Reaction } from '@lib/models';
-import { Bundle } from '@lib/models/bundle';
-import { afterEach } from 'node:test';
+import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
+import { User, IUser, Newsletter, Article, Reaction, Bundle } from '@lib/models';
 import { ReactionsEnum } from '@lib/models/enums';
-import { Types } from 'mongoose';
+import { ObjectId } from 'mongodb';
+
+function articleInput(data: { content: string; header?: string; lastError?: string }) {
+  return {
+    content: data.content,
+    header: data.header ?? '',
+    sourceName: '',
+    url: null,
+    date: null,
+    coverImg: null,
+    summaries: null,
+    linkedArticles: null,
+    lastError: data.lastError ?? null,
+  };
+}
+
+function newsletterInput(data: { content: string; articles?: string[] }) {
+  return {
+    content: data.content,
+    articles: data.articles ?? [],
+    date: null,
+    name: null,
+    url: null,
+    error: null,
+  };
+}
 
 describe('Bundle', () => {
-  it('should not save without an existing user', async () => {
-    const bundle = new Bundle();
-    await expect(bundle.save()).rejects.toThrow();
-
-    const unsavedUser = new User({ email: 'someone@somewhere.ca' });
-    bundle.user = unsavedUser;
-    await expect(bundle.save()).rejects.toThrow();
-
-    await unsavedUser.save();
-    await expect(bundle.save()).resolves.toBeTruthy();
+  it('should not create without an existing user', async () => {
+    await expect(Bundle.create({ user: new ObjectId() } as any)).rejects.toThrow();
+    const newUser = await User.create({ email: 'someone@somewhere.ca' } as any);
+    await expect(Bundle.create({ user: newUser._id } as any)).resolves.toBeTruthy();
   });
 
   describe('AddElements', () => {
-    it('addNewsletter add single and multiple newsletter ids, prevents duplicates', async () => {
-      const bundle = new Bundle({ user: '507f1f77bcf86cd799439011' });
-      // Single add
-      bundle.addNewsletter('nid1');
-      expect(bundle.newsletters).toContain('nid1');
-      // Duplicate add
-      bundle.addNewsletter('nid1');
-      expect(bundle.newsletters).toEqual(['nid1']);
-      // Multiple add
-      bundle.addNewsletter(['nid2', 'nid3', 'nid1', 'nid3', 'nid3']);
-      expect(bundle.newsletters).toEqual(['nid1', 'nid2', 'nid3']);
+    let bundleId: string;
+
+    beforeEach(async () => {
+      const user = await User.create({ email: 'add@example.com' } as any);
+      const bundle = await Bundle.create({ user: user._id } as any);
+      bundleId = bundle._id;
     });
 
-    it('addNewsletter adds Newsletter objects, prevents duplicates', async () => {
-      const bundle = new Bundle({ user: '507f1f77bcf86cd799439011' });
-      const newsletter1 = new Newsletter({ content: 'Newsletter 1' });
-      const newsletter2 = new Newsletter({ content: 'Newsletter 2' });
-
+    it('addNewsletter add single and multiple newsletter ids, prevents duplicates', async () => {
       // Single add
-      bundle.addNewsletter(newsletter1);
-      expect(bundle.newsletters).toEqual([newsletter1._id]);
+      await Bundle.addNewsletter(bundleId, 'nid1');
+      let ids = await Bundle.where({ _id: bundleId }).first().then(b => b?.newsletters || []);
+      expect(ids).toEqual(['nid1']);
       // Duplicate add
-      bundle.addNewsletter(newsletter1);
-      expect(bundle.newsletters).toEqual([newsletter1._id]);
+      await Bundle.addNewsletter(bundleId, 'nid1');
+      ids = await Bundle.where({ _id: bundleId }).first().then(b => b?.newsletters || []);
+      expect(ids).toEqual(['nid1']);
       // Multiple add
-      bundle.addNewsletter([newsletter2, newsletter1]);
-      expect(bundle.newsletters).toEqual(expect.arrayContaining([newsletter1._id, newsletter2._id]));
-      // No duplicates
-      expect(bundle.newsletters?.length).toBe(2);
+      await Bundle.addNewsletter(bundleId, ['nid2', 'nid3', 'nid1', 'nid3', 'nid3']);
+      ids = await Bundle.where({ _id: bundleId }).first().then(b => b?.newsletters || []);
+      expect(ids).toEqual(['nid1', 'nid2', 'nid3']);
     });
 
     it('addArticle adds single and multiple article ids, prevents duplicates', async () => {
-      const bundle = new Bundle({ user: '507f1f77bcf86cd799439011' });
       // Single add
-      bundle.addArticle('aid1');
-      expect(bundle.articles).toContain('aid1');
+      await Bundle.addArticle(bundleId, 'aid1');
+      let ids = await Bundle.where({ _id: bundleId }).first().then(b => b?.articles || []);
+      expect(ids).toEqual(['aid1']);
       // Duplicate add
-      bundle.addArticle('aid1');
-      expect(bundle.articles).toEqual(['aid1']);
+      await Bundle.addArticle(bundleId, 'aid1');
+      ids = await Bundle.where({ _id: bundleId }).first().then(b => b?.articles || []);
+      expect(ids).toEqual(['aid1']);
       // Multiple add
-      bundle.addArticle(['aid2', 'aid3', 'aid1', 'aid3', 'aid3']);
-      expect(bundle.articles).toEqual(['aid1', 'aid2', 'aid3']);
-    });
-
-    it('addArticle adds Article objects, prevents duplicates', async () => {
-      const bundle = new Bundle({ user: '507f1f77bcf86cd799439011' });
-      const article1 = new Article({ url: 'http://example.com/a1' });
-      const article2 = new Article({ url: 'http://example.com/a2' });
-      // Single add
-      bundle.addArticle(article1);
-      expect(bundle.articles).toEqual([article1._id]);
-      // Multiple add
-      bundle.addArticle([article2, article1]);
-      expect(bundle.articles).toEqual(expect.arrayContaining([article1._id, article2._id]));
-      // No duplicates
-      expect(bundle.articles?.length).toBe(2);
+      await Bundle.addArticle(bundleId, ['aid2', 'aid3', 'aid1', 'aid3', 'aid3']);
+      ids = await Bundle.where({ _id: bundleId }).first().then(b => b?.articles || []);
+      expect(ids).toEqual(['aid1', 'aid2', 'aid3']);
     });
   });
   describe('findNextToSend()', () => {
-    let user: User;
+    let user: IUser;
     beforeEach(async () => {
-      user = await new User({ email: 'user@example.com' }).save();
-    });
-
-    it('finds next unsent bundle by user object', async () => {
-      const bundle1 = await new Bundle({ user, sendOn: new Date('2024-01-01') }).save();
-      const bundle2 = await new Bundle({
-        user,
-        sendOn: new Date('2024-01-01'),
-        processingStage: Bundle.ProcessingStages.SENT,
-      }).save();
-      const bundle3 = await new Bundle({ user, sendOn: new Date('2024-01-02') }).save();
-      const next = await Bundle.findNextToSend(user);
-      expect(next?._id).toStrictEqual(bundle1._id);
+      user = await User.create({ email: 'user@example.com' } as any);
     });
 
     it('finds next unsent bundle by user id', async () => {
-      const bundle1 = await new Bundle({ user, sendOn: new Date('2024-01-01') }).save();
-      const bundle2 = await new Bundle({
-        user,
+      const bundle1 = await Bundle.create({ user: user._id, sendOn: new Date('2024-01-01') } as any);
+      await Bundle.create({
+        user: user._id,
         sendOn: new Date('2024-01-01'),
         processingStage: Bundle.ProcessingStages.SENT,
-      }).save();
-      const bundle3 = await new Bundle({ user, sendOn: new Date('2024-01-02') }).save();
-      const next = await Bundle.findNextToSend(user._id as any);
-      expect(next?._id).toStrictEqual(bundle1._id);
+      } as any);
+      await Bundle.create({ user: user._id, sendOn: new Date('2024-01-02') } as any);
+      const next = await Bundle.findNextToSend(user._id);
+      expect(next?._id).toBe(String(bundle1._id));
     });
 
     it('finds next unsent bundle by user email', async () => {
-      const bundle1 = await new Bundle({ user, sendOn: new Date('2024-01-01') }).save();
-      const bundle2 = await new Bundle({
-        user,
+      const bundle1 = await Bundle.create({ user: user._id, sendOn: new Date('2024-01-01') } as any);
+      await Bundle.create({
+        user: user._id,
         sendOn: new Date('2024-01-01'),
         processingStage: Bundle.ProcessingStages.SENT,
-      }).save();
-      const bundle3 = await new Bundle({ user, sendOn: new Date('2024-01-02') }).save();
+      } as any);
+      await Bundle.create({ user: user._id, sendOn: new Date('2024-01-02') } as any);
       const next = await Bundle.findNextToSend(user.email);
-      expect(next?._id).toStrictEqual(bundle1._id);
+      expect(next?._id).toBe(String(bundle1._id));
     });
 
     it('omits bundles with processingStage > 0', async () => {
-      const bundle1 = await new Bundle({ user, sendOn: new Date('2024-01-01') }).save();
+      const bundle1 = await Bundle.create({ user: user._id, sendOn: new Date('2024-01-01') } as any);
       let next = await Bundle.findNextToSend(user.email);
-      expect(next?._id).toStrictEqual(bundle1._id);
+      expect(next?._id).toBe(String(bundle1._id));
 
-      await bundle1.set({ processingStage: Bundle.ProcessingStages.PROCESSING_CONTENT }).save();
-      next = await Bundle.findNextToSend(user.email);
-      expect(next).toBeNull();
+      const stagesToOmit = [
+        Bundle.ProcessingStages.PROCESSING_CONTENT,
+        Bundle.ProcessingStages.CONTENT_PROCESSED,
+        Bundle.ProcessingStages.SENT,
+        Bundle.ProcessingStages.ERROR,
+        Bundle.ProcessingStages.COMPLETED_WITH_ERRORS,
+      ];
+      for (const stage of stagesToOmit) {
+        await Bundle.where({ _id: bundle1._id }).update({ processingStage: stage });
+        next = await Bundle.findNextToSend(user.email);
+        expect(next).toBeNull();
+      }
 
-      await bundle1.set({ processingStage: Bundle.ProcessingStages.CONTENT_PROCESSED }).save();
+      await Bundle.where({ _id: bundle1._id }).update({ processingStage: Bundle.ProcessingStages.NOT_STARTED });
       next = await Bundle.findNextToSend(user.email);
-      expect(next).toBeNull();
-
-      await bundle1.set({ processingStage: Bundle.ProcessingStages.SENT }).save();
-      next = await Bundle.findNextToSend(user.email);
-      expect(next).toBeNull();
-
-      await bundle1.set({ processingStage: Bundle.ProcessingStages.ERROR }).save();
-      next = await Bundle.findNextToSend(user.email);
-      expect(next).toBeNull();
-
-      await bundle1.set({ processingStage: Bundle.ProcessingStages.COMPLETED_WITH_ERRORS }).save();
-      next = await Bundle.findNextToSend(user.email);
-      expect(next).toBeNull();
-
-      await bundle1.set({ processingStage: Bundle.ProcessingStages.NOT_STARTED }).save();
-      next = await Bundle.findNextToSend(user.email);
-      expect(next?._id).toStrictEqual(bundle1._id);
+      expect(next?._id).toBe(String(bundle1._id));
     });
   });
 
   describe('getUnreadArticles()', () => {
-    let user: User;
-    let otherUser: User;
-    let bundle: Bundle;
+    let user: IUser;
+    let otherUser: IUser;
+    let bundleId: string;
 
     beforeEach(async () => {
-      user = await User.create({ email: 'reader@example.com' });
-      otherUser = await User.create({ email: 'other-reader@example.com' });
+      user = await User.create({ email: 'reader@example.com' } as any);
+      otherUser = await User.create({ email: 'other-reader@example.com' } as any);
 
       // Direct bundle articles
-      const directUnread = await Article.create({ content: 'direct unread', header: 'Direct unread' });
-      const directUnread2 = await Article.create({ content: 'direct unread 2', header: 'Direct unread 2' });
-      const directReacted = await Article.create({ content: 'direct reacted', header: 'Direct reacted' });
-      const directWithError = await Article.create({
+      const directUnread = await Article.create(articleInput({ content: 'direct unread', header: 'Direct unread' }));
+      const directUnread2 = await Article.create(articleInput({ content: 'direct unread 2', header: 'Direct unread 2' }));
+      const directReacted = await Article.create(articleInput({ content: 'direct reacted', header: 'Direct reacted' }));
+      const directWithError = await Article.create(articleInput({
         content: 'direct with error',
         header: 'Direct with error',
         lastError: 'failed processing',
-      });
+      }));
 
       // Newsletter articles
-      const newsletterUnread = await Article.create({
+      const newsletterUnread = await Article.create(articleInput({
         content: 'newsletter unread',
         header: 'Newsletter unread',
-      });
-      const newsletterUnread2 = await Article.create({
+      }));
+      const newsletterUnread2 = await Article.create(articleInput({
         content: 'newsletter unread 2',
         header: 'Newsletter unread 2',
-      });
-      const newsletterReacted = await Article.create({
+      }));
+      const newsletterReacted = await Article.create(articleInput({
         content: 'newsletter reacted',
         header: 'Newsletter reacted',
-      });
-      const newsletterWithError = await Article.create({
+      }));
+      const newsletterWithError = await Article.create(articleInput({
         content: 'newsletter with error',
         header: 'Newsletter with error',
         lastError: 'failed processing',
-      });
+      }));
 
-      const newsletter = await Newsletter.create({
+      const newsletter = await Newsletter.create(newsletterInput({
         content: 'Digest #1',
         articles: [newsletterUnread._id, newsletterUnread2._id, newsletterReacted._id, newsletterWithError._id],
-      });
+      }));
 
-      bundle = await Bundle.create({
+      const bundle = await Bundle.create({
         user: user._id,
         articles: [directUnread._id, directUnread2._id, directReacted._id, directWithError._id],
         newsletters: [newsletter._id],
-      });
+      } as any);
+      bundleId = bundle._id;
 
       // User has already reacted to one direct and one newsletter article
       await Reaction.create({
         user: user._id,
         article: directReacted._id,
         reaction: ReactionsEnum.UPVOTE,
-      });
+        date: null,
+      } as any);
       await Reaction.create({
         user: user._id,
         article: newsletterReacted._id,
         reaction: ReactionsEnum.SKIP,
-      });
+        date: null,
+      } as any);
 
       // Reaction from another user must not affect unread results for `user`
       await Reaction.create({
         user: otherUser._id,
         article: directUnread._id,
         reaction: ReactionsEnum.SKIP,
-      });
+        date: null,
+      } as any);
     });
 
     it('returns only unread, error-free articles for both bundle and newsletter sources', async () => {
-      const result = await Bundle.getUnreadArticles(bundle._id);
+      const result = await Bundle.getUnreadArticles(bundleId);
 
       expect(result).toBeTruthy();
-      expect(result?.user).toEqual(user._id);
+      expect(result?.user).toBe(String(user._id));
       expect(result?.allArticleIds?.length).toBe(8);
 
       // Direct articles filtered to only unread + no lastError
@@ -238,84 +220,63 @@ describe('Bundle', () => {
     });
 
     it('returns null when bundle does not exist', async () => {
-      const nonExistingId = new Types.ObjectId();
-      const result = await Bundle.getUnreadArticles(nonExistingId);
+      const nonexistentBundleId = new ObjectId().toString();
+      const result = await Bundle.getUnreadArticles(nonexistentBundleId);
       expect(result).toBeNull();
     });
   });
 
   describe('unpackNewsletters()', () => {
-    let bundleId: typeof Bundle.prototype._id;
+    let bundleId: string;
 
     beforeEach(async () => {
-      const newsletter1 = await Newsletter.create({ content: 'Newsletter 1' });
-      const newsletter2 = await Newsletter.create({ content: 'Newsletter 2' });
+      const newsletter1 = await Newsletter.create(newsletterInput({ content: 'Newsletter 1' }));
+      const newsletter2 = await Newsletter.create(newsletterInput({ content: 'Newsletter 2' }));
 
-      const user = await User.create({ email: 'user@somewhere.ca' });
+      const user = await User.create({ email: 'user@somewhere.ca' } as any);
       const bundle = await Bundle.create({
-        user,
-        newsletters: [newsletter1, newsletter2],
-      });
-      await bundle.save();
+        user: user._id,
+        newsletters: [newsletter1._id, newsletter2._id],
+      } as any);
       bundleId = bundle._id;
     });
 
     it('extracts all newsletters', async () => {
-      vi.spyOn(Newsletter, 'extractArticles').mockResolvedValue(0);
+      vi.spyOn(Newsletter, 'extractArticlesBatch').mockResolvedValue(0);
 
-      const bundle = (await Bundle.findById(bundleId)) as Bundle;
-      await bundle._unpackNewsletters();
+      await Bundle.unpackNewsletters(bundleId);
 
       // There should be at least 1 newsletters in the bundle (see beforeEach)
-      expect(Newsletter.extractArticles).toHaveBeenCalledOnce();
+      expect(Newsletter.extractArticlesBatch).toHaveBeenCalledOnce();
     });
 
-    it('requires bundle to be saved and unmodified', async () => {
-      const user = await User.create({ email: 'user@domain.ca' });
-      const bundle = new Bundle({ user });
-      await expect(bundle._unpackNewsletters()).rejects.toThrow();
-
-      await bundle.save();
-      await expect(bundle._unpackNewsletters()).resolves.toBe(0);
-
-      bundle.addArticle('aNewArticleId');
-      await expect(bundle._unpackNewsletters()).rejects.toThrow();
-    });
-
-    it('works when pulling limited fields', async () => {
-      vi.spyOn(Newsletter, 'extractArticles').mockResolvedValue(0);
-
-      // Fetch only _id field
-      const bundle = (await Bundle.findById(bundleId).select('_id')) as Bundle;
-      await bundle._unpackNewsletters();
-
-      expect(Newsletter.extractArticles).toHaveBeenCalledOnce();
+    it('throws when bundle does not exist', async () => {
+      await expect(Bundle.unpackNewsletters('nonexistentId')).rejects.toThrow();
     });
   });
 
   describe('processContent()', () => {
-    let bundleId: typeof Bundle.prototype._id;
+    let bundleId: string;
 
     beforeEach(async () => {
       vi.resetAllMocks();
-      vi.spyOn(Article.prototype, 'process').mockResolvedValue(); // All articles succeed
-      vi.spyOn(Newsletter, 'extractArticles').mockResolvedValue(0); // All newsletters succeed
+      vi.spyOn(Article, 'process').mockResolvedValue(); // All articles succeed
+      vi.spyOn(Newsletter, 'extractArticlesBatch').mockResolvedValue(0); // All newsletters succeed
 
-      const article1 = await Article.create({ content: 'Article #1' });
-      const article2 = await Article.create({ content: 'Article #2' });
-      const article11 = await Article.create({ content: 'Article #11' });
-      const article21 = await Article.create({ content: 'Article #21' });
-      const article22 = await Article.create({ content: 'Article #22' });
-      const newsletter1 = await Newsletter.create({ content: 'Newsletter 1', articles: [article11] });
-      const newsletter2 = await Newsletter.create({ content: 'Newsletter 2', articles: [article21, article22] });
+      const article1 = await Article.create(articleInput({ content: 'Article #1' }));
+      const article2 = await Article.create(articleInput({ content: 'Article #2' }));
+      const article11 = await Article.create(articleInput({ content: 'Article #11' }));
+      const article21 = await Article.create(articleInput({ content: 'Article #21' }));
+      const article22 = await Article.create(articleInput({ content: 'Article #22' }));
+      const newsletter1 = await Newsletter.create(newsletterInput({ content: 'Newsletter 1', articles: [article11._id] }));
+      const newsletter2 = await Newsletter.create(newsletterInput({ content: 'Newsletter 2', articles: [article21._id, article22._id] }));
 
-      const user = await User.create({ email: 'user@somewhere.ca' });
+      const user = await User.create({ email: 'user@somewhere.ca' } as any);
       const bundle = await Bundle.create({
-        user,
-        articles: [article1, article2],
-        newsletters: [newsletter1, newsletter2],
-      });
-      await bundle.save();
+        user: user._id,
+        articles: [article1._id, article2._id],
+        newsletters: [newsletter1._id, newsletter2._id],
+      } as any);
       bundleId = bundle._id;
     });
 
@@ -323,69 +284,52 @@ describe('Bundle', () => {
       vi.resetAllMocks();
     });
 
-    it('requires bundle to be saved and unmodified', async () => {
-      const user = await User.create({ email: 'user@domain.ca' });
-      const bundle = new Bundle({ user });
-      await expect(bundle.processContent()).rejects.toThrow();
-
-      await bundle.save();
-      await expect(bundle.processContent()).resolves.toBe(0);
-
-      bundle.addArticle('aNewArticleId');
-      await expect(bundle.processContent()).rejects.toThrow();
+    it('throws when bundle does not exist', async () => {
+      await expect(Bundle.processContent('nonexistentId')).rejects.toThrow();
     });
 
-    it('works when pulling limited fields', async () => {
-      // Fetch only _id field
-      const bundle = (await Bundle.findById(bundleId).select('_id')) as Bundle;
-      await bundle.processContent();
+    it('processes all articles across direct and newsletter refs', async () => {
+      await Bundle.processContent(bundleId);
 
       // Assuming there are 5 articles total in the newsletters (see beforeEach)
-      expect(Article.prototype.process).toHaveBeenCalledTimes(5);
+      expect(Article.process).toHaveBeenCalledTimes(5);
     });
 
     it('should update `ProcessingStages` accordingly', async () => {
-      const bundle = (await Bundle.findById(bundleId)) as Bundle;
-
       // mockImplementationOnce to check stage during processing
-      vi.spyOn(Article.prototype, 'process')
-        .mockImplementationOnce(async function (this: any) {
-          const b = (await Bundle.findById(bundle._id)) as Bundle;
-          expect(b.processingStage).toBe(Bundle.ProcessingStages.PROCESSING_CONTENT);
+      vi.spyOn(Article, 'process')
+        .mockImplementationOnce(async () => {
+          const b = await Bundle.where({ _id: bundleId }).first();
+          expect(b?.processingStage).toBe(Bundle.ProcessingStages.PROCESSING_CONTENT);
         })
         .mockResolvedValue();
 
       // After successful processing, stage should be CONTENT_PROCESSED
-      await bundle.processContent();
-      let updated = (await Bundle.findById(bundle._id)) as Bundle;
-      expect(updated.processingStage).toBe(Bundle.ProcessingStages.CONTENT_PROCESSED);
+      await Bundle.processContent(bundleId);
+      let updated = await Bundle.where({ _id: bundleId }).first();
+      expect(updated?.processingStage).toBe(Bundle.ProcessingStages.CONTENT_PROCESSED);
 
       // Simulate one article failing
-      vi.spyOn(Article.prototype, 'process').mockRejectedValueOnce(new Error('Article failed!'));
-      await bundle.processContent();
-      updated = (await Bundle.findById(bundle._id)) as Bundle;
-      expect(updated.processingStage).toBe(Bundle.ProcessingStages.COMPLETED_WITH_ERRORS);
+      vi.spyOn(Article, 'process').mockRejectedValueOnce(new Error('Article failed!'));
+      await Bundle.processContent(bundleId);
+      updated = await Bundle.where({ _id: bundleId }).first();
+      expect(updated?.processingStage).toBe(Bundle.ProcessingStages.COMPLETED_WITH_ERRORS);
 
-      // Force an error in processElements by mocking slice to throw
-      vi.spyOn(Bundle.prototype as any, 'save').mockImplementationOnce(() => {
-        throw new Error('Bundle failed!');
-      });
-      await expect(bundle.processContent()).resolves.toBe(-1);
-      updated = (await Bundle.findById(bundle._id)) as Bundle;
-      expect(updated.processingStage).toBe(Bundle.ProcessingStages.ERROR);
+      // Force a fatal error
+      vi.spyOn(Newsletter, 'extractArticlesBatch').mockRejectedValueOnce(new Error('Bundle failed!'));
+      await expect(Bundle.processContent(bundleId)).resolves.toBe(-1);
+      updated = await Bundle.where({ _id: bundleId }).first();
+      expect(updated?.processingStage).toBe(Bundle.ProcessingStages.ERROR);
     });
 
     it('allow re-run regardless of stage', async () => {
-      const bundle = (await Bundle.findById(bundleId)) as Bundle;
-
       // Set to various stages and ensure processArticles can still run
       for (const stage of Object.values(Bundle.ProcessingStages)) {
         // Skip invalid stages
         if (typeof stage !== 'number') continue;
 
-        bundle.processingStage = stage;
-        await bundle.save();
-        await expect(bundle.processContent()).resolves.toBe(0);
+        await Bundle.where({ _id: bundleId }).update({ processingStage: stage });
+        await expect(Bundle.processContent(bundleId)).resolves.toBe(0);
       }
     });
 
@@ -398,9 +342,8 @@ describe('Bundle', () => {
         originalFn(items, fn, { ...opts, concurrency: 2 })
       );
 
-      const bundle = (await Bundle.findById(bundleId)) as Bundle;
-      await bundle.processContent({ pulsecheck: pulseFn });
-      expect(pulseFn).toHaveBeenCalledTimes(3); // Assuming 5 items, concurrency 1 => 3 batches
+      await Bundle.processContent(bundleId, { pulsecheck: pulseFn });
+      expect(pulseFn).toHaveBeenCalledTimes(3); // Assuming 5 items, concurrency 2 => 3 batches
     });
   });
 });
