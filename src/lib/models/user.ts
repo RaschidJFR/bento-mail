@@ -23,7 +23,7 @@ async function exists(filter: MongoWhereFilter<Contract, 'User'>,): Promise<Obje
 function findByEmail(email: string) {
   return users.where(
     MongoOrExpr.of([MongoFieldFilter.eq('email', email), MongoFieldFilter.eq('aliasEmail', email)]),
-  );
+  ).first();
 }
 
 export const User = Object.assign(users, { findByEmail, exists });

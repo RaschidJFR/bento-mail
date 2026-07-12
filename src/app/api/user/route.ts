@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Check if user already exists
-    const exists = await User.findByEmail(email).select('_id').first();
+    const exists = await User.findByEmail(email);
     if (exists) {
       return Response.json({ error: 'User already exists.', result: exists }, { status: 409 });
     }

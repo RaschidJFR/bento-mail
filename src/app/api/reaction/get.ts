@@ -1,6 +1,6 @@
 import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
 import { NextRequest } from 'next/server';
-import { Bundle, User, Article, Reaction } from '@lib/models';
+import { Bundle, User, Article, Reaction, Newsletter } from '@lib/models';
 
 export default async function (req: NextRequest) {
   try {
@@ -22,12 +22,20 @@ export default async function (req: NextRequest) {
 
 async function getByBundle(bundleId: string) {
   // Find bundle and get all article IDs
-  const bundle = await Bundle.findById(bundleId).populate('newsletters', 'articles');
+  const bundle = await Bundle.findById(bundleId);
   if (!bundle) {
     return Response.json({ error: 'Bundle not found' }, { status: 404 });
   }
 
-  const articleIds = bundle.unwrapArticleIds();
+  const newsletterIds = bundle.newsletters || [];
+  const newsletters = await Newsletter.where(MongoFieldFilter.in('_id', newsletterIds))
+    .select('articles')
+    .all();
+
+  const articleIds = Bundle.unwrapArticleIds({
+    articles: bundle.articles || [],
+    newsletters,
+  });
 
   const reactions = await Reaction.where({ user: String(bundle.user) })
     .where(MongoFieldFilter.in('article', articleIds))

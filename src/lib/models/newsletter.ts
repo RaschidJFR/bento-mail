@@ -60,6 +60,14 @@ async function exists(filter: MongoWhereFilter<Contract, 'Newsletter'>): Promise
 }
 
 /**
+ * Convenience method.
+ * Short for `newsletters.where({ _id: id }).first()`
+ */
+async function findById(id: string) {
+  return newsletters.where({ _id: id }).first();
+}
+
+/**
  * Return newsletters that contain the given article id.
  */
 function findByArticle(articleId: IArticle['_id']) {
@@ -216,6 +224,7 @@ async function extractArticlesBatch(
 export const Newsletter = Object.assign(newsletters, {
   create,
   exists,
+  findById,
   findByArticle,
   extractArticles,
   extractArticlesBatch,

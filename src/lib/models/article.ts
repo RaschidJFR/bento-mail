@@ -40,6 +40,14 @@ async function exists(filter: MongoWhereFilter<Contract, 'Article'>): Promise<st
 }
 
 /**
+ * Convenience method.
+ * Short for `articles.where({ _id: id }).first()`
+ */
+async function findById(id: string) {
+  return articles.where({ _id: id }).first();
+}
+
+/**
  * Check if an article has been fully processed.
  */
 function isProcessed(article: Pick<IArticle, 'summaries' | 'lastError'>): boolean {
@@ -116,4 +124,4 @@ async function process(_id: string, { force = false, generateImage = false } = {
   }
 }
 
-export const Article = Object.assign(articles, { create, exists, isProcessed, process, generateId });
+export const Article = Object.assign(articles, { create, exists, findById, isProcessed, process, generateId });

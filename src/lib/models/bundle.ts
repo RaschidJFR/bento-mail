@@ -53,6 +53,14 @@ async function exists(filter: MongoWhereFilter<Contract, 'Bundle'>): Promise<Obj
 }
 
 /**
+ * Convenience method.
+ * Short for `bundles.where({ _id: id }).first()`
+ */
+async function findById(id: ObjectId | string) {
+  return bundles.where({ _id: String(id) }).first();
+}
+
+/**
  * Add one or more newsletter ids to the bundle identified by `_id`,
  * preventing duplicates.
  * @param _id - The bundle id
@@ -108,7 +116,7 @@ async function _addRefs(
 async function findNextToSend(user: string | ObjectId): Promise<IBundle | null> {
   let userId: string;
   if (typeof user === 'string' && !ObjectId.isValid(user)) {
-    const matched = await User.findByEmail(user).select('_id').first();
+    const matched = await User.findByEmail(user);
     if (!matched) return null;
     userId = String(matched._id);
   } else {
@@ -215,6 +223,7 @@ async function processContent(
  * Unwrap all article ids in a populated bundle, including those from
  * its newsletters.
  * @note Requires `articles` and `newsletters` (with their `articles`) to be populated.
+ * @returns An array of article ids from the bundle and its newsletters.
  */
 function unwrapArticleIds(bundle: {
   articles?: readonly (string | { _id: string })[] | null;
@@ -290,6 +299,7 @@ async function getUnreadArticles(bundleId: ObjectId | string) {
 export const Bundle = Object.assign(bundles, {
   create,
   exists,
+  findById,
   addNewsletter,
   addArticle,
   findNextToSend,
