@@ -1,10 +1,39 @@
 import { Newsletter, INewsletter, Article, IArticle } from '@lib/models';
 import { Server, Socket } from 'socket.io';
-import type { ChangeStream, ChangeStreamDocument } from 'mongodb';
+import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
+import { MongoClient } from 'mongodb';
+import type { ChangeStream, ChangeStreamDocument, Collection } from 'mongodb';
 
 const EMIT_EVENT_NAME = 'articleChanged';
 let articleChangeStream: ChangeStream<IArticle>;
 let newsletterChangeStream: ChangeStream<INewsletter>;
+let mongoClient: MongoClient | null = null;
+let articleCollection: Collection<IArticle> | null = null;
+let newsletterCollection: Collection<INewsletter> | null = null;
+
+async function getCollections(): Promise<{
+  articleCollection: Collection<IArticle>;
+  newsletterCollection: Collection<INewsletter>;
+}> {
+  if (articleCollection && newsletterCollection) {
+    return { articleCollection, newsletterCollection };
+  }
+
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI is required for MongoDB change streams');
+  }
+
+  if (!mongoClient) {
+    mongoClient = new MongoClient(mongoUri);
+  }
+
+  await mongoClient.connect();
+  const database = mongoClient.db();
+  articleCollection = database.collection<IArticle>('articles');
+  newsletterCollection = database.collection<INewsletter>('newsletters');
+  return { articleCollection, newsletterCollection };
+}
 
 export async function setupArticleChangestream(io: Server) {
   io.on('connection', (client) => {
@@ -21,6 +50,8 @@ export async function setupArticleChangestream(io: Server) {
 }
 
 async function setupNewsletterStream(io: Server) {
+  const { newsletterCollection } = await getCollections();
+
   const pipeline = [
     {
       $match: {
@@ -35,16 +66,18 @@ async function setupNewsletterStream(io: Server) {
     console.warn('Error closing previous newsletter change stream: %o', e);
   } finally {
     console.log('Creating newsletter change stream.');
-    newsletterChangeStream = Newsletter.watch<INewsletter, ChangeStreamDocument>(pipeline, {
+    newsletterChangeStream = newsletterCollection.watch(pipeline, {
       fullDocument: 'updateLookup',
       fullDocumentBeforeChange: 'whenAvailable',
-    }) as any;
+    }) as ChangeStream<INewsletter>;
   }
   newsletterChangeStream.on('change', (change) => onNewsletterChange(io, change as ChangeStreamDocument<INewsletter>));
   return newsletterChangeStream;
 }
 
 async function setupArticleCreationStream(io: Server) {
+  const { articleCollection } = await getCollections();
+
   const pipeline = [
     {
       $match: {
@@ -61,9 +94,9 @@ async function setupArticleCreationStream(io: Server) {
     console.warn('Error setting up article change stream: %o', e);
   } finally {
     console.log('Creating article change stream.');
-    articleChangeStream = Article.watch<IArticle, ChangeStreamDocument>(pipeline, {
+    articleChangeStream = articleCollection.watch(pipeline, {
       fullDocument: 'updateLookup',
-    }) as any;
+    }) as ChangeStream<IArticle>;
   }
 
   articleChangeStream.on('change', (change) => onArticleChange(io, change as ChangeStreamDocument<IArticle>));
@@ -73,7 +106,7 @@ async function setupArticleCreationStream(io: Server) {
 async function joinNewsletterArticles(client: Socket, newsletterId: string) {
   console.log(`Client %o joining Articles rooms for newsletter %o`, client.id, roomName(newsletterId));
 
-  const newsletter: INewsletter | null = await Newsletter.exists({ _id: newsletterId }).lean();
+  const newsletter: string | null = await Newsletter.exists({ _id: newsletterId });
   if (!newsletter) {
     console.warn('Newsletter not found: %o', newsletterId);
     client.emit('error', { message: 'Newsletter not found', newsletterId });
@@ -87,7 +120,7 @@ async function onArticleChange(io: Server, change: ChangeStreamDocument<IArticle
   const articleId = 'documentKey' in change ? change.documentKey._id : null;
   if (!articleId) return null; // Should not happen
 
-  const newsletters: INewsletter[] = await Newsletter.find({ articles: articleId }).select('_id').lean();
+  const newsletters: INewsletter[] = await Newsletter.where({ articles: articleId }).select('_id').all();
   if (!newsletters.length) {
     console.warn('[%o] No newsletters found for article %o', change.operationType, articleId);
     return;
@@ -114,7 +147,7 @@ async function onNewsletterChange(io: Server, change: ChangeStreamDocument<INews
       io.to(roomName(newsletterId)).emit(EMIT_EVENT_NAME, { _id: articleId, data: null });
     });
 
-    const addedArticles = await Article.find({ _id: { $in: added } }).lean();
+    const addedArticles = await Article.where(MongoFieldFilter.in('_id', added)).all();
     addedArticles.forEach((article) => {
       io.to(roomName(newsletterId)).emit(EMIT_EVENT_NAME, { _id: article._id, data: article });
     });

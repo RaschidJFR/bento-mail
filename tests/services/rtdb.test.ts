@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client';
 import { afterAll, afterEach, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
 import type { ObjectId } from 'mongodb';
 
-describe('RTDB Service', { skip: true }, () => {
+describe('RTDB Service', () => {
   const port = 12899;
   let server: Server;
   let client: Socket;

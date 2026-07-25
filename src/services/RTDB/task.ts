@@ -10,7 +10,7 @@ let taskChangeStream: ChangeStream<TaskArticleProcess>;
 async function joinNewsletterTasks(client: Socket, newsletterId: string) {
   console.log(`Client %o joining Tasks room for newsletter %o`, client.id, roomName(newsletterId));
 
-  const newsletter: INewsletter | null = await Newsletter.exists({ _id: newsletterId }).lean();
+  const newsletter: string | null = await Newsletter.exists({ _id: newsletterId });
   if (!newsletter) {
     console.warn('Newsletter not found: %o', newsletterId);
     client.emit('error', { message: 'Newsletter not found', newsletterId });
@@ -68,7 +68,7 @@ async function onArticleProcessTaskChange(io: Server, change: ChangeStreamDocume
     return;
   }
 
-  const newsletters: INewsletter[] = await Newsletter.find({ articles: articleId }).select('_id').lean();
+  const newsletters: INewsletter[] = await Newsletter.where({ articles: articleId }).select('_id').all();
   if (!newsletters.length) {
     console.warn('[%o] No newsletters found for article %o in task %o', change.operationType, articleId, taskId);
     return;
