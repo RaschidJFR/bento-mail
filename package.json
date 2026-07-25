@@ -2,7 +2,7 @@
   "name": "bento-mail",
   "version": "0.1.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "start": "npm run dev & npm run mail & npm run worker & npm run rtdb",
