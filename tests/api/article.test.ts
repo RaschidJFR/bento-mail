@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { POST as POST_PROCESS } from '@app/api/article/[id]/process/route';
 import { POST as POST_CREATE } from '@app/api/article/route';
-import { Article } from '@lib/models/article';
+import { Article, IArticle } from '@lib/models/article';
 
 function mockReq(body: any) {
   return {
@@ -24,7 +24,7 @@ describe('POST /api/article', () => {
     const res = await POST_CREATE(req as any);
     expect(res.status).toBe(201);
     const data = await res.json();
-    const article = await Article.findById(data.result._id).lean();
+    const article = await Article.findById(data.result._id);
     expect(article?.content).toBe('New article content');
   });
 
@@ -35,7 +35,17 @@ describe('POST /api/article', () => {
   });
 
   it('returns 409 if article already exists', async () => {
-    const existing = await Article.create({ content: 'Existing content' });
+    const existing = await Article.create({ 
+      content: 'Existing content',
+      header: 'article header',
+      sourceName: 'source ',
+      url: null,
+      date: null,
+      coverImg: null,
+      summaries: null,
+      linkedArticles: null,
+      lastError: null,
+    });
     const req = mockReq({ content: 'Existing content', format: 'text' });
     const res = await POST_CREATE(req as any);
     expect(res.status).toBe(409);
@@ -46,10 +56,20 @@ describe('POST /api/article', () => {
 });
 
 describe('POST /api/article/[id]/process', () => {
-  let article: Article;
+  let article: IArticle;
 
   beforeEach(async () => {
-    article = await Article.create({ content: 'Test Article' });
+    article = await Article.create({ 
+      content: 'Test Article',
+      header: 'article header',
+      sourceName: 'source ',
+      url: null,
+      date: null,
+      coverImg: null,
+      summaries: null,
+      linkedArticles: null,
+      lastError: null,
+     });
   });
 
   it('returns 404 if article not found', async () => {
@@ -81,7 +101,7 @@ describe('POST /api/article/[id]/process', () => {
     // Verify that agenda methods were called correctly
     expect(agendaMock.create).toHaveBeenCalledWith(
       workerModule.JobNames.Article.process,
-      expect.objectContaining({ id: article._id, force: false, generateImage: false })
+      expect.objectContaining({ id: article._id, force: false, generateImage: false }),
     );
     expect(agendaMock.schedule).toHaveBeenCalledWith('now');
     expect(agendaMock.unique).toHaveBeenCalledWith(expect.objectContaining({ 'data.id': article._id }), {

@@ -2,11 +2,7 @@ import type { InferRootRow, MongoWhereFilter } from '@prisma-next/mongo-orm';
 import type { Contract } from '@lib/prisma/contract.d';
 import { db } from '@lib/prisma/db';
 import { Article, IArticle } from './article';
-import {
-  extractArticlesFromNewsletter,
-  extractArticleDetails,
-  classifyContent,
-} from '@lib/ai-article-analyzer';
+import { extractArticlesFromNewsletter, extractArticleDetails, classifyContent } from '@lib/ai-article-analyzer';
 import { hash, applyInBatches } from '@lib/utils';
 
 export type INewsletter = InferRootRow<Contract, 'Newsletter'>;
@@ -97,22 +93,14 @@ async function extractArticles(id: string, { force = false } = {}): Promise<numb
     return 0;
   }
   if (existing.error && !force) {
-    console.warn(
-      `Newsletter %o previously failed. Skipping extraction. Error: (${existing.error})`,
-      id
-    );
+    console.warn(`Newsletter %o previously failed. Skipping extraction. Error: (${existing.error})`, id);
     return 1;
   }
 
   try {
     console.log(`Extracting articles for newsletter %o...`, id);
     const classification = await classifyContent(content);
-    console.log(
-      `Classified newsletter %o as type: %o. Reason: %s`,
-      id,
-      classification.type,
-      classification.reason
-    );
+    console.log(`Classified newsletter %o as type: %o. Reason: %s`, id, classification.type, classification.reason);
     const contentType = classification.type;
 
     let name = existing.name || '';
@@ -122,7 +110,7 @@ async function extractArticles(id: string, { force = false } = {}): Promise<numb
     // If the content is classified as an article, we treat it as a single article newsletter.
     if (contentType === 'article') {
       const data = await extractArticleDetails(content, { skipVerify: true });
-      name = data.sourceName || name; 
+      name = data.sourceName || name;
       date = data.date || date;
       dArticles = [data];
       console.log(`Identified 1 article in newsletter %o.`, id);
@@ -143,10 +131,9 @@ async function extractArticles(id: string, { force = false } = {}): Promise<numb
     await applyInBatches(dArticles, async (a) => {
       try {
         const articleContent = a.content || content || '';
-        const id = hash(articleContent);  // TODO: use article title for more stable id generation
+        const id = hash(articleContent); // TODO: use article title for more stable id generation
         const existingArt = await Article.where({ _id: id }).first();
         if (!existingArt) {
-
           // TODO: use bulk write instead of individual creates for performance
           await Article.create({
             ...a,
@@ -162,7 +149,7 @@ async function extractArticles(id: string, { force = false } = {}): Promise<numb
             lastError: a.lastError ?? null,
           });
         } else {
-          // TODO: evaluate if this patch is necessary, or if we should just skip existing articles. 
+          // TODO: evaluate if this patch is necessary, or if we should just skip existing articles.
           // For now, we will patch missing fields.
           const patch: Partial<IArticle> = {};
           if (!existingArt.header) patch.header = a.header || a.summaries?.oneliner || '';
@@ -186,10 +173,7 @@ async function extractArticles(id: string, { force = false } = {}): Promise<numb
       articles: savedArticleIds,
       error: '',
     });
-    console.log(
-      `Created ${savedArticleIds.length} articles for newsletter %o with ${errCount} errors.\n`,
-      id
-    );
+    console.log(`Created ${savedArticleIds.length} articles for newsletter %o with ${errCount} errors.\n`, id);
     return errCount;
   } catch (error: any) {
     console.error(`Error extracting articles for newsletter %o:\n`, id, error, '\n');
@@ -204,7 +188,7 @@ async function extractArticles(id: string, { force = false } = {}): Promise<numb
  */
 async function extractArticlesBatch(
   newsletterId: string[],
-  { pulsecheck = () => {} }: { pulsecheck?: () => void } = {}
+  { pulsecheck = () => {} }: { pulsecheck?: () => void } = {},
 ): Promise<number> {
   let errCount = 0;
   await applyInBatches(
@@ -216,9 +200,13 @@ async function extractArticlesBatch(
         return 1;
       });
     },
-    { pulsecheck }
+    { pulsecheck },
   );
   return errCount;
+}
+
+function addArticle(newsletterId: string, articleId: string) {
+  return newsletters.where({ _id: newsletterId }).update((n) => [n.articles.addToSet(articleId)]);
 }
 
 export const Newsletter = Object.assign(newsletters, {
@@ -229,4 +217,5 @@ export const Newsletter = Object.assign(newsletters, {
   extractArticles,
   extractArticlesBatch,
   generateId,
+  addArticle,
 });

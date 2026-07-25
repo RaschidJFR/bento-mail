@@ -120,6 +120,7 @@ describe('Newsletter', () => {
       const mockData = {
         articles: mockArticles,
         name: 'Newsletter Name',
+        date: '2023-10-10',
       };
 
       const analyzer = await import('@lib/ai-article-analyzer');
@@ -132,16 +133,16 @@ describe('Newsletter', () => {
       expect(analyzer.extractArticlesFromNewsletter).toHaveBeenCalledWith('The content in the newsletter');
 
       const updated = await fetchNewsletter(created._id);
-      expect(updated?.date).toBe('2023-10-10');
-      expect(updated?.name).toBe('Newsletter Name');
+      expect(updated?.date).toBe(mockData.date);
+      expect(updated?.name).toBe(mockData.name);
 
       const articles = await fetchArticlesOf(created._id);
       const article1 = articles.find((a) => a?.header === 'Article 1')!;
       const article2 = articles.find((a) => a?.header === 'Article 2')!;
-      expect(article1.sourceName).toBe('Newsletter Name'); // defaulted to newsletter's
+      expect(article1.sourceName).toBe(mockData.name); // defaulted to newsletter's
       expect(article1.date).toBe('2000-10-01'); // preferred from article
       expect(article2.sourceName).toBe('Original Source'); // preferred from article
-      expect(article2.date).toBe('2023-10-10'); // defaulted to newsletter's
+      expect(article2.date).toBe(mockData.date); // defaulted to newsletter's
     });
 
     it('generates article from `content` (single-article)', async () => {
