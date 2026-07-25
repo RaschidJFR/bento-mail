@@ -21,7 +21,7 @@ export function defineJobs(agenda: Agenda) {
     if (!id) {
       throw new Error('Missing id');
     }
-    const bundle = await Bundle.findById({ _id: id });
+    const bundle = await Bundle.findById(id);
     if (!bundle) {
       throw new Error(`Bundle not found: ${id}`);
     } else if (bundle.processingStage > Bundle.ProcessingStages.NOT_STARTED) {
@@ -30,7 +30,7 @@ export function defineJobs(agenda: Agenda) {
 
     try {
       // Using pulsecheck to keep the job locked
-      const errors = await bundle.processContent({ pulsecheck: () => job.touch() });
+      const errors = await Bundle.processContent(bundle._id, { pulsecheck: () => job.touch() });
       return { errors, status: bundle.processingStage };
     } catch (err) {
       console.error(`[worker] Error unpacking newsletters in bundle ${id}:`, err);
@@ -46,17 +46,17 @@ export function defineJobs(agenda: Agenda) {
     if (!newsletterId) {
       throw new Error('Missing id');
     }
-    const newsletter = await Newsletter.findById({ _id: newsletterId });
+    const newsletter = await Newsletter.findById(newsletterId);
     if (!newsletter) {
       throw new Error(`Newsletter not found: ${newsletterId}`);
     }
 
     try {
-      const errors = await newsletter.extractArticles({ force });
+      const errors = await Newsletter.extractArticles(newsletter._id, { force });
 
       // Queue article processing jobs
-      await applyInBatches(newsletter.articles || [], (articleId) => {
-        articleId = typeof articleId === 'string' ? articleId : articleId._id?.toString();
+      await applyInBatches(Array.from(newsletter.articles || []), (articleId) => {
+        articleId = String(articleId); // Ensure articleId is a string
         return agenda
           .create(JobNames.Article.process, { id: articleId, force })
           .schedule('now')
@@ -82,14 +82,14 @@ export function defineJobs(agenda: Agenda) {
       if (!id) {
         throw new Error('Missing id');
       }
-      const article = await Article.findById({ _id: id });
+      const article = await Article.findById(id);
       if (!article) {
         throw new Error(`Article not found: ${id}`);
       }
 
       try {
-        await article.process({ force, generateImage });
-        return { processed: article.isProcessed() };
+        await Article.process(article._id, { force, generateImage });
+        return { processed: Article.isProcessed(article) };
       } catch (err: any) {
         console.error(`[worker] Error processing article ${id}:`, err.message);
         throw err;
