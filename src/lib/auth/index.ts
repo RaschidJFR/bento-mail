@@ -2,16 +2,17 @@ import { betterAuth } from 'better-auth';
 import { mongodbAdapter } from 'better-auth/adapters/mongodb';
 import { MongoClient } from 'mongodb';
 import 'dotenv/config';
+import ConnectionString from 'mongodb-connection-string-url';
 
 const mongoUri = process.env.MONGODB_URI!;
-const dbName = process.env.BETTER_AUTH_DBNAME || 'auth';
+const dbName = getDbName(mongoUri);
 const client = new MongoClient(mongoUri);
 const db = client.db(dbName);
 const trustedOrigins = process.env.APP_URL
   ? [process.env.APP_URL]
   : process.env.NODE_ENV === 'development'
-  ? ['http://localhost:3000']
-  : [];
+    ? ['http://localhost:3000']
+    : [];
 
 export const auth = betterAuth({
   database: mongodbAdapter(db, { client }),
@@ -28,3 +29,8 @@ export const auth = betterAuth({
     modelName: 'users',
   },
 });
+
+function getDbName(uri: string) {
+  const cs = new ConnectionString(uri);
+  return cs.pathname?.replace(/^\//, '') || '';
+}
