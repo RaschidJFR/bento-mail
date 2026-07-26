@@ -1,7 +1,8 @@
+'use server';
 import { Bundle, IArticle, INewsletter } from '@lib/models';
 import type { ReactionsEnum } from '@lib/models/enums';
 import { JobNames, Task, ITask } from '@services/worker';
-import { Types } from 'mongoose';
+import { db } from '@lib/prisma/db';
 
 // TODO: this should be moved out of lib as it is not frontend compatible.
 
@@ -24,6 +25,7 @@ Publishers now use AI to summarize articles, personalize content, and optimize d
         'With AI, publishers can analyze reader preferences, summarize lengthy articles, and deliver content at optimal times. This leads to higher engagement and more relevant information for subscribers, transforming the traditional newsletter experience.',
     },
     lastError: '',
+    linkedArticles: [],
   },
   {
     _id: 'mock-id-456',
@@ -41,12 +43,18 @@ AI and automation are making it easier for readers to get the content they care 
         'From personalized recommendations to automated content curation, the future of email subscriptions is bright. Readers can expect more relevant and timely content delivered straight to their inbox.',
     },
     lastError: '',
+    linkedArticles: [],
   },
 ];
 
 export async function fetchBundleData(id: string, debug = false) {
+  const dbReady = await db()
+    .runtime()
+    .then(() => true)
+    .catch(() => false);
+
   // Use mock data if DB is not connected
-  if (Bundle.db.readyState != 1) {
+  if (!dbReady) {
     console.warn('Database not connected, using mock bundle articles');
     return {
       userId: '',
@@ -58,9 +66,10 @@ export async function fetchBundleData(id: string, debug = false) {
           _id: 'mock-newsletter-1',
           name: 'Mock Newsletter',
           date: '2024-06-01',
-          articles: mockArticles,
+          articles: mockArticles.map((article) => article._id),
           error: '',
           content: '',
+          url: '',
         } as INewsletter,
       ],
     };
@@ -69,27 +78,26 @@ export async function fetchBundleData(id: string, debug = false) {
   /** @deprecated */
   const reactionMap = new Map<string, ReactionsEnum>();
 
-  const bundleData = await Bundle.getUnreadArticles(new Types.ObjectId(id));
+  const bundleData = await Bundle.getUnreadArticles(id);
 
   if (!bundleData) return null;
 
   const articleIds = bundleData.allArticleIds || [];
 
   // Fetch processing jobs for articles in this bundle
-  const activeTasks: ITask<{ id: string }>[] = await Task.find<ITask>({
-    name: JobNames.Article.process,
-    'data.id': { $in: articleIds },
-    $or: [{ lockedAt: { $exists: true, $ne: null } }, { nextRunAt: { $exists: true, $ne: null } }],
-  }).lean();
+  const activeTasks: ITask[] = await Task.findActiveArticleProcessTasks(
+    articleIds,
+    JobNames.Article.process,
+  );
 
-  const newsletters = (bundleData.newsletters || []) as INewsletter[];
-  const articles = (bundleData.articles || []) as IArticle[];
+  const newsletters = bundleData.newsletters || [];
+  const articles = bundleData.articles || [];
   const tasks = activeTasks.map((t) => ({ ...t, _id: String(t._id) }));
 
   return {
     newsletters,
     articles,
-    userId: String(bundleData.user._id) || '',
+    userId: String(bundleData.user) || '',
     reactionMap,
     tasks,
   };

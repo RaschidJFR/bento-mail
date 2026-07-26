@@ -7,7 +7,7 @@ const config: NextConfig = {
 
     // Required to prevent Next-Typegoose issues with minified class names.
     // See: https://github.com/vercel/next.js/issues/59594#issuecomment-3445849631
-    serverMinification: false,
+    // serverMinification: false,
   },
 };
 

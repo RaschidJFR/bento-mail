@@ -13,11 +13,12 @@
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
     "test": "vitest --exclude tests/ai-article-analyzer",
+    "pretest": "npm run contract:emit",
     "mail": "npx nodemon --watch ./dist/services --watch scripts/start-mail-server.mjs --exec node scripts/start-mail-server.mjs",
     "worker": "npx nodemon --watch ./dist/services --watch ./scripts/start-worker.mjs --exec node scripts/start-worker.mjs",
     "rtdb": "npx nodemon --watch ./dist/services --watch ./scripts/start-rtdb.mjs --exec node scripts/start-rtdb.mjs",
     "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\" --collection=agenda -p 3001",
-    "contract:emit": "prisma-next contract emit"
+    "contract:emit": "NODE_OPTIONS='--experimental-strip-types' prisma-next contract emit"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",
@@ -26,7 +27,6 @@
     "@prisma-next/mongo": "^0.14.0",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@typegoose/typegoose": "^12.19.0",
     "axios": "^1.7.0",
     "better-auth": "^1.4.5",
     "chronos-jobs": "^1.0.5",
@@ -36,7 +36,6 @@
     "jsdom": "^26.1.0",
     "lucide-react": "^0.544.0",
     "mongodb": "^7.3.0",
-    "mongoose": "^8.18.1",
     "next": "^15.5.9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

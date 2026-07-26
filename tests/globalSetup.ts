@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import 'dotenv/config';
 import { MongoCluster } from 'mongodb-runner';
 import { ConnectionString } from 'mongodb-connection-string-url';
@@ -6,28 +5,34 @@ import { spawnSync } from 'node:child_process';
 import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
+import { MongoClient } from 'mongodb';
 
-const cluster = await spinUpMongoCluster();
+let cluster: MongoCluster | null = null;
 
 export async function setup() {
   // Clear API keys to prevent accidental usage during tests
   process.env.OPENAI_API_KEY = '';
 
+  if (process.env.TEST_MONGODB_URI) {
+    console.log('Using test database %o', process.env.TEST_MONGODB_URI);
+    process.env.MONGODB_URI = process.env.TEST_MONGODB_URI;
+  } else {
+    cluster = await spinUpMongoCluster();
+  }
+
   // Set test databases
-  const cs = new ConnectionString(cluster.connectionString);
+  const cs = new ConnectionString(cluster?.connectionString || process.env.MONGODB_URI!);
   cs.pathname = '/_test';
   cs.hosts = [cs.hosts[0]]; // Prisma does not support multiple hosts in the connection string. See https://github.com/prisma/prisma-next/issues/578
   process.env.MONGODB_URI = cs.toString();
   process.env.AGENDA_DB_NAME = 'agenda_test';
 
   applyContractToTestDb(process.env.MONGODB_URI!);
-  await mongoose.connect(process.env.MONGODB_URI!);
 }
 
 function applyContractToTestDb(url: string) {
-  runCli(['contract', 'emit']);
   runCli(['db', 'init', '--db', url, '--yes']);
-  
+
   function runCli(args: string[]) {
     const result = spawnSync('npx', ['prisma-next', ...args], { encoding: 'utf8' });
     if (result.status !== 0) {
@@ -40,10 +45,10 @@ function applyContractToTestDb(url: string) {
 
 export async function teardown() {
   console.log('Tearing down test database...');
-  await mongoose.connection.useDb('_test').dropDatabase();
-  await mongoose.connection.useDb('agenda_test').dropDatabase();
-  await mongoose.connection.close();
-  await cluster.close();
+  const client = new MongoClient(process.env.MONGODB_URI!);
+  await client.db('_test').dropDatabase();
+  await client.db('agenda_test').dropDatabase();
+  await cluster?.close();
   console.log('Database connection closed.');
 }
 
