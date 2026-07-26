@@ -7,8 +7,20 @@ interface ArticleChange {
   data: IArticle;
 }
 
-export function useArticles(newsletter: INewsletter): [IArticle[], Dispatch<SetStateAction<IArticle[]>>] {
-  const [articles, setArticles] = useState<IArticle[]>((newsletter.articles as IArticle[]) || []);
+type NewsletterWithArticles = Omit<INewsletter, 'articles'> & {
+  articles?: IArticle[];
+};
+
+function extractArticles(newsletter: NewsletterWithArticles) {
+  return (newsletter.articles || []).filter((a) => typeof a !== 'string');
+}
+
+export function useArticles(newsletter: NewsletterWithArticles): [IArticle[], Dispatch<SetStateAction<IArticle[]>>] {
+  const [articles, setArticles] = useState<IArticle[]>(() => (newsletter.articles || []));
+
+  useEffect(() => {
+    setArticles(extractArticles(newsletter));
+  }, [newsletter._id]);
 
   useEffect(() => {
     const handler = ({ _id: articleId, data: art }: ArticleChange) => {

@@ -1,29 +1,44 @@
 import { notFound } from 'next/navigation';
-import { Newsletter } from '@lib/models';
 import type { IArticle, INewsletter } from '@lib/models';
+import { Article } from '@lib/models';
 import { NewsletterHeader } from '@components/NewsletterHeader';
 import { ArticleCard } from '@components/ArticleCard';
+import { db } from '@lib/prisma/db';
+import { MongoFieldFilter, MongoOrExpr, MongoExistsExpr } from '@prisma-next/mongo-query-ast/execution';
 
 export const dynamic = 'force-dynamic';
 
 async function getNewsletterArticles(id: string) {
+  const dbReady = await db()
+      .runtime()
+      .then(() => true)
+      .catch(() => false);
   // Use mock data if DB is not connected
-  if (Newsletter.db.readyState != 1) {
+  if (!dbReady) {
     console.warn('Database not connected, using mock newsletter articles');
     return null;
   }
 
-  const newsletter = await Newsletter.findById(id)
-    .populate({
-      path: 'articles',
-      match: { $or: [{ lastError: '' }, { lastError: { $exists: false } }] },
-      options: { sort: { sourceName: 1, date: -1 } },
-    })
-    .lean();
-
+  const newsletter = await db().orm.newsletters.where({ _id: id }).first();
   if (!newsletter) return null;
 
-  const articles = (newsletter.articles || []) as IArticle[];
+  const articleIds = newsletter.articles ?? [];
+
+  const articles: IArticle[] = [];
+  if (articleIds.length > 0) {
+    const idFilter = MongoFieldFilter.in('_id', articleIds.map((aid) => aid));
+    const errorFilter = MongoOrExpr.of([
+      MongoFieldFilter.eq('lastError', ''),
+      new MongoExistsExpr('lastError', false),
+    ]);
+    for await (const article of Article
+      .where(idFilter)
+      .where(errorFilter)
+      .orderBy({ sourceName: 1, date: -1 })
+      .all()) {
+      articles.push(article);
+    }
+  }
 
   return {
     newsletter,

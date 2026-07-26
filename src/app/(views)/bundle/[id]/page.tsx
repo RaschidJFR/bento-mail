@@ -24,14 +24,14 @@ export default async function Page({
   }
 
   // Fetch the bundle and check ownership
-  const bundle = await Bundle.findOne({ _id: id, user: session.user.id }).lean();
+  const bundle = await Bundle.where({ _id: id, user: session.user.id }).first();
   if (!bundle) return notFound();
 
   // Fetch bundle data
   const data = await fetchBundleData(id, debug == '1');
   if (!data) return notFound();
 
-  const jobMap = new Map(data.tasks?.map((task) => [task.data.id, task]) || []);
+  const jobMap = new Map(data.tasks?.map((task) => [task.data?.id, task]) || []);
   const hasArticles = (data.newsletters || []).some((nl) => nl.articles?.length);
 
   return (

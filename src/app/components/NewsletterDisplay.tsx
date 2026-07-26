@@ -1,5 +1,5 @@
 'use client';
-import type { INewsletter } from '@lib/models/types';
+import type { IArticle, INewsletter } from '@lib/models/types';
 import { NewsletterHeader } from './NewsletterHeader';
 import { ArticleCard } from './ArticleCard';
 import { ReactionsEnum } from '@lib/models/enums';
@@ -12,7 +12,7 @@ export function NewsletterDisplay({
   reactionMap,
   tasks: initialTasks,
 }: {
-  newsletter: INewsletter;
+  newsletter: Omit<INewsletter, 'articles'> & { articles?: IArticle[] };
   userId?: string;
   reactionMap?: Map<string, ReactionsEnum>;
   tasks?: ITaskArticleProcess[];

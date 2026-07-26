@@ -6,6 +6,18 @@ import { db } from '@lib/prisma/db';
 
 // TODO: this should be moved out of lib as it is not frontend compatible.
 
+type NewsletterWithArticles = Omit<INewsletter, 'articles'> & {
+  articles: IArticle[];
+};
+
+export interface BundleData {
+  userId: string;
+  reactionMap?: Map<string, ReactionsEnum>;
+  tasks: ITask[];
+  articles: IArticle[];
+  newsletters: NewsletterWithArticles[];
+}
+
 // Mock articles strictly following IArticle interface from /lib/models/article.ts
 const mockArticles: IArticle[] = [
   {
@@ -47,7 +59,7 @@ AI and automation are making it easier for readers to get the content they care 
   },
 ];
 
-export async function fetchBundleData(id: string, debug = false) {
+export async function fetchBundleData(id: string, debug = false): Promise<BundleData | null> {
   const dbReady = await db()
     .runtime()
     .then(() => true)
@@ -66,11 +78,11 @@ export async function fetchBundleData(id: string, debug = false) {
           _id: 'mock-newsletter-1',
           name: 'Mock Newsletter',
           date: '2024-06-01',
-          articles: mockArticles.map((article) => article._id),
+          articles: mockArticles,
           error: '',
           content: '',
           url: '',
-        } as INewsletter,
+        } as NewsletterWithArticles,
       ],
     };
   }
