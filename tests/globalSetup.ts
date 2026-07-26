@@ -23,7 +23,6 @@ export async function setup() {
   // Set test databases
   const cs = new ConnectionString(cluster?.connectionString || process.env.MONGODB_URI!);
   cs.pathname = '/_test';
-  cs.hosts = [cs.hosts[0]]; // Prisma does not support multiple hosts in the connection string. See https://github.com/prisma/prisma-next/issues/578
   process.env.MONGODB_URI = cs.toString();
   process.env.AGENDA_DB_NAME = 'agenda_test';
 
@@ -31,15 +30,12 @@ export async function setup() {
 }
 
 function applyContractToTestDb(url: string) {
-  runCli(['db', 'init', '--db', url, '--yes']);
-
-  function runCli(args: string[]) {
-    const result = spawnSync('npx', ['prisma-next', ...args], { encoding: 'utf8' });
-    if (result.status !== 0) {
-      throw new Error(
-        `\`prisma-next ${args.join(' ')}\` failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`,
-      );
-    }
+  const args = ['prisma-next', 'db', 'init', '--db', url, '--yes'];
+  const result = spawnSync('npx', args, { encoding: 'utf8' });
+  if (result.status !== 0) {
+    throw new Error(
+      `\`prisma-next ${args.join(' ')}\` failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`,
+    );
   }
 }
 

@@ -1,6 +1,6 @@
 // To bootstrap the database from this contract, use:
 //   npm run contract:emit
-//   npx prisma-next db init --db "$DATABASE_URL" --yes
+//   npx prisma-next db init --db "$MONGODB_URI" --yes
 
 import mongoFamily from "@prisma-next/family-mongo/pack";
 import { defineContract } from "@prisma-next/mongo-contract-ts/contract-builder";
@@ -11,8 +11,12 @@ export const COLLECTION_NAMES = {
   bundles: 'bundles',
   newsletters: 'newsletters',
   reactions: 'reactions',
-  users: 'users',
+  
+  // Collections managed by Agenda
   tasks: 'tasks',
+  
+  // Collections managed by Better Auth
+  users: 'users',
 };
 
 export const contract = defineContract(
@@ -81,14 +85,13 @@ export const contract = defineContract(
           { email: 1 },
           {
             unique: true,
-            partialFilterExpression: { email: { $type: "string" } },
           },
         ),
         index(
           { aliasEmail: 1 },
           {
             unique: true,
-            partialFilterExpression: { aliasEmail: { $type: "string" } },
+            partialFilterExpression: { aliasEmail: { $exists: true } },
           },
         ),
       ],
@@ -199,8 +202,23 @@ export const contract = defineContract(
       ],
     });
 
+    const Session = model("Session", {
+      collection: 'session',
+      fields: { _id: field.string() }
+    });
+
+    const Account = model("Account", {
+      collection: 'account',
+      fields: { _id: field.string() }
+    });
+
+    const Verification = model("Verification", {
+      collection: 'verification',
+      fields: { _id: field.string() }
+    });
+
     return {
-      models: { User, Article, Newsletter, Bundle, Reaction, Task },
+      models: { User, Article, Newsletter, Bundle, Reaction, Task, Session, Account, Verification },
       valueObjects: { Summaries, BasicArticle, LinkedArticle, TaskData: TaskPayload },
     };
   },

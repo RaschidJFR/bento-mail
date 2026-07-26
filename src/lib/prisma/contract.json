@@ -4,6 +4,10 @@
   "target": "mongo",
   "profileHash": "sha256:cca47cfb902adf4e15c2f277dd98af4aff64a3a2c010b49ace1c897de1cc4510",
   "roots": {
+    "account": {
+      "model": "Account",
+      "namespace": "__unbound__"
+    },
     "articles": {
       "model": "Article",
       "namespace": "__unbound__"
@@ -20,6 +24,10 @@
       "model": "Reaction",
       "namespace": "__unbound__"
     },
+    "session": {
+      "model": "Session",
+      "namespace": "__unbound__"
+    },
     "tasks": {
       "model": "Task",
       "namespace": "__unbound__"
@@ -27,12 +35,31 @@
     "users": {
       "model": "User",
       "namespace": "__unbound__"
+    },
+    "verification": {
+      "model": "Verification",
+      "namespace": "__unbound__"
     }
   },
   "domain": {
     "namespaces": {
       "__unbound__": {
         "models": {
+          "Account": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "collection": "account"
+            }
+          },
           "Article": {
             "fields": {
               "_id": {
@@ -358,6 +385,21 @@
               "collection": "reactions"
             }
           },
+          "Session": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "collection": "session"
+            }
+          },
           "Task": {
             "fields": {
               "_id": {
@@ -442,6 +484,21 @@
             "relations": {},
             "storage": {
               "collection": "users"
+            }
+          },
+          "Verification": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "collection": "verification"
             }
           }
         },
@@ -576,6 +633,9 @@
       "__unbound__": {
         "entries": {
           "collection": {
+            "account": {
+              "kind": "mongo-collection"
+            },
             "articles": {
               "indexes": [
                 {
@@ -678,6 +738,9 @@
               ],
               "kind": "mongo-collection"
             },
+            "session": {
+              "kind": "mongo-collection"
+            },
             "tasks": {
               "indexes": [
                 {
@@ -707,11 +770,6 @@
                     }
                   ],
                   "kind": "mongo-index",
-                  "partialFilterExpression": {
-                    "email": {
-                      "$type": "string"
-                    }
-                  },
                   "unique": true
                 },
                 {
@@ -724,12 +782,15 @@
                   "kind": "mongo-index",
                   "partialFilterExpression": {
                     "aliasEmail": {
-                      "$type": "string"
+                      "$exists": true
                     }
                   },
                   "unique": true
                 }
               ],
+              "kind": "mongo-collection"
+            },
+            "verification": {
               "kind": "mongo-collection"
             }
           }
@@ -738,7 +799,7 @@
         "kind": "mongo-database"
       }
     },
-    "storageHash": "sha256:ceebf4b3b7233b9192ee45010b1f14e7bd658bb1f307ae6f1096f5f87e11e39f"
+    "storageHash": "sha256:bcd51c8775dcc9a67c5abeddb77fbe4a1ff38165c6bb7999b58e302ea216637b"
   },
   "capabilities": {},
   "extensionPacks": {},

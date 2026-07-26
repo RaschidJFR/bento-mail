@@ -17,7 +17,7 @@ import type {
 } from '@prisma-next/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'sha256:ceebf4b3b7233b9192ee45010b1f14e7bd658bb1f307ae6f1096f5f87e11e39f'>;
+  StorageHashBase<'sha256:bcd51c8775dcc9a67c5abeddb77fbe4a1ff38165c6bb7999b58e302ea216637b'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'sha256:cca47cfb902adf4e15c2f277dd98af4aff64a3a2c010b49ace1c897de1cc4510'>;
@@ -68,6 +68,7 @@ export type TaskPayloadOutput = { readonly id: CodecTypes['mongo/string@1']['out
 export type TaskPayloadInput = { readonly id: CodecTypes['mongo/string@1']['input'] | null };
 export type FieldOutputTypes = {
   readonly __unbound__: {
+    readonly Account: { readonly _id: CodecTypes['mongo/string@1']['output'] };
     readonly Article: {
       readonly _id: CodecTypes['mongo/string@1']['output'];
       readonly content: CodecTypes['mongo/string@1']['output'] | null;
@@ -104,6 +105,7 @@ export type FieldOutputTypes = {
       readonly reaction: CodecTypes['mongo/int32@1']['output'];
       readonly date: CodecTypes['mongo/date@1']['output'] | null;
     };
+    readonly Session: { readonly _id: CodecTypes['mongo/string@1']['output'] };
     readonly Task: {
       readonly _id: CodecTypes['mongo/objectId@1']['output'];
       readonly name: CodecTypes['mongo/string@1']['output'];
@@ -118,10 +120,12 @@ export type FieldOutputTypes = {
       readonly name: CodecTypes['mongo/string@1']['output'] | null;
       readonly image: CodecTypes['mongo/string@1']['output'] | null;
     };
+    readonly Verification: { readonly _id: CodecTypes['mongo/string@1']['output'] };
   };
 };
 export type FieldInputTypes = {
   readonly __unbound__: {
+    readonly Account: { readonly _id: CodecTypes['mongo/string@1']['input'] };
     readonly Article: {
       readonly _id: CodecTypes['mongo/string@1']['input'];
       readonly content: CodecTypes['mongo/string@1']['input'] | null;
@@ -158,6 +162,7 @@ export type FieldInputTypes = {
       readonly reaction: CodecTypes['mongo/int32@1']['input'];
       readonly date: CodecTypes['mongo/date@1']['input'] | null;
     };
+    readonly Session: { readonly _id: CodecTypes['mongo/string@1']['input'] };
     readonly Task: {
       readonly _id: CodecTypes['mongo/objectId@1']['input'];
       readonly name: CodecTypes['mongo/string@1']['input'];
@@ -172,6 +177,7 @@ export type FieldInputTypes = {
       readonly name: CodecTypes['mongo/string@1']['input'] | null;
       readonly image: CodecTypes['mongo/string@1']['input'] | null;
     };
+    readonly Verification: { readonly _id: CodecTypes['mongo/string@1']['input'] };
   };
 };
 export type TypeMaps = MongoTypeMaps<CodecTypes, FieldOutputTypes, FieldInputTypes>;
@@ -184,6 +190,7 @@ type ContractBase = Omit<
         readonly kind: 'mongo-namespace';
         readonly entries: {
           readonly collection: {
+            readonly account: MongoCollection;
             readonly articles: {
               readonly kind: 'mongo-collection';
               readonly indexes: readonly [
@@ -244,6 +251,7 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly session: MongoCollection;
             readonly tasks: {
               readonly kind: 'mongo-collection';
               readonly indexes: readonly [
@@ -264,20 +272,18 @@ type ContractBase = Omit<
                   readonly kind: 'mongo-index';
                   readonly keys: readonly [{ readonly field: 'email'; readonly direction: 1 }];
                   readonly unique: true;
-                  readonly partialFilterExpression: {
-                    readonly email: { readonly $type: 'string' };
-                  };
                 },
                 {
                   readonly kind: 'mongo-index';
                   readonly keys: readonly [{ readonly field: 'aliasEmail'; readonly direction: 1 }];
                   readonly unique: true;
                   readonly partialFilterExpression: {
-                    readonly aliasEmail: { readonly $type: 'string' };
+                    readonly aliasEmail: { readonly $exists: true };
                   };
                 },
               ];
             };
+            readonly verification: MongoCollection;
           };
         };
       };
@@ -304,11 +310,33 @@ type ContractBase = Omit<
       readonly model: 'Reaction';
     };
     readonly tasks: { readonly namespace: '__unbound__' & NamespaceId; readonly model: 'Task' };
+    readonly session: {
+      readonly namespace: '__unbound__' & NamespaceId;
+      readonly model: 'Session';
+    };
+    readonly account: {
+      readonly namespace: '__unbound__' & NamespaceId;
+      readonly model: 'Account';
+    };
+    readonly verification: {
+      readonly namespace: '__unbound__' & NamespaceId;
+      readonly model: 'Verification';
+    };
   };
   readonly domain: {
     readonly namespaces: {
       readonly __unbound__: {
         readonly models: {
+          readonly Account: {
+            readonly fields: {
+              readonly _id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: { readonly collection: 'account' };
+          };
           readonly Article: {
             readonly fields: {
               readonly _id: {
@@ -518,6 +546,16 @@ type ContractBase = Omit<
             };
             readonly storage: { readonly collection: 'reactions' };
           };
+          readonly Session: {
+            readonly fields: {
+              readonly _id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: { readonly collection: 'session' };
+          };
           readonly Task: {
             readonly fields: {
               readonly _id: {
@@ -569,6 +607,16 @@ type ContractBase = Omit<
             };
             readonly relations: Record<string, never>;
             readonly storage: { readonly collection: 'users' };
+          };
+          readonly Verification: {
+            readonly fields: {
+              readonly _id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: { readonly collection: 'verification' };
           };
         };
         readonly valueObjects: {
