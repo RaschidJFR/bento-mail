@@ -7,8 +7,23 @@ describe('Reaction Model', () => {
   let articleId: string;
 
   beforeEach(async () => {
-    const user = await User.create({ email: 'test@example.com' });
-    const article = await Article.create({ content: 'Test Article' });
+    const user = await User.create({
+      email: 'test@example.com',
+      name: null,
+      aliasEmail: null,
+      image: null,
+    });
+    const article = await Article.create({
+      content: 'Test Article',
+      header: '',
+      sourceName: '',
+      url: null,
+      date: null,
+      coverImg: null,
+      summaries: null,
+      linkedArticles: null,
+      lastError: null,
+    });
     userId = String(user._id);
     articleId = String(article._id);
   });
@@ -26,11 +41,11 @@ describe('Reaction Model', () => {
         article: articleId,
         reaction: ReactionsEnum.UPVOTE,
         date: null,
-      })
+      }),
     ).rejects.toThrow();
 
     await expect(
-      Reaction.where({ _id: reaction._id }).update({ reaction: ReactionsEnum.UPVOTE })
+      Reaction.where({ _id: reaction._id }).update({ reaction: ReactionsEnum.UPVOTE }),
     ).resolves.toBeDefined();
   });
 

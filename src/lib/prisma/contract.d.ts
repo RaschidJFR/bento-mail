@@ -17,7 +17,7 @@ import type {
 } from '@prisma-next/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'sha256:a3d2f2f531b5002cada389640b33976bee27f0059cd798f0f5df7566b845701c'>;
+  StorageHashBase<'sha256:ceebf4b3b7233b9192ee45010b1f14e7bd658bb1f307ae6f1096f5f87e11e39f'>;
 export type ExecutionHash = ExecutionHashBase<string>;
 export type ProfileHash =
   ProfileHashBase<'sha256:cca47cfb902adf4e15c2f277dd98af4aff64a3a2c010b49ace1c897de1cc4510'>;
@@ -64,6 +64,8 @@ export type LinkedArticleInput = {
   readonly url: CodecTypes['mongo/string@1']['input'] | null;
   readonly coverImg: CodecTypes['mongo/string@1']['input'] | null;
 };
+export type TaskPayloadOutput = { readonly id: CodecTypes['mongo/string@1']['output'] | null };
+export type TaskPayloadInput = { readonly id: CodecTypes['mongo/string@1']['input'] | null };
 export type FieldOutputTypes = {
   readonly __unbound__: {
     readonly Article: {
@@ -101,6 +103,13 @@ export type FieldOutputTypes = {
       readonly article: CodecTypes['mongo/string@1']['output'];
       readonly reaction: CodecTypes['mongo/int32@1']['output'];
       readonly date: CodecTypes['mongo/date@1']['output'] | null;
+    };
+    readonly Task: {
+      readonly _id: CodecTypes['mongo/objectId@1']['output'];
+      readonly name: CodecTypes['mongo/string@1']['output'];
+      readonly lockedAt: CodecTypes['mongo/date@1']['output'] | null;
+      readonly data: TaskPayloadOutput | null;
+      readonly nextRunAt: CodecTypes['mongo/date@1']['output'] | null;
     };
     readonly User: {
       readonly _id: CodecTypes['mongo/objectId@1']['output'];
@@ -148,6 +157,13 @@ export type FieldInputTypes = {
       readonly article: CodecTypes['mongo/string@1']['input'];
       readonly reaction: CodecTypes['mongo/int32@1']['input'];
       readonly date: CodecTypes['mongo/date@1']['input'] | null;
+    };
+    readonly Task: {
+      readonly _id: CodecTypes['mongo/objectId@1']['input'];
+      readonly name: CodecTypes['mongo/string@1']['input'];
+      readonly lockedAt: CodecTypes['mongo/date@1']['input'] | null;
+      readonly data: TaskPayloadInput | null;
+      readonly nextRunAt: CodecTypes['mongo/date@1']['input'] | null;
     };
     readonly User: {
       readonly _id: CodecTypes['mongo/objectId@1']['input'];
@@ -228,6 +244,19 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly tasks: {
+              readonly kind: 'mongo-collection';
+              readonly indexes: readonly [
+                {
+                  readonly kind: 'mongo-index';
+                  readonly keys: readonly [
+                    { readonly field: 'name'; readonly direction: 1 },
+                    { readonly field: 'lockedAt'; readonly direction: 1 },
+                  ];
+                  readonly sparse: true;
+                },
+              ];
+            };
             readonly users: {
               readonly kind: 'mongo-collection';
               readonly indexes: readonly [
@@ -274,6 +303,7 @@ type ContractBase = Omit<
       readonly namespace: '__unbound__' & NamespaceId;
       readonly model: 'Reaction';
     };
+    readonly tasks: { readonly namespace: '__unbound__' & NamespaceId; readonly model: 'Task' };
   };
   readonly domain: {
     readonly namespaces: {
@@ -488,6 +518,32 @@ type ContractBase = Omit<
             };
             readonly storage: { readonly collection: 'reactions' };
           };
+          readonly Task: {
+            readonly fields: {
+              readonly _id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/objectId@1' };
+              };
+              readonly name: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+              readonly lockedAt: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/date@1' };
+              };
+              readonly data: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'valueObject'; readonly name: 'TaskPayload' };
+              };
+              readonly nextRunAt: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/date@1' };
+              };
+            };
+            readonly relations: Record<string, never>;
+            readonly storage: { readonly collection: 'tasks' };
+          };
           readonly User: {
             readonly fields: {
               readonly _id: {
@@ -584,6 +640,14 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly TaskPayload: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+              };
+            };
+          };
         };
       };
     };
@@ -655,6 +719,14 @@ type ContractBase = Omit<
           readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
         };
         readonly coverImg: {
+          readonly nullable: true;
+          readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
+        };
+      };
+    };
+    readonly TaskPayload: {
+      readonly fields: {
+        readonly id: {
           readonly nullable: true;
           readonly type: { readonly kind: 'scalar'; readonly codecId: 'mongo/string@1' };
         };

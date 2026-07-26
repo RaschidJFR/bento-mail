@@ -4,7 +4,7 @@ import { Task, ITask } from '@services/worker';
 import type { ChangeStream, ChangeStreamDocument } from 'mongodb';
 
 const EMIT_EVENT_NAME = 'taskChanged';
-type TaskArticleProcess = ITask<{ id: string }>;
+type TaskArticleProcess = ITask;
 let taskChangeStream: ChangeStream<TaskArticleProcess>;
 
 async function joinNewsletterTasks(client: Socket, newsletterId: string) {
@@ -47,8 +47,9 @@ export async function setupTaskChangestream(io: Server) {
   } catch (e) {
     console.warn('Error closing previous task change stream: %o', e);
   } finally {
-    taskChangeStream = Task.watch<TaskArticleProcess, ChangeStreamDocument<TaskArticleProcess>>(pipeline, {
+    taskChangeStream = await Task.watch(pipeline, {
       fullDocument: 'updateLookup',
+      fullDocumentBeforeChange: 'whenAvailable',
     }) as any;
   }
 
@@ -62,7 +63,7 @@ async function onArticleProcessTaskChange(io: Server, change: ChangeStreamDocume
 
   const task = 'fullDocument' in change ? change.fullDocument : null;
   const prevTask = 'fullDocumentBeforeChange' in change ? change.fullDocumentBeforeChange : null;
-  const articleId = task?.data.id || prevTask?.data.id;
+  const articleId = task?.data?.id || prevTask?.data?.id;
   if (!articleId) {
     console.warn('[%o] No article ID found in task %o', change.operationType, String(taskId));
     return;
@@ -75,7 +76,7 @@ async function onArticleProcessTaskChange(io: Server, change: ChangeStreamDocume
   }
 
   newsletters.forEach((newsletter) => {
-    io.to(roomName(newsletter._id)).emit(EMIT_EVENT_NAME, { _id: taskId, data: task });
+    io.to(roomName(newsletter._id)).emit(EMIT_EVENT_NAME, { _id: String(taskId), data: task });
   });
 }
 

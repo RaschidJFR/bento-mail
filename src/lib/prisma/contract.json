@@ -20,6 +20,10 @@
       "model": "Reaction",
       "namespace": "__unbound__"
     },
+    "tasks": {
+      "model": "Task",
+      "namespace": "__unbound__"
+    },
     "users": {
       "model": "User",
       "namespace": "__unbound__"
@@ -354,6 +358,49 @@
               "collection": "reactions"
             }
           },
+          "Task": {
+            "fields": {
+              "_id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/objectId@1",
+                  "kind": "scalar"
+                }
+              },
+              "data": {
+                "nullable": true,
+                "type": {
+                  "kind": "valueObject",
+                  "name": "TaskPayload"
+                }
+              },
+              "lockedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/date@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              },
+              "nextRunAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/date@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {},
+            "storage": {
+              "collection": "tasks"
+            }
+          },
           "User": {
             "fields": {
               "_id": {
@@ -508,6 +555,17 @@
                 }
               }
             }
+          },
+          "TaskPayload": {
+            "fields": {
+              "id": {
+                "nullable": true,
+                "type": {
+                  "codecId": "mongo/string@1",
+                  "kind": "scalar"
+                }
+              }
+            }
           }
         }
       }
@@ -620,6 +678,25 @@
               ],
               "kind": "mongo-collection"
             },
+            "tasks": {
+              "indexes": [
+                {
+                  "keys": [
+                    {
+                      "direction": 1,
+                      "field": "name"
+                    },
+                    {
+                      "direction": 1,
+                      "field": "lockedAt"
+                    }
+                  ],
+                  "kind": "mongo-index",
+                  "sparse": true
+                }
+              ],
+              "kind": "mongo-collection"
+            },
             "users": {
               "indexes": [
                 {
@@ -661,7 +738,7 @@
         "kind": "mongo-database"
       }
     },
-    "storageHash": "sha256:a3d2f2f531b5002cada389640b33976bee27f0059cd798f0f5df7566b845701c"
+    "storageHash": "sha256:ceebf4b3b7233b9192ee45010b1f14e7bd658bb1f307ae6f1096f5f87e11e39f"
   },
   "capabilities": {},
   "extensionPacks": {},

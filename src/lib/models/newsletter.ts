@@ -7,7 +7,7 @@ import { hash, applyInBatches } from '@lib/utils';
 
 export type INewsletter = InferRootRow<Contract, 'Newsletter'>;
 
-const newsletters = db.orm.newsletters;
+const newsletters = db().orm.newsletters;
 const ormCreate = newsletters.create.bind(newsletters);
 
 type NewsletterCreateInput = Parameters<typeof newsletters.create>[0];

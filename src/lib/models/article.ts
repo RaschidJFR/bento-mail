@@ -6,7 +6,7 @@ import { fetchHtmlContent, htmlToMarkdown, hash } from '@lib/utils';
 
 export type IArticle = InferRootRow<Contract, 'Article'>;
 
-const articles = db.orm.articles;
+const articles = db().orm.articles;
 const ormCreate = articles.create.bind(articles);
 
 type ArticleCreateInput = Parameters<typeof articles.create>[0];

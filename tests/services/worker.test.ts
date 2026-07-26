@@ -2,7 +2,8 @@ import { JobNames } from '@services/worker';
 import { Bundle, Newsletter } from '@lib/models';
 import { Chronos as Agenda, Job } from 'chronos-jobs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, MockInstance, vi } from 'vitest';
-import { IBundle, ProcessingStagesEnum } from '@lib/models/bundle';
+import { ProcessingStagesEnum } from '@lib/models/bundle';
+import { COLLECTION_NAMES } from '@lib/prisma/contract';
 
 describe('Worker', () => {
   let agenda: Agenda, worker: Agenda;
@@ -35,13 +36,12 @@ describe('Worker', () => {
   it('Agenda is using the designated db', async () => {
     vi.mock('@services/worker', async () => {
       vi.stubEnv('AGENDA_DB_NAME', 'pechuga');
-      vi.stubEnv('AGENDA_COLLECTION', 'de pollo');
       return await vi.importActual('@services/worker');
     });
     const { default: initWorker } = await import('@services/worker');
     const w = await initWorker();
     expect(w.db.collection.dbName).toBe('pechuga');
-    expect(w.db.collection.collectionName).toBe('de pollo');
+    expect(w.db.collection.collectionName).toBe(COLLECTION_NAMES.tasks);
 
     await w.db.collection.db.dropDatabase();
     await w.stop();

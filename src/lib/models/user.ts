@@ -6,7 +6,7 @@ import { ObjectId } from 'mongodb';
 
 export type IUser = InferRootRow<Contract, 'User'>;
 
-const users = db.orm.users;
+const users = db().orm.users;
 
 /**
  * Convenience method.

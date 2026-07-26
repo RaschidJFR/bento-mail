@@ -87,7 +87,7 @@ describe('RTDB Service', () => {
   describe('Task ChangeStream', () => {
     interface TaskChange {
       _id: ObjectId;
-      data: Partial<ITask<{ id: string }>>;
+      data: Partial<ITask>;
     }
 
     let article: IArticle;
@@ -128,11 +128,18 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update task to trigger the change stream
-      const taskData = { name: JobNames.Article.process, data: { id: article._id } };
-      const task = await Task.create(taskData);
+      const task = await Task.create({
+        name: JobNames.Article.process,
+        data: { id: article._id },
+        lockedAt: null,
+        nextRunAt: null,
+      });
       const { _id, data } = await taskChangePromise;
-      expect(_id).toBe(task.id);
-      expect(data).toMatchObject(taskData);
+      expect(_id).toBe(String(task._id));
+      expect(data).toMatchObject({
+        ...task,
+        _id: String(task._id),
+      });
       expect(onTaskChanged).toHaveBeenCalledOnce();
     });
 
@@ -141,8 +148,12 @@ describe('RTDB Service', () => {
       const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
 
       // Create a task for the article in the newsletter
-      const taskData = { name: JobNames.Article.process, data: { id: article._id } };
-      const task = await Task.create(taskData);
+      const task = await Task.create({
+        name: JobNames.Article.process,
+        data: { id: article._id },
+        lockedAt: null,
+        nextRunAt: null,
+      });
 
       // Connect client and join newsletter room
       client.connect();
@@ -153,10 +164,14 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update task to trigger the change stream
-      await task.set({ lockedAt: Date.now() }).save();
+      const updated = await Task.where({ _id: task._id }).update({ lockedAt: new Date() });
       const { _id, data } = await taskChangePromise;
-      expect(_id).toBe(task.id);
-      expect(data).toMatchObject({ ...taskData, lockedAt: task.lockedAt!.toISOString() });
+      expect(_id).toBe(String(task._id));
+      expect(data).toMatchObject({
+        ...task,
+        _id: String(task._id),
+        lockedAt: updated!.lockedAt!.toISOString(),
+      });
       expect(onTaskChanged).toHaveBeenCalledOnce();
     });
 
@@ -166,7 +181,12 @@ describe('RTDB Service', () => {
         let onTaskChanged!: (value: TaskChange) => void;
         const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
 
-        const task = await Task.create({ name: JobNames.Article.process, data: { id: article._id } });
+        const task = await Task.create({
+          name: JobNames.Article.process,
+          data: { id: article._id },
+          lockedAt: null,
+          nextRunAt: null,
+        });
 
         // Connect client and join newsletter room
         client.on('taskChanged', onTaskChanged);
@@ -175,14 +195,14 @@ describe('RTDB Service', () => {
         await new Promise((resolve: any) => client.once('connect', resolve));
 
         // Set up listener and delete task to trigger the change stream
-        await task.deleteOne();
+        await Task.where({ _id: task._id }).delete();
 
         // wait for 3 secs
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
         // Wait for change to be processed
         const { _id, data } = await taskChangePromise;
-        expect(_id).toBe(task.id);
+        expect(_id).toBe(task._id);
         expect(data).toBeNull();
         expect(onTaskChanged).lastCalledWith({ _id: task._id, data: null });
       },
@@ -191,7 +211,12 @@ describe('RTDB Service', () => {
 
     it('Emit only to clients in a newsletter rooms', async () => {
       // Create a task for the article in the newsletter
-      const task = await Task.create({ name: JobNames.Article.process, data: { id: article._id } });
+      const task = await Task.create({
+        name: JobNames.Article.process,
+        data: { id: article._id },
+        lockedAt: null,
+        nextRunAt: null,
+      });
 
       // Set up a mock to track calls
       let onTaskChanged!: (value: TaskChange) => void;
@@ -205,13 +230,13 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update task to trigger the change stream
-      await task.set({ lockedAt: Date.now() }).save();
+      await Task.where({ _id: task._id }).update({ lockedAt: new Date() });
       await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for change to be processed
       expect(onTaskChanged).not.toHaveBeenCalled();
 
       client.emit('joinNewsletter', newsletter._id);
       await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for join to be processed
-      await task.set({ lockedAt: Date.now() }).save();
+      await Task.where({ _id: task._id }).update({ lockedAt: new Date() });
       await taskChangePromise;
       expect(onTaskChanged).toHaveBeenCalledOnce();
     });

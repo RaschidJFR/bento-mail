@@ -3,7 +3,7 @@ import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
 import type { Contract } from '@lib/prisma/contract.d';
 import { db } from '@lib/prisma/db';
 import { ObjectId } from 'mongodb';
-import { User, IUser } from './user';
+import { User } from './user';
 import { Newsletter, INewsletter } from './newsletter';
 import { Article, IArticle } from './article';
 import { Reaction } from './reaction';
@@ -22,7 +22,7 @@ export type IBundle = Omit<InferRootRow<Contract, 'Bundle'>, 'processingStage'> 
   processingStage: ProcessingStagesEnum;
 };
 
-const bundles = db.orm.bundles;
+const bundles = db().orm.bundles;
 const ormCreate = bundles.create.bind(bundles);
 
 type BundleCreateInput = Parameters<typeof bundles.create>[0];

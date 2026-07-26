@@ -7,4 +7,4 @@ export type IReaction = Omit<InferRootRow<Contract, 'Reaction'>, 'reaction'> & {
   reaction: ReactionsEnum;
 };
 
-export const Reaction = db.orm.reactions;
+export const Reaction = db().orm.reactions;

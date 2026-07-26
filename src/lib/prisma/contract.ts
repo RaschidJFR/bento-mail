@@ -1,5 +1,5 @@
 // To bootstrap the database from this contract, use:
-//   npx prisma-next contract emit
+//   npm run contract:emit
 //   npx prisma-next db init --db "$DATABASE_URL" --yes
 
 import mongoFamily from "@prisma-next/family-mongo/pack";
@@ -12,6 +12,7 @@ export const COLLECTION_NAMES = {
   newsletters: 'newsletters',
   reactions: 'reactions',
   users: 'users',
+  tasks: 'tasks',
 };
 
 export const contract = defineContract(
@@ -161,9 +162,46 @@ export const contract = defineContract(
       indexes: [index({ user: 1, article: 1 }, { unique: true })],
     });
 
+    const TaskPayload = valueObject("TaskPayload", {
+      fields: {
+        id: field.string().optional(),
+      },
+    });
+
+    const Task = model("Task", {
+      collection: COLLECTION_NAMES.tasks,
+      fields: {
+        _id: field.objectId(),
+        name: field.string(),
+        lockedAt: field.date().optional(),
+        data: field.valueObject(TaskPayload).optional(),
+        nextRunAt: field.date().optional(),
+
+        // These fields are included for completeness, but are not currently used in the application.
+        /* priority: field.int32().optional(),
+        type: field.string().optional(),         // 'normal' | 'single'
+        lastFinishedAt: field.date().optional(),
+        lastRunAt: field.date().optional(),
+        failedAt: field.date().optional(),
+        failCount: field.int32().optional(),
+        failReason: field.string().optional(),
+        repeatInterval: field.string().optional(), // string | number in Agenda — narrowed to string
+        repeatAt: field.string().optional(),
+        repeatTimezone: field.string().optional(),
+        lastModifiedBy: field.string().optional(), */
+      },
+      indexes: [
+        // Mirrors the @index on JobClass; data.id excluded (dot-paths not supported as index keys).
+        index({ name: 1, lockedAt: 1 }, { sparse: true }),
+        // TODO: add support in Prisma Next for dot-path indexes.
+        // See https://github.com/prisma/prisma-next/issues/1055
+        /* index({ 'data.id': 1 }, { sparse: true }), */
+      ],
+    });
+
     return {
-      models: { User, Article, Newsletter, Bundle, Reaction },
-      valueObjects: { Summaries, BasicArticle, LinkedArticle },
+      models: { User, Article, Newsletter, Bundle, Reaction, Task },
+      valueObjects: { Summaries, BasicArticle, LinkedArticle, TaskData: TaskPayload },
     };
   },
 );

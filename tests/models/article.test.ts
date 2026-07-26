@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Article, IArticle } from '@lib/models/article';
-import type { ArticleDetailsProps } from '@lib/ai-article-analyzer';
 import { hash } from '@lib/utils';
-import { MongoExistsExpr } from '@prisma-next/mongo-query-ast/execution';
 
-
-// Build a minimal valid create-input. `_id` is derived from `url`/`content`
-// like the legacy mongoose default did.
-function makeInput(data: { content?: string; url?: string; summaries?: IArticle['summaries'] | null }): Omit<IArticle, '_id'> {
+function makeInput(data: {
+  content?: string;
+  url?: string;
+  summaries?: IArticle['summaries'] | null;
+}): Omit<IArticle, '_id'> {
   return {
     header: '',
     sourceName: '',
@@ -23,7 +22,6 @@ function makeInput(data: { content?: string; url?: string; summaries?: IArticle[
 }
 
 describe('Article', () => {
-
   describe('generateId()', () => {
     it('should reject creating two articles with the same content', async () => {
       await Article.create(makeInput({ content: 'Unique Content' }));
@@ -43,9 +41,9 @@ describe('Article', () => {
     });
 
     it('should generate _id from `url` over `content`', () => {
-      expect(
-        Article.generateId({ content: 'Something', url: 'https://example.com' } as any),
-      ).toBe(hash('https://example.com'));
+      expect(Article.generateId({ content: 'Something', url: 'https://example.com' } as any)).toBe(
+        hash('https://example.com'),
+      );
     });
   });
 
@@ -63,12 +61,18 @@ describe('Article', () => {
         coverImg: 'mocked-image.jpg',
         date: '2023-01-01',
         sourceName: '',
+        linkedArticles: [],
       });
     });
 
     it('should generate summaries from url if provided', async () => {
       const mockHtml = '<p>Some content</p>';
-      const mockSummaries: ArticleDetailsProps = {
+
+      // Mock fetchHtmlContent and htmlToMarkdown
+      const utils = await import('@lib/utils');
+      const analyzer = await import('@lib/ai-article-analyzer');
+      vi.spyOn(utils, 'fetchHtmlContent').mockResolvedValue(mockHtml);
+      vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue({
         summaries: {
           oneliner: 'Summary one',
           overview: 'Summary overview',
@@ -77,13 +81,8 @@ describe('Article', () => {
         coverImg: 'img.jpg',
         date: '2023-10-10',
         sourceName: '',
-      };
-
-      // Mock fetchHtmlContent and htmlToMarkdown
-      const utils = await import('@lib/utils');
-      const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(utils, 'fetchHtmlContent').mockResolvedValue(mockHtml);
-      vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockSummaries);
+        linkedArticles: [],
+      });
 
       const article = await Article.create(makeInput({ url: 'https://example.com' }));
       await Article.process(article._id);
@@ -101,7 +100,8 @@ describe('Article', () => {
     });
 
     it('should generate summaries from `content` if `url` is falsy', async () => {
-      const mockSummaries: ArticleDetailsProps = {
+      const analyzer = await import('@lib/ai-article-analyzer');
+      vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue({
         summaries: {
           oneliner: 'Summary one',
           overview: 'Summary overview',
@@ -110,10 +110,8 @@ describe('Article', () => {
         coverImg: 'img.jpg',
         date: '2023-10-10',
         sourceName: '',
-      };
-
-      const analyzer = await import('@lib/ai-article-analyzer');
-      vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockSummaries);
+        linkedArticles: [],
+      });
 
       const article = await Article.create(makeInput({ content: 'Some content' }));
       await Article.process(article._id);
@@ -156,7 +154,7 @@ describe('Article', () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'extractArticleDetails').mockRejectedValueOnce(new Error('Fail reason here!'));
 
-      const input = makeInput({ content: 'Article with errors' })
+      const input = makeInput({ content: 'Article with errors' });
       const article = await Article.create(input);
 
       await expect(Article.process(article._id)).rejects.toThrow('Fail reason here');
