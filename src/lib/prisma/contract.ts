@@ -3,7 +3,7 @@
 //   npx prisma-next db init --db "$MONGODB_URI" --yes
 
 import mongoFamily from "@prisma-next/family-mongo/pack";
-import { defineContract } from "@prisma-next/mongo-contract-ts/contract-builder";
+import { defineContract } from '@prisma/orm-mongo/contract-builder';
 import mongoTarget from "@prisma-next/target-mongo/pack";
 
 export const COLLECTION_NAMES = {
@@ -20,7 +20,7 @@ export const COLLECTION_NAMES = {
 };
 
 export const contract = defineContract(
-  { family: mongoFamily, target: mongoTarget }, // What's this line?
+  {},
   ({ field, index, model, rel, valueObject }) => {
     const Summaries = valueObject("Summaries", {
       fields: {

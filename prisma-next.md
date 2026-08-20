@@ -6,20 +6,18 @@ This project is set up for MongoDB. Prisma Next also supports other databases.
 
 ## Requirements
 
-- **MongoDB 6.0 or newer.** Older servers are not supported. Run `db.runCommand({ buildInfo: 1 })` against your server to verify.
+- **MongoDB 8.0 or newer.** Older servers are not supported. Run `db.runCommand({ buildInfo: 1 })` against your server to verify.
 - The CLI never connects to your database without explicit consent. Pass `--probe-db` to `prisma-next init` if you want `init` to verify the server version itself.
 
 ## Your data contract
 
-Your data contract is the heart of your application. It lives at [`prisma/contract.ts`](prisma/contract.ts) and describes your models:
+Your data contract is the heart of your application. It lives at [`src/lib/prisma/contract.ts`](src/lib/prisma/contract.ts) and describes your models:
 
 ```typescript
-import mongoFamily from '@prisma-next/family-mongo/pack';
-import { defineContract } from '@prisma-next/mongo-contract-ts/contract-builder';
-import mongoTarget from '@prisma-next/target-mongo/pack';
+import { defineContract } from '@prisma/orm-mongo/contract-builder';
 
 export const contract = defineContract(
-  { family: mongoFamily, target: mongoTarget },
+  {},
   ({ field, model }) => ({
     models: {
       User: model('User', {
@@ -27,6 +25,7 @@ export const contract = defineContract(
         fields: {
           _id: field.objectId(),
           email: field.string(),
+          username: field.string().optional(),
           name: field.string().optional(),
         },
       }),
@@ -38,14 +37,14 @@ export const contract = defineContract(
 Every model you define in your contract can be queried from your app. Your editor will autocomplete the query methods and show you what type each field is:
 
 ```typescript
-import { db } from './prisma/db';
+import { db } from './src/lib/prisma/db';
 
 const user = await db.orm.users
   .where({ email: 'alice@example.com' })
   .first();
 
 // Your editor will show the type of user as
-// { _id: ObjectId; email: string; name: string | null; posts: Post[] } | null
+// { _id: ObjectId; email: string; username: string | null; name: string | null; posts: Post[] } | null
 ```
 
 `db` connects to MongoDB lazily on the first query, so there is no manual `connect(...)` step in your application code. Call `await db.close()` if you need to release the underlying connection (typically only in tests or short-lived scripts). After `close()` the client is single-shot — any further query, `connect()`, or `runtime()` call rejects with `"Mongo client is closed"`. Construct a new `mongo({...})` if you need to use it again.
@@ -65,10 +64,10 @@ If you use a framework like Next.js or Vite, the Prisma Next plugin will do this
 
 ```typescript
 import 'dotenv/config';
-import { defineConfig } from '@prisma-next/mongo/config';
+import { defineConfig } from '@prisma/orm-mongo/config';
 
 export default defineConfig({
-  contract: './prisma/contract.ts',
+  contract: './src/lib/prisma/contract.ts',
   db: {
     connection: process.env['DATABASE_URL']!,
   },
@@ -97,15 +96,15 @@ npx prisma-next migration status    # Show migration status
 
 | File | Purpose |
 |---|---|
-| [`prisma/contract.ts`](prisma/contract.ts) | Your data contract — define your models here |
+| [`src/lib/prisma/contract.ts`](src/lib/prisma/contract.ts) | Your data contract — define your models here |
 | [`prisma-next.config.ts`](prisma-next.config.ts) | CLI configuration |
-| [`prisma/db.ts`](prisma/db.ts) | Database client — `import { db } from './prisma/db'` |
-| `prisma/contract.json` | Compiled contract (generated) |
-| `prisma/contract.d.ts` | Contract types (generated) |
+| [`src/lib/prisma/db.ts`](src/lib/prisma/db.ts) | Database client — `import { db } from './src/lib/prisma/db'` |
+| `src/lib/prisma/contract.json` | Compiled contract (generated) |
+| `src/lib/prisma/contract.d.ts` | Contract types (generated) |
 
 ### Workflow
 
-1. Edit [`prisma/contract.ts`](prisma/contract.ts) to add or change models.
+1. Edit [`src/lib/prisma/contract.ts`](src/lib/prisma/contract.ts) to add or change models.
 2. Run `npx prisma-next contract emit` to regenerate the contract.
 3. Query your models — your IDE will autocomplete everything.
 
@@ -132,6 +131,6 @@ The ORM covers the common cases. For the rest, two escape hatches are designed i
 
 If this project lives inside a pnpm workspace, a few things are worth knowing:
 
-- **Catalogs.** When the workspace's `pnpm-workspace.yaml` defines a `catalogs` entry for `prisma-next` or `@prisma-next/mongo`, pnpm uses the catalog version everywhere — `init` does too. If you wanted the published `latest` instead, update or remove the catalog entry, then re-run `pnpm install`.
+- **Catalogs.** When the workspace's `pnpm-workspace.yaml` defines a `catalogs` entry for `prisma-next` or `@prisma/orm-mongo`, pnpm uses the catalog version everywhere — `init` does too. If you wanted the published `latest` instead, update or remove the catalog entry, then re-run `pnpm install`.
 - **`pnpm dlx`.** `pnpm dlx prisma-next@latest init …` works in any directory. Inside a workspace, pnpm still resolves dependencies through the workspace's catalog/overrides rather than the registry; expect the installed Prisma Next packages to reflect the workspace's catalog rather than `latest`.
 - **`pnpm` → `npm` fallback.** If `pnpm` ever fails to install Prisma Next with a `workspace:*` or `catalog:` resolution error (a leak in a published artefact), `init` falls back to `npm install` and surfaces a warning. Once the offending package republishes a clean version you can switch back with `pnpm install`.
