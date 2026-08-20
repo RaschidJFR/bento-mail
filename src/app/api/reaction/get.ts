@@ -1,4 +1,4 @@
-import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
+import { MongoFieldFilter } from '@prisma/orm-mongo/query-ast/execution';
 import { NextRequest } from 'next/server';
 import { Bundle, User, Article, Reaction, Newsletter } from '@lib/models';
 

@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { db, client } from '@lib/prisma/db';
-import type { InferRootRow } from '@prisma-next/mongo-orm';
+import type { InferRootRow } from '@prisma/orm-mongo/orm';
 import type { Contract } from '@lib/prisma/contract.d';
-import { MongoFieldFilter, MongoOrExpr } from '@prisma-next/mongo-query-ast/execution';
+import { MongoFieldFilter, MongoOrExpr } from '@prisma/orm-mongo/query-ast/execution';
 import { ChangeStream, Collection } from 'mongodb';
 import type { ChangeStreamOptions, Document } from 'mongodb';
 import { COLLECTION_NAME, DB_NAME } from './vars';

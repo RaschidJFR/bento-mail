@@ -7,7 +7,7 @@ This project is set up for MongoDB. Prisma Next also supports other databases.
 ## Requirements
 
 - **MongoDB 8.0 or newer.** Older servers are not supported. Run `db.runCommand({ buildInfo: 1 })` against your server to verify.
-- The CLI never connects to your database without explicit consent. Pass `--probe-db` to `prisma-next init` if you want `init` to verify the server version itself.
+- The CLI never connects to your database without explicit consent. Pass `--probe-db` to `prisma-cli init` if you want `init` to verify the server version itself.
 
 ## Your data contract
 
@@ -54,23 +54,26 @@ Your contract has two companion files in the same directory:
 - **`contract.json`** — this tells your application what models exist, just like `package-lock.json` tells your package manager what dependencies your project has
 - **`contract.d.ts`** — this powers autocomplete and type checking in your editor
 
-Commit both files to git. When you change your contract, run `npx prisma-next contract emit` to update them.
+Commit both files to git. When you change your contract, run `npx prisma-cli contract emit` to update them.
 
 If you use a framework like Next.js or Vite, the Prisma Next plugin will do this for you automatically.
 
 ## Configuration
 
-[`prisma-next.config.ts`](prisma-next.config.ts) tells the CLI where your contract lives and how to connect to your database. It loads environment variables from `.env` automatically:
+[`prisma.config.ts`](prisma.config.ts) tells the CLI where your contract lives and how to connect to your database. It loads environment variables from `.env` automatically:
 
 ```typescript
 import 'dotenv/config';
-import { defineConfig } from '@prisma/orm-mongo/config';
+import { definePrismaConfig } from '@prisma/cli-engine';
+import { defineConfig as ormConfig } from '@prisma/orm-mongo/config';
 
-export default defineConfig({
-  contract: './src/lib/prisma/contract.ts',
-  db: {
-    connection: process.env['DATABASE_URL']!,
-  },
+export default definePrismaConfig({
+  orm: ormConfig({
+    contract: './src/lib/prisma/contract.ts',
+    db: {
+      connection: process.env['DATABASE_URL']!,
+    },
+  }),
 });
 ```
 
@@ -87,9 +90,9 @@ You can customize how your environment variables are loaded by changing or remov
 ### Commands
 
 ```bash
-npx prisma-next contract emit       # Update contract.json and contract.d.ts
-npx prisma-next db init             # Create collections in the database
-npx prisma-next migration status    # Show migration status
+npx prisma-cli contract emit       # Update contract.json and contract.d.ts
+npx prisma-cli db init             # Create collections in the database
+npx prisma-cli migration status    # Show migration status
 ```
 
 ### Files
@@ -97,7 +100,7 @@ npx prisma-next migration status    # Show migration status
 | File | Purpose |
 |---|---|
 | [`src/lib/prisma/contract.ts`](src/lib/prisma/contract.ts) | Your data contract — define your models here |
-| [`prisma-next.config.ts`](prisma-next.config.ts) | CLI configuration |
+| [`prisma.config.ts`](prisma.config.ts) | CLI configuration |
 | [`src/lib/prisma/db.ts`](src/lib/prisma/db.ts) | Database client — `import { db } from './src/lib/prisma/db'` |
 | `src/lib/prisma/contract.json` | Compiled contract (generated) |
 | `src/lib/prisma/contract.d.ts` | Contract types (generated) |
@@ -105,7 +108,7 @@ npx prisma-next migration status    # Show migration status
 ### Workflow
 
 1. Edit [`src/lib/prisma/contract.ts`](src/lib/prisma/contract.ts) to add or change models.
-2. Run `npx prisma-next contract emit` to regenerate the contract.
+2. Run `npx prisma-cli contract emit` to regenerate the contract.
 3. Query your models — your IDE will autocomplete everything.
 
 ## Transactions and change streams (Mongo)
@@ -131,6 +134,6 @@ The ORM covers the common cases. For the rest, two escape hatches are designed i
 
 If this project lives inside a pnpm workspace, a few things are worth knowing:
 
-- **Catalogs.** When the workspace's `pnpm-workspace.yaml` defines a `catalogs` entry for `prisma-next` or `@prisma/orm-mongo`, pnpm uses the catalog version everywhere — `init` does too. If you wanted the published `latest` instead, update or remove the catalog entry, then re-run `pnpm install`.
-- **`pnpm dlx`.** `pnpm dlx prisma-next@latest init …` works in any directory. Inside a workspace, pnpm still resolves dependencies through the workspace's catalog/overrides rather than the registry; expect the installed Prisma Next packages to reflect the workspace's catalog rather than `latest`.
+- **Catalogs.** When the workspace's `pnpm-workspace.yaml` defines a `catalogs` entry for `@prisma/cli` or `@prisma/orm-mongo`, pnpm uses the catalog version everywhere — `init` does too. If you wanted the published `latest` instead, update or remove the catalog entry, then re-run `pnpm install`.
+- **`pnpm dlx`.** `pnpm dlx @prisma/cli@next init …` works in any directory. Inside a workspace, pnpm still resolves dependencies through the workspace's catalog/overrides rather than the registry; expect the installed Prisma Next packages to reflect the workspace's catalog rather than `latest`.
 - **`pnpm` → `npm` fallback.** If `pnpm` ever fails to install Prisma Next with a `workspace:*` or `catalog:` resolution error (a leak in a published artefact), `init` falls back to `npm install` and surfaces a warning. Once the offending package republishes a clean version you can switch back with `pnpm install`.

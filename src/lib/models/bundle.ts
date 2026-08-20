@@ -1,5 +1,5 @@
-import type { InferRootRow, MongoWhereFilter } from '@prisma-next/mongo-orm';
-import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
+import type { InferRootRow, MongoWhereFilter } from '@prisma/orm-mongo/orm';
+import { MongoFieldFilter } from '@prisma/orm-mongo/query-ast/execution';
 import type { Contract } from '@lib/prisma/contract.d';
 import { db } from '@lib/prisma/db';
 import { ObjectId } from 'mongodb';

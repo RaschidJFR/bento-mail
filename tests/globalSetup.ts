@@ -30,11 +30,11 @@ export async function setup() {
 }
 
 function applyContractToTestDb(url: string) {
-  const args = ['prisma-next', 'db', 'init', '--db', url, '--yes'];
+  const args = ['prisma@next', 'db', 'init', '--db', url, '--yes'];
   const result = spawnSync('npx', args, { encoding: 'utf8' });
   if (result.status !== 0) {
     throw new Error(
-      `\`prisma-next ${args.join(' ')}\` failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`,
+      `\`prisma ${args.join(' ')}\` failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`,
     );
   }
 }

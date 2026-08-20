@@ -1,4 +1,4 @@
-import type { InferRootRow, MongoWhereFilter } from '@prisma-next/mongo-orm';
+import type { InferRootRow, MongoWhereFilter } from '@prisma/orm-mongo/orm';
 import type { Contract } from '@lib/prisma/contract.d';
 import { db } from '@lib/prisma/db';
 import { extractArticleDetails, generateCoverImage } from '@lib/ai-article-analyzer';

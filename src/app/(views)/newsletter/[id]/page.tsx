@@ -4,7 +4,7 @@ import { Article } from '@lib/models';
 import { NewsletterHeader } from '@components/NewsletterHeader';
 import { ArticleCard } from '@components/ArticleCard';
 import { db } from '@lib/prisma/db';
-import { MongoFieldFilter, MongoOrExpr, MongoExistsExpr } from '@prisma-next/mongo-query-ast/execution';
+import { MongoFieldFilter, MongoOrExpr, MongoExistsExpr } from '@prisma/orm-mongo/query-ast/execution';
 
 export const dynamic = 'force-dynamic';
 

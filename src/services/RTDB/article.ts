@@ -1,6 +1,6 @@
 import { Newsletter, INewsletter, Article, IArticle } from '@lib/models';
 import { Server, Socket } from 'socket.io';
-import { MongoFieldFilter } from '@prisma-next/mongo-query-ast/execution';
+import { MongoFieldFilter } from '@prisma/orm-mongo/query-ast/execution';
 import { MongoClient } from 'mongodb';
 import type { ChangeStream, ChangeStreamDocument, Collection } from 'mongodb';
 
