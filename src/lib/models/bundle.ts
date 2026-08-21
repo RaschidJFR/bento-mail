@@ -255,7 +255,7 @@ async function getUnreadArticles(bundleId: string) {
     user: ObjectId;
     allArticleIds: string[];
     articles: IArticle[];
-    newsletters: INewsletter & { articles: IArticle[] }[];
+    newsletters: (INewsletter & { articles: IArticle[] })[];
   }[];
   return result && {
     ...result,

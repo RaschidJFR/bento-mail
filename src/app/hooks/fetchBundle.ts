@@ -2,6 +2,7 @@
 import { Bundle, IArticle, INewsletter } from '@lib/models';
 import type { ReactionsEnum } from '@lib/models/enums';
 import { JobNames, Task, ITask } from '@services/worker';
+import { db } from '@lib/prisma/db';
 
 // TODO: this should be moved out of lib as it is not frontend compatible.
 
