@@ -3,29 +3,27 @@ import { COLLECTION_NAMES } from '@lib/prisma/contract';
 
 export function populateUnreadArticles(bundleId: string) {
   return [
+    // 1. Target the single bundle by _id (primary key).
     {
       $match: {
         _id: ObjectId.createFromHexString(bundleId),
       },
     },
+    // 2. Hydrate newsletters (id order preserved by the sort below).
+    //    `content` is stripped inside the lookup to keep the payload small.
     {
       $lookup: {
         from: COLLECTION_NAMES.newsletters,
-        let: { newsletterIds: '$newsletters' },
+        localField: 'newsletters',
+        foreignField: '_id',
+        as: 'newsletters',
         pipeline: [
-          {
-            $match: {
-              $expr: { $in: ['$_id', '$$newsletterIds'] },
-            },
-          },
-          {
-            $unset: ['content'],
-          },
+          { $project: { content: 0 } },
           { $sort: { date: -1 } },
         ],
-        as: 'newsletters',
       },
     },
+    // 3. Collect every article id referenced by the bundle or its newsletters.
     {
       $set: {
         allArticleIds: {
@@ -35,40 +33,52 @@ export function populateUnreadArticles(bundleId: string) {
               $reduce: {
                 input: '$newsletters',
                 initialValue: [],
-                in: { $concatArrays: ['$$value', { $ifNull: ['$$this.articles', []] }] },
+                in: {
+                  $concatArrays: ['$$value', { $ifNull: ['$$this.articles', []] }],
+                },
               },
             },
           ],
         },
       },
     },
+    // 4. Fetch this user's reactions for the collected article ids. Only
+    //    `$eq` inside `$expr` can hit the { user: 1, article: 1 } index, so
+    //    the planner will scan by `user` and filter `article` at runtime.
     {
       $lookup: {
         from: COLLECTION_NAMES.reactions,
-        as: 'reactions',
+        as: 'reactedArticles',
         let: { articleIds: '$allArticleIds', userId: '$user' },
         pipeline: [
           {
             $match: {
               $expr: {
-                $and: [{ $in: ['$article', '$$articleIds'] }, { $eq: ['$user', '$$userId'] }],
+                $and: [
+                  { $eq: ['$user', '$$userId'] },
+                  { $in: ['$article', '$$articleIds'] },
+                ],
               },
             },
           },
-          { $project: { article: 1, _id: 0 } },
+          { $project: { _id: 0, article: 1 } },
         ],
       },
     },
+    // 5. Subtract reacted ids from the union to derive the unread set.
     {
       $set: {
         unreadArticles: {
-          $setDifference: ['$allArticleIds', { $map: { input: '$reactions', in: '$$this.article' } }],
+          $setDifference: [
+            '$allArticleIds',
+            { $map: { input: '$reactedArticles', in: '$$this.article' } },
+          ],
         },
       },
     },
-    {
-      $unset: ['reactions'],
-    },
+    { $unset: ['reactedArticles'] },
+    // 6. Hydrate only the unread, error-free articles as a keyed object so
+    //    the following stages can look up each id in O(1).
     {
       $lookup: {
         from: COLLECTION_NAMES.articles,
@@ -77,14 +87,11 @@ export function populateUnreadArticles(bundleId: string) {
         pipeline: [
           {
             $match: {
-              $expr: {
-                $and: [{ $in: ['$_id', '$$unread'] }, { $eq: [{ $ifNull: ['$lastError', ''] }, ''] }],
-              },
+              $expr: { $in: ['$_id', '$$unread'] },
+              lastError: { $in: [null, ''] },
             },
           },
-          {
-            $unset: ['content'],
-          }
+          { $project: { content: 0 } },
         ],
       },
     },
@@ -101,6 +108,8 @@ export function populateUnreadArticles(bundleId: string) {
         },
       },
     },
+    // 7. Replace the id arrays in `articles` and `newsletters[].articles`
+    //    with the hydrated docs, dropping ids that were read or errored.
     {
       $set: {
         articles: {
@@ -110,7 +119,10 @@ export function populateUnreadArticles(bundleId: string) {
                 input: '$articles',
                 as: 'a',
                 in: {
-                  $ifNull: [{ $getField: { field: '$$a', input: '$unreadArticles' } }, null],
+                  $ifNull: [
+                    { $getField: { field: '$$a', input: '$unreadArticles' } },
+                    null,
+                  ],
                 },
               },
             },
@@ -133,7 +145,10 @@ export function populateUnreadArticles(bundleId: string) {
                           input: '$$n.articles',
                           as: 'a',
                           in: {
-                            $ifNull: [{ $getField: { field: '$$a', input: '$unreadArticles' } }, null],
+                            $ifNull: [
+                              { $getField: { field: '$$a', input: '$unreadArticles' } },
+                              null,
+                            ],
                           },
                         },
                       },
@@ -148,9 +163,7 @@ export function populateUnreadArticles(bundleId: string) {
         },
       },
     },
-    {
-      $unset: ['unreadArticles'],
-    },
+    // 8. Emit only the fields the caller reads.
     {
       $project: {
         _id: 1,
