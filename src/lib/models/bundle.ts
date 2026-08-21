@@ -1,14 +1,14 @@
 import type { InferRootRow, MongoWhereFilter } from '@prisma/orm-mongo/orm';
-import { MongoFieldFilter } from '@prisma/orm-mongo/query-ast/execution';
 import type { Contract } from '@lib/prisma/contract.d';
 import { db } from '@lib/prisma/db';
 import { ObjectId } from 'mongodb';
 import { User } from './user';
 import { Newsletter, INewsletter } from './newsletter';
 import { Article, IArticle } from './article';
-import { Reaction } from './reaction';
 import { applyInBatches } from '@lib/utils';
+import { populateUnreadArticles } from './bundle/pipelines';
 
+/** @deprecated Use `Bundle.ProcessingStages` instead */
 export enum ProcessingStagesEnum {
   COMPLETED_WITH_ERRORS = -2,
   ERROR = -1,
@@ -242,58 +242,26 @@ function unwrapArticleIds(bundle: {
  * Retrieve all articles in a bundle that the user has not reacted to yet.
  * This includes articles from newsletters in the bundle.
  */
-async function getUnreadArticles(bundleId: ObjectId | string) {
+async function getUnreadArticles(bundleId: string) {
   const id = String(bundleId);
-  const bundle = await bundles.where({ _id: id }).first();
-  if (!bundle) return null;
-
-  const newsletterIds = (bundle.newsletters as string[] | null) || [];
-  const newsletters = (
-    await Promise.all(
-      newsletterIds.map((nid) =>
-        Newsletter.where({ _id: nid }).select('_id', 'articles', 'date', 'name', 'url', 'error').first(),
-      ),
-    )
-  ).filter(Boolean) as INewsletter[];
-  newsletters.sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')));
-
-  const directArticleIds = (bundle.articles as string[] | null) || [];
-  const allArticleIds = Array.from(
-    new Set([...directArticleIds, ...newsletters.flatMap((n) => (n.articles as string[]) || [])]),
-  );
-
-  const reactions = allArticleIds.length
-    ? await Reaction.where({ user: bundle.user })
-        .where(MongoFieldFilter.in('article', allArticleIds))
-        .select('article')
-        .all()
-        .toArray()
-    : [];
-  const reacted = new Set(reactions.map((r) => r.article));
-  const unreadIds = allArticleIds.filter((aid) => !reacted.has(aid));
-
-  const articleDocs = (
-    await Promise.all(unreadIds.map((aid) => Article.where({ _id: aid }).first()))
-  ).filter((a): a is IArticle => !!a && !a.lastError);
-  const articleMap = new Map<string, IArticle>(articleDocs.map((a) => [a._id, a]));
-
-  const finalArticles = directArticleIds
-    .map((aid) => articleMap.get(aid))
-    .filter((a): a is IArticle => !!a);
-  const finalNewsletters = newsletters.map((n) => ({
-    ...n,
-    articles: ((n.articles as string[]) || [])
-      .map((aid) => articleMap.get(aid))
-      .filter((a): a is IArticle => !!a),
-  }));
-
-  return {
-    _id: bundle._id,
-    user: bundle.user,
-    newsletters: finalNewsletters,
-    articles: finalArticles,
-    allArticleIds,
-  };
+  if (await Bundle.exists({ _id: id }) === null) {
+    return null;
+  }
+  const pipeline = populateUnreadArticles(id);
+  const plan = db().raw.collection('bundles').aggregate(pipeline).build();
+  const runtime = await db().runtime();
+  const [result] = await runtime.query(plan).toArray() as {
+    _id: ObjectId;
+    user: ObjectId;
+    allArticleIds: string[];
+    articles: IArticle[];
+    newsletters: INewsletter & { articles: IArticle[] }[];
+  }[];
+  return result && {
+    ...result,
+    _id: result._id.toHexString(),
+    user: result.user?.toHexString(),
+  } || null;
 }
 
 export const Bundle = Object.assign(bundles, {

@@ -205,7 +205,7 @@ describe('Bundle', () => {
       const result = await Bundle.getUnreadArticles(bundleId);
 
       expect(result).toBeTruthy();
-      expect(result?.user).toBe(String(user._id));
+      expect(result?.user).toEqual(user._id);
       expect(result?.allArticleIds?.length).toBe(8);
 
       // Direct articles filtered to only unread + no lastError
