@@ -3,7 +3,7 @@
 /**
  * Simple script to start the background worker that processes jobs from the queue.
  *
- * Usage: node scripts/start-worker.mjs [collectionName]
+ * Usage: node scripts/start-worker.js [collectionName]
  * If collectionName is provided, the worker will process jobs from that specific collection.
  *
  * Environment variables:
@@ -14,9 +14,9 @@ import 'dotenv/config';
 let worker;
 let initWorker;
 try {
-  initWorker = (await import('../dist/services/worker/index.mjs')).default;
+  initWorker = (await import('../dist/services/worker/index.js')).default;
 } catch (err) {
-  console.error("Failed to load worker module 'worker.mjs'. Have you built the project?: `npm run build:services`\n");
+  console.error("Failed to load worker module 'worker.js'. Have you built the project?: `npm run build:services`\n");
   console.error(err.stack);
   process.exit(1);
 }

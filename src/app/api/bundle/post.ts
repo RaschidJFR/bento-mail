@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { Bundle, IBundle, User } from '@lib/models';
+import { ProcessingStagesEnum } from '@lib/models/bundle';
 
 export interface RequestBody {
   email: string;
@@ -40,7 +41,7 @@ export default async function (req: NextRequest) {
     }
 
     // Find user by email
-    const user = await User.find().findByEmail(email.trim()).lean();
+    const user = await User.findByEmail(email.trim());
     if (!user) {
       return Response.json({ error: 'User not found.' }, { status: 404 });
     }
@@ -49,23 +50,23 @@ export default async function (req: NextRequest) {
     let bundle = await Bundle.findNextToSend(email);
     if (bundle) {
       if (newsletters?.length) {
-        bundle.addNewsletter(newsletters);
+        await Bundle.addNewsletter(bundle._id, newsletters);
       }
       if (articles?.length) {
-        bundle.addArticle(articles);
+        await Bundle.addArticle(bundle._id, articles);
       }
-      await bundle.save();
-      return Response.json({ result: bundle } as ResponseData, { status: 200 });
+      const updated = await Bundle.findById(bundle._id);
+      return Response.json({ result: updated } as ResponseData, { status: 200 });
     } else {
       // Create new bundle
-      bundle = new Bundle({
+      const created = await Bundle.create({
         user: user._id,
         newsletters: newsletters?.length ? newsletters : [],
         articles: articles?.length ? articles : [],
-        sent: false,
+        sendOn: null,
+        processingStage: ProcessingStagesEnum.NOT_STARTED,
       });
-      await bundle.save();
-      return Response.json({ result: bundle } as ResponseData, { status: 201 });
+      return Response.json({ result: created } as ResponseData, { status: 201 });
     }
   } catch (error: any) {
     console.error(error.stack, '\n');

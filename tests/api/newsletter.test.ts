@@ -28,7 +28,14 @@ describe('api/newsletter POST', () => {
     const format = 'text';
 
     // Create newsletter directly in DB
-    const existing = await Newsletter.create({ content });
+    const existing = await Newsletter.create({
+      content,
+      articles: [],
+      url: null,
+      date: null,
+      error: null,
+      name: null,
+    });
 
     const analyzer = await import('@lib/ai-article-analyzer');
     vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
@@ -48,7 +55,7 @@ describe('api/newsletter POST', () => {
     const format = 'text';
 
     const analyzer = await import('@lib/ai-article-analyzer');
-    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('article');
+    vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'article', reason: '' });
 
     const req = mockReq({ content, format });
     const res = await POST(req as any);
@@ -57,11 +64,11 @@ describe('api/newsletter POST', () => {
     const { result } = await res.json();
     expect(result.content).toBe(content);
 
-    const created = await Newsletter.findById(result._id).populate('articles').lean();
+    const created = await Newsletter.findById(result._id);
     expect(created).toBeTruthy();
-    expect(created?.content).toBe('A single article newsletter');
+    expect(created?.content).toBe(content);
     expect(result).toMatchObject(created!);
-    expect(created?.articles || []).toHaveLength(0);  // No articles should be created before calling Newsletter.processArticles()
+    expect(created?.articles || []).toHaveLength(0); // No articles should be created before calling Newsletter.processArticles()
   });
 
   it('should return 422 if content is not a newsletter nor an article', async () => {
@@ -69,7 +76,7 @@ describe('api/newsletter POST', () => {
     const format = 'text';
 
     const analyzer = await import('@lib/ai-article-analyzer');
-    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('unknown');
+    vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'unknown', reason: '' });
 
     const req = mockReq({ content, format });
     const res = await POST(req as any);
@@ -81,7 +88,7 @@ describe('api/newsletter POST', () => {
     const format = 'text';
 
     const analyzer = await import('@lib/ai-article-analyzer');
-    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+    vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
 
     const req = mockReq({ content, format });
     const res = await POST(req as any);
@@ -90,7 +97,7 @@ describe('api/newsletter POST', () => {
     const { result } = await res.json();
     expect(result.content).toBe(content);
 
-    const created = await Newsletter.findById(result._id).lean();
+    const created = await Newsletter.findById(result._id);
     expect(created).toBeTruthy();
     expect(created?.content).toBe('Brand new newsletter content');
     expect(result).toMatchObject(created!);
@@ -102,7 +109,7 @@ describe('api/newsletter POST', () => {
 
     // Mock analyzer to return 'newsletter'
     const analyzer = await import('@lib/ai-article-analyzer');
-    vi.spyOn(analyzer, 'isArticleOrNewsletter').mockResolvedValue('newsletter');
+    vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
 
     // Mock scheduler and its chain methods
     const schedulerMock = {
@@ -122,7 +129,7 @@ describe('api/newsletter POST', () => {
     // Verify that scheduler methods were called correctly
     expect(schedulerMock.create).toHaveBeenCalledWith(
       workerModule.JobNames.Newsletter.processArticles,
-      expect.objectContaining({ id: expect.any(String) })
+      expect.objectContaining({ id: expect.any(String) }),
     );
     expect(schedulerMock.schedule).toHaveBeenCalledWith('now');
     expect(schedulerMock.unique).toHaveBeenCalledWith(expect.objectContaining({ 'data.id': expect.any(String) }), {

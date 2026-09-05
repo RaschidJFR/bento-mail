@@ -5,7 +5,7 @@ import 'dotenv/config';
 let startServer;
 let server;
 try {
-  startServer = (await import('../dist/services/RTDB/index.mjs')).setupAndStart;
+  startServer = (await import('../dist/services/RTDB/index.js')).setupAndStart;
 } catch (err) {
   console.error("Failed to load RTDB module 'RTDB.js'. Have you built the project?: `npm run build`\n");
   console.error(err.stack);

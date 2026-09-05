@@ -8,7 +8,6 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
-      - DATABASE_NAME=${DATABASE_NAME}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ALLOWED_EMAIL_HOSTS=${ALLOWED_EMAIL_HOSTS}
       - APP_URL=${APP_URL}
@@ -23,7 +22,6 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
-      - DATABASE_NAME=${DATABASE_NAME}
       - WORKER_PROCESSING_INTERVAL=${WORKER_PROCESSING_INTERVAL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
   rtdb:
@@ -34,7 +32,6 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
-      - DATABASE_NAME=${DATABASE_NAME}
   mail: # Development only mail server
     build: .
     command: node scripts/start-mail-server.mjs

@@ -28,7 +28,7 @@
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 24+
 - MongoDB (local or cloud)
 - OpenAI API key with access to GPT-4-mini
 - Google OAuth credentials (see [Google OAuth Setup](#google-oauth-setup))

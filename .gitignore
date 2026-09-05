@@ -154,3 +154,5 @@ vite.config.ts.timestamp-*
 results
 samples
 samples.zip
+dist/
+/.prisma

@@ -45,11 +45,11 @@ export async function POST(req: NextRequest) {
     // Convert HTML to Markdown if necessary
     const contentText = format === 'html' ? htmlToMarkdown(content) : content;
 
-    // Prepare new Article model instance (id derived from content)
-    const article = new Article({ content: contentText, url }) as Article;
+    // Derive article id from content/url
+    const articleId = Article.generateId({ content: contentText, url: url ?? null });
 
     // Check for existing article with same id
-    const existentArticle = await Article.findById(article._id).lean();
+    const existentArticle = await Article.findById(articleId);
     if (existentArticle) {
       return Response.json(
         { error: `An article with the same content already exists`, result: existentArticle, type: 'article' },
@@ -64,7 +64,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Persist article
-    await article.save();
+    const article = await Article.create({
+      _id: articleId,
+      content: contentText,
+      url: url ?? null,
+      header: '',
+      sourceName: '',
+      date: null,
+      coverImg: null,
+      summaries: null,
+      linkedArticles: null,
+      lastError: null,
+    });
 
     // Trigger worker to process the article
     const id = article._id;

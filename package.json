@@ -1,8 +1,9 @@
 {
   "name": "bento-mail",
+  "type": "module",
   "version": "0.1.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "scripts": {
     "start": "npm run dev & npm run mail & npm run worker & npm run rtdb",
@@ -13,28 +14,29 @@
     "unzip": "[ ! -d samples ] && unzip -q samples.zip || true",
     "postinstall": "npm run unzip",
     "test": "vitest --exclude tests/ai-article-analyzer",
+    "pretest": "npm run contract:emit",
     "mail": "npx nodemon --watch ./dist/services --watch scripts/start-mail-server.mjs --exec node scripts/start-mail-server.mjs",
     "worker": "npx nodemon --watch ./dist/services --watch ./scripts/start-worker.mjs --exec node scripts/start-worker.mjs",
     "rtdb": "npx nodemon --watch ./dist/services --watch ./scripts/start-rtdb.mjs --exec node scripts/start-rtdb.mjs",
-    "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\" --collection=agenda -p 3001"
+    "agendash": "source .env && npx agendash --db=\"$MONGODB_URI\" --collection=agenda -p 3001",
+    "contract:emit": "NODE_OPTIONS='--experimental-strip-types' npx prisma@next contract emit"
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",
     "@langchain/core": "^0.3.21",
     "@langchain/openai": "^0.6.13",
+    "@prisma/orm-mongo": "^8.0.0-rc.4",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@typegoose/typegoose": "^12.19.0",
     "axios": "^1.7.0",
     "better-auth": "^1.4.5",
     "chronos-jobs": "^1.0.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.4.2",
     "jsdom": "^26.1.0",
     "lucide-react": "^0.544.0",
-    "mongodb": "^6.20.0",
-    "mongoose": "^8.18.1",
+    "mongodb": "^7.3.0",
     "next": "^15.5.9",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -46,6 +48,8 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@prisma/cli": "^8.0.0-rc.7",
+    "@prisma/cli-engine": "^0.2.0",
     "@swc/core": "^1.13.19",
     "@types/jsdom": "^21.1.7",
     "@types/maildev": "^0.0.7",
@@ -60,6 +64,7 @@
     "llm-scraper": "^1.6.0",
     "maildev": "^2.2.1",
     "mailparser": "^3.7.5",
+    "mongodb-connection-string-url": "^7.0.1",
     "mongodb-memory-server": "^11.2.0",
     "mongodb-runner": "^6.2.0",
     "nodemailer": "^7.0.6",

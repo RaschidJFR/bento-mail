@@ -1,8 +1,7 @@
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
-import type { ITask } from '@lib/models';
+import type { ITask as ITaskArticleProcess} from '@lib/models';
+export type { ITask as ITaskArticleProcess } from '@lib/models';
 import { getSocket } from './getSocket';
-
-export type ITaskArticleProcess = Omit<ITask<{ id: string }>, '_id'> & { _id: string };
 
 interface TaskChange {
   _id: ITaskArticleProcess['_id'];
@@ -14,10 +13,10 @@ export function useTasks(
   initialTasks: ITaskArticleProcess[]
 ): [Map<string, ITaskArticleProcess>, Dispatch<SetStateAction<Map<string, ITaskArticleProcess>>>] {
   const [tasks, setTasks] = useState<ITaskArticleProcess[]>(initialTasks);
-  const [taskMap, setTaskMap] = useState(new Map(tasks.map((task) => [task.data.id, task])));
+  const [taskMap, setTaskMap] = useState(new Map(tasks.map((task) => [task.data!.id!, task])));
 
   useEffect(() => {
-    const newJobMap = new Map(tasks.map((task) => [task.data.id, task]));
+    const newJobMap = new Map(tasks.map((task) => [task.data!.id!, task]));
     setTaskMap(newJobMap);
   }, [tasks]);
 

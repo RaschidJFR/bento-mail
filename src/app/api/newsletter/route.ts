@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { Newsletter, INewsletter } from '@lib/models';
-import { isArticleOrNewsletter } from '@lib/ai-article-analyzer';
+import { classifyContent } from '@lib/ai-article-analyzer';
 import { htmlToMarkdown } from '@lib/utils';
 import Scheduler, { JobNames } from '@services/worker';
 
@@ -42,10 +42,10 @@ export async function POST(req: NextRequest) {
 
     // Convert HTML to Markdown if necessary
     const contentText = format == 'html' ? htmlToMarkdown(content) : content;
-    const newsletter = new Newsletter({ content: contentText }) as Newsletter;
+    const newsletterId = Newsletter.generateId({ content: contentText });
 
     // Check for existing newsletter with the same ID
-    const existentNewsletter = await Newsletter.exists({ _id: newsletter._id }).lean();
+    const existentNewsletter = await Newsletter.findById(newsletterId);
     if (existentNewsletter) {
       console.warn(`A newsletter already exists with id %o`, existentNewsletter._id);
       return Response.json(
@@ -55,11 +55,20 @@ export async function POST(req: NextRequest) {
     }
 
     // Determine if content is a newsletter and save
-    const contentType = await isArticleOrNewsletter(contentText);
+    const { type: contentType } = await classifyContent(contentText);
     // A result of 'article' is acceptable here since some newsletters contain a single article
+    let newsletter: INewsletter;
     if (contentType == 'newsletter' || contentType == 'article') {
-      console.log('Creating new Newsletter with id: %o', newsletter._id);
-      await newsletter.save();
+      console.log('Creating new Newsletter with id: %o', newsletterId);
+      newsletter = await Newsletter.create({ 
+        _id: newsletterId,
+        content: contentText, 
+        articles: [],
+        url: '',
+        date: null,
+        name: null,
+        error: null,
+      });
     } else {
       console.warn('Content is not a newsletter nor an article: ', contentType);
       return Response.json(

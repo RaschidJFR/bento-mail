@@ -5,8 +5,8 @@ import { simpleParser } from 'mailparser';
 
 const server = new MailDev({});
 try {
-  const { processNewEmail } = await import('../dist/services/email/index.mjs');
-  const { saveEmailSample, fetchRawEmailFromMaildev } = await import('../dist/services/email/utils.mjs');
+  const { processNewEmail } = await import('../dist/services/email/index.js');
+  const { saveEmailSample, fetchRawEmailFromMaildev } = await import('../dist/services/email/utils.js');
   server.on('new', async (email) => {
     if (process.env.NODE_ENV === 'development') {
       saveEmailSample(email);
@@ -18,7 +18,7 @@ try {
   });
 } catch (err) {
   console.error(
-    "Failed to load mail server module 'email.mjs'. Have you built the project?: `npm run build:services`\n"
+    "Failed to load mail server module 'email.js'. Have you built the project?: `npm run build:services`\n"
   );
   console.error(err.stack);
   process.exit(1);
