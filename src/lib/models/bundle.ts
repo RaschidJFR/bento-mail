@@ -1,25 +1,15 @@
-import { getModelForClass, pre, prop, index, getName } from '@typegoose/typegoose';
-import type { Ref, ReturnModelType, DocumentType } from '@typegoose/typegoose';
+import type { InferRootRow, MongoWhereFilter } from '@prisma/orm-mongo/orm';
+import type { Contract } from '@lib/prisma/contract.d';
+import { db } from '@lib/prisma/db';
 import { ObjectId } from 'mongodb';
-import type { PipelineStage } from 'mongoose';
-import { UserClass } from './user';
-import { INewsletter, NewsletterClass } from './newsletter';
-import { ArticleClass } from './article';
-import { clearModelInDevelopment } from './utils';
+import { User } from './user';
+import { Newsletter, INewsletter } from './newsletter';
+import { Article, IArticle } from './article';
 import { applyInBatches } from '@lib/utils';
-import { Article, User, Newsletter } from '.';
 import { populateUnreadArticles } from './bundle/pipelines';
 
-export interface IBundle {
-  _id: ObjectId;
-  sendOn?: Date;
-  user: Ref<UserClass>;
-  newsletters?: Ref<NewsletterClass>[];
-  articles?: Ref<ArticleClass>[];
-  processingStage: ProcessingStagesEnum;
-}
-
-enum ProcessingStagesEnum {
+/** @deprecated Use `Bundle.ProcessingStages` instead */
+export enum ProcessingStagesEnum {
   COMPLETED_WITH_ERRORS = -2,
   ERROR = -1,
   NOT_STARTED = 0,
@@ -28,298 +18,262 @@ enum ProcessingStagesEnum {
   SENT = 3,
 }
 
-@pre<BundleClass>('save', async function () {
-  const user = this.user as User;
-  if (this.isNew && user.isNew !== false) {
-    const exists = await User.exists({ _id: user._id }).lean();
-    if (!exists) {
-      throw new Error('User must exist to create a bundle');
-    }
+export type IBundle = Omit<InferRootRow<Contract, 'Bundle'>, 'processingStage'> & {
+  processingStage: ProcessingStagesEnum;
+};
+
+const bundles = db().orm.bundles;
+const ormCreate = bundles.create.bind(bundles);
+
+type BundleCreateInput = Parameters<typeof bundles.create>[0];
+
+/**
+ * Create a bundle. Verifies that the referenced user exists.
+ */
+async function create(input: BundleCreateInput) {
+  const userId = String(input.user);
+  const exists = await User.exists({ _id: userId });
+  if (!exists) {
+    throw new Error('User must exist to create a bundle');
   }
-})
-@index({ processingStage: 1, sendOn: 1, user: 1, _id: -1 }, { unique: true }) // Optimized for findNextToSend
-export class BundleClass implements IBundle {
-  public _id!: ObjectId;
-  @prop({ type: Date })
-  public sendOn?: Date;
-  @prop({ ref: () => UserClass, required: true })
-  public user!: Ref<UserClass>;
-  @prop({ ref: () => NewsletterClass, type: () => [String] })
-  public newsletters?: Ref<NewsletterClass>[];
-  @prop({ ref: () => ArticleClass, type: () => [String] })
-  public articles?: Ref<ArticleClass>[];
-  @prop({ type: Number, enum: ProcessingStagesEnum, default: ProcessingStagesEnum.NOT_STARTED })
-  public processingStage: ProcessingStagesEnum = ProcessingStagesEnum.NOT_STARTED;
+  return ormCreate({
+    ...input,
+    user: userId,
+    processingStage: input.processingStage ?? ProcessingStagesEnum.NOT_STARTED,
+  });
+}
 
-  /**
-   * Adds one or more newsletter IDs or Newsletter documents to the bundle, preventing duplicates.
-   */
-  public addElements(this: DocumentType<BundleClass>, elements: (Article | Newsletter)[]) {
-    if (elements.length > 0) {
-      elements.forEach((item) => {
-        if (!(item as any)._id) {
-          throw new Error('Element must have an _id');
-        }
-        if (item instanceof Newsletter) {
-          this.newsletters = !this.newsletters?.length ? [] : this.newsletters;
-          if (!this.newsletters.includes(item._id)) {
-            this.newsletters.push(item._id);
-          }
-        } else if (item instanceof Article) {
-          this.articles = !this.articles?.length ? [] : this.articles;
-          if (!this.articles.includes(item._id)) {
-            this.articles.push(item._id);
-          }
-        }
-      });
-    }
+/**
+ * Convenience method.
+ * Short for `bundles.where(filter).select('_id').first()`
+ */
+async function exists(filter: MongoWhereFilter<Contract, 'Bundle'>): Promise<ObjectId | null> {
+  const result = await bundles.where(filter).select('_id').first();
+  return result?._id ? new ObjectId(String(result._id)) : null;
+}
+
+/**
+ * Convenience method.
+ * Short for `bundles.where({ _id: id }).first()`
+ */
+async function findById(id: ObjectId | string) {
+  return bundles.where({ _id: String(id) }).first();
+}
+
+/**
+ * Add one or more newsletter ids to the bundle identified by `_id`,
+ * preventing duplicates.
+ * @param _id - The bundle id
+ * @param newsletterId - The newsletter id(s) to add
+ * @returns The updated newsletter id array
+ */
+async function addNewsletter(_id: ObjectId | string, newsletterId: string | string[]): Promise<string[]> {
+  return _addRefs(_id, 'newsletters', newsletterId);
+}
+
+/**
+ * Add one or more article ids to the bundle identified by `_id`,
+ * preventing duplicates.
+ * @param _id - The bundle id
+ * @param articleId - The article id(s) to add
+ * @returns The updated article id array
+ */
+async function addArticle(_id: ObjectId | string, articleId: string | string[]): Promise<string[]> {
+  return _addRefs(_id, 'articles', articleId);
+}
+
+/**
+ * Add one or more references to the bundle identified by `_id`,
+ * preventing duplicates.
+ * @param _id - The bundle id
+ * @param field - The reference field to update
+ * @param refs - The reference id(s) to add
+ * @returns The updated reference id array
+ */
+async function _addRefs(
+  _id: ObjectId | string,
+  field: keyof Pick<IBundle, 'newsletters' | 'articles'>,
+  refs: string | string[],
+): Promise<string[]> {
+  const idsToAdd = Array.isArray(refs) ? refs : [refs];
+  const bundleId = String(_id);
+  const existing = await bundles.where({ _id: bundleId }).first();
+  if (!existing) {
+    throw new Error(`Bundle ${bundleId} not found`);
   }
+  const existingIds = (existing[field]) || [];
+  const merged = Array.from(new Set([...existingIds, ...idsToAdd]));
+  await bundles.where({ _id: bundleId }).update({ [field]: merged });
+  return merged;
+}
 
-  /**
-   * Add a newsletter to the bundle.
-   * If the newsletter is already in the bundle, it won't be added again.
-   * @param newsletter - Newsletter document(s) or newsletter ID(s)
-   * @return The updated newsletter array
-   */
-  public addNewsletter(newsletter: Newsletter): Ref<NewsletterClass>[];
-  public addNewsletter(newsletters: Newsletter[]): Ref<NewsletterClass>[];
-  public addNewsletter(newsletterId: string): Ref<NewsletterClass>[];
-  public addNewsletter(newsletterIds: string[]): Ref<NewsletterClass>[];
-  public addNewsletter(this: DocumentType<BundleClass>, newsletters: Newsletter | Newsletter[] | string | string[]) {
-    this.addNewsletterOrArticle(newsletters, 'newsletter');
-    return this.newsletters;
-  }
-
-  /**
-   * Add an article to the bundle.
-   * If the article is already in the bundle, it won't be added again.
-   * @param article - Article(s) document or article ID(s)
-   * @return The updated articles array
-   */
-  public addArticle(article: Article): Ref<ArticleClass>[];
-  public addArticle(articles: Article[]): Ref<ArticleClass>[];
-  public addArticle(articleId: string): Ref<ArticleClass>[];
-  public addArticle(articleIds: string[]): Ref<ArticleClass>[];
-  public addArticle(this: DocumentType<BundleClass>, articles: Article | Article[] | string | string[]) {
-    this.addNewsletterOrArticle(articles, 'article');
-    return this.articles;
-  }
-
-  addNewsletterOrArticle(
-    this: DocumentType<BundleClass>,
-    elements: Newsletter | Newsletter[] | Article | Article[] | string | string[],
-    type: 'newsletter' | 'article',
-  ) {
-    if (!Array.isArray(elements)) {
-      elements = [elements as any];
-    }
-
-    if (Array.isArray(elements)) {
-      if (typeof elements[0] === 'string') {
-        const nls = (elements as string[]).map((_id) =>
-          type === 'article' ? Article.hydrate({ _id }) : Newsletter.hydrate({ _id }),
-        );
-        this.addElements(nls as any);
-      } else if (elements[0] instanceof Newsletter || elements[0] instanceof Article) {
-        const arr = elements as (Newsletter | Article)[];
-        this.addElements(arr);
-      }
-    }
-  }
-
-  /**
-   * Find the next bundle to send for a given user whose content processing has not yet started.
-   */
-  public static findNextToSend(user: User): Promise<Bundle | null>;
-  public static findNextToSend(email: string): Promise<Bundle | null>;
-  public static findNextToSend(userId: ObjectId): Promise<Bundle | null>;
-  public static async findNextToSend(this: ReturnModelType<typeof BundleClass>, user: User | ObjectId | string) {
-    if (typeof user === 'string') {
-
-      const pipeline: PipelineStage[] = [
-        {
-          $match: {
-            $or: [
-              { processingStage: { $eq: ProcessingStagesEnum.NOT_STARTED } },
-              { processingStage: { $exists: false } },
-            ],
-          },
-        },
-        {
-          $lookup: {
-            from: User.collection.name,
-            localField: 'user',
-            foreignField: '_id',
-            as: 'user',
-          },
-        },
-        { $unwind: '$user' },
-        {
-          $match: {
-            $or: [{ 'user.email': user }, { 'user.aliasEmail': user }],
-          },
-        },
-        { $sort: { sendOn: 1, _id: -1 } },
-        { $limit: 1 },
-      ];
-
-      const [result] = await this.aggregate(pipeline);
-      return (result && BundleModel.hydrate(result)) || null;
-    } else {
-      return this.findOne({
-        user,
-        $or: [{ processingStage: { $eq: ProcessingStagesEnum.NOT_STARTED } }, { processingStage: { $exists: false } }],
-      }).sort({ sendOn: 1, _id: -1 });
-    }
+/**
+ * Find the next bundle to send for a given user whose content processing
+ * has not yet started.
+ * @param user - The user id or email
+ * @returns The next bundle to send, or null if none found
+ */
+async function findNextToSend(user: string | ObjectId): Promise<IBundle | null> {
+  let userId: string;
+  if (typeof user === 'string' && !ObjectId.isValid(user)) {
+    const matched = await User.findByEmail(user);
+    if (!matched) return null;
+    userId = String(matched._id);
+  } else {
+    userId = String(user);
   }
 
-  /**
-   * Process all newsletters in this bundle, extracting their articles.
-   * @param pulsecheck - Optional callback to report progress after every batch
-   * @returns The number of articles that failed to extract
-   */
-  public async _unpackNewsletters(this: DocumentType<BundleClass>, { pulsecheck = () => {} } = {}) {
-    // Ensure the bundle is saved and not modified
-    const bundle = (await BundleModel.findById(this._id)) as Bundle;
-    if (!bundle || this.isModified()) {
-      throw new Error('Please save bundle before processing its elements');
-    }
+  const result = await bundles
+    .where({ user: userId, processingStage: ProcessingStagesEnum.NOT_STARTED })
+    .orderBy({ sendOn: 1, _id: -1 })
+    .first();
+  return (result as IBundle | null) ?? null;
+}
 
-    // Convert all elements to Class instances
-    const newsletters = (bundle?.newsletters || []).map((o) =>
-      typeof o === 'string' ? Newsletter.hydrate({ _id: o }) : (o as Newsletter),
+/**
+ * Process all newsletters in the bundle, extracting their articles.
+ * @returns The number of newsletters that failed to extract
+ */
+async function unpackNewsletters(
+  bundleId: ObjectId | string,
+  { pulsecheck = () => {} }: { pulsecheck?: () => void } = {},
+): Promise<number> {
+  const id = String(bundleId);
+  const bundle = await bundles.where({ _id: id }).first();
+  if (!bundle) {
+    throw new Error(`Bundle ${id} not found`);
+  }
+  return Newsletter.extractArticlesBatch((bundle.newsletters as string[]) || [], { pulsecheck });
+}
+
+/**
+ * Process all newsletters and articles in the bundle, extracting their content.
+ * Updates the `processingStage` field accordingly.
+ *
+ * Unpacks newsletters first (extracting their articles), then processes
+ * every article in batches.
+ * @returns The number of articles that failed to process or -1 on fatal error
+ */
+async function processContent(
+  bundleId: ObjectId | string,
+  { pulsecheck = () => {} }: { pulsecheck?: () => void } = {},
+): Promise<number> {
+  const id = String(bundleId);
+  const existing = await bundles.where({ _id: id }).first();
+  if (!existing) {
+    throw new Error(`Bundle ${id} not found`);
+  }
+
+  if ((existing.processingStage || ProcessingStagesEnum.NOT_STARTED) !== ProcessingStagesEnum.NOT_STARTED) {
+    console.warn(
+      `[Bundle.processContent] Bundle ${id} has been previously processed (${
+        ProcessingStagesEnum[existing.processingStage]
+      }). Processing again...`,
+    );
+  }
+
+  try {
+    await bundles.where({ _id: id }).update({ processingStage: ProcessingStagesEnum.PROCESSING_CONTENT });
+    let errorCount = 0;
+
+    errorCount += await unpackNewsletters(id, { pulsecheck });
+
+    // Re-fetch to pick up articles newly attached to newsletters
+    const refreshed = await bundles.where({ _id: id }).first();
+    const newsletterIds = ((refreshed?.newsletters as string[] | null) || []);
+    const newsletters = (
+      await Promise.all(newsletterIds.map((nid) => Newsletter.where({ _id: nid }).first()))
+    ).filter(Boolean) as INewsletter[];
+
+    const articleIds = Array.from(
+      new Set([
+        ...((refreshed?.articles as string[] | null) || []),
+        ...newsletters.flatMap((nl) => (nl.articles as string[]) || []),
+      ]),
     );
 
-    const erroCount = await Newsletter.extractArticles(newsletters, { pulsecheck } as any);
-    return erroCount;
-  }
+    await applyInBatches(
+      articleIds,
+      async (articleId) => {
+        try {
+          await Article.process(articleId);
+        } catch (error: any) {
+          console.error(`[Bundle.processContent] Error processing article ${articleId}:`);
+          console.error(error.stack, '\n');
+          errorCount++;
+        }
+      },
+      { pulsecheck },
+    );
 
-  /**
-   * Process all newsletters and articles in this bundle, extracting their content.
-   * Updates the `processingStage` field accordingly.
-   *
-   * Under the hood, this method first calls `_unpackNewsletters()` to extract their articles,
-   * then processes all articles in batches.
-   * @param param1 - Optional callback to report progress after every batch
-   * @returns The number of articles that failed to process or -1 on fatal error
-   */
-  public async processContent(this: DocumentType<BundleClass>, { pulsecheck = () => {} } = {}) {
-    // Ensure the bundle is saved and not modified
-    const existing = (await BundleModel.findById(this._id).populate('articles newsletters')) as Bundle;
-    if (!existing || this.isModified()) {
-      throw new Error('Please save bundle before processing its elements');
-    }
-
-    if ((existing.processingStage || ProcessingStagesEnum.NOT_STARTED) != ProcessingStagesEnum.NOT_STARTED) {
-      console.warn(
-        `[Bundle.processArticles] Bundle ${this._id} has been previously processed (${
-          ProcessingStagesEnum[existing.processingStage]
-        }). Processing again...`,
-      );
-    }
-
-    try {
-      this.processingStage = ProcessingStagesEnum.PROCESSING_CONTENT;
-      await this.save();
-      let errorCount = 0;
-
-      // First, unpack all newsletters to extract their articles
-      errorCount += await existing._unpackNewsletters({ pulsecheck });
-      await existing.populate([
-        {
-          path: 'newsletters',
-          populate: { path: 'articles' },
-        },
-        {
-          path: 'articles',
-        },
-      ]);
-
-      const newsletters = (existing.newsletters || []) as Newsletter[];
-      const articles = newsletters.map((nl) => nl.articles).flat() as Article[];
-      articles.push(...((existing.articles as Article[]) || []));
-
-      // Process articles in batches
-      await applyInBatches(
-        articles,
-        async (article) => {
-          try {
-            await article.process();
-          } catch (error: any) {
-            console.error(`[Bundle.processArticles] Error processing article ${article._id}:`);
-            console.error(error.stack, '\n');
-            errorCount++;
-          }
-        },
-        { pulsecheck },
-      );
-
-      this.processingStage =
-        errorCount > 0 ? ProcessingStagesEnum.COMPLETED_WITH_ERRORS : ProcessingStagesEnum.CONTENT_PROCESSED;
-      await this.save();
-      errorCount && console.warn(`[Bundle.processArticles] Completed with ${errorCount} errors in bundle ${this._id}`);
-      return errorCount;
-    } catch (error: any) {
-      this.processingStage = ProcessingStagesEnum.ERROR;
-      await this.save();
-      console.error(`[Bundle.processArticles] Error in bundle ${this._id}:`);
-      console.error(error.stack, '\n');
-      return -1;
-    }
-  }
-  public static ProcessingStages = ProcessingStagesEnum;
-
-  /**
-   * Unwrap all articles in this bundle, including those from newsletters.
-   * @note Requires populating articles and newsletters before call.
-   */
-  public static unwrapArticleIds(this: typeof BundleModel, bundle: IBundle): string[] {
-    if (!bundle.articles || !bundle.newsletters) {
-      throw new Error('Please populate both articles and newsletters before calling allArticles()');
-    }
-
-    const newsletters = bundle.newsletters || [];
-    const articles = newsletters.map((nl) => (nl as INewsletter).articles).flat();
-    const result = articles.concat(bundle.articles).map((a) => (typeof a === 'string' ? a : a._id));
-    return result;
-  }
-
-  /**
-   * Unwrap all articles in this bundle, including those from newsletters.
-   */
-  public unwrapArticleIds(this: Bundle): string[] {
-    return BundleModel.unwrapArticleIds(this);
-  }
-
-  /**
-   * [WIP] Get the IDs of articles in this bundle that the user has not reacted to yet.
-   * @todo 
-   *    - Populate articles and newsletters
-   */
-  public async getUnreadArticles(this: DocumentType<BundleClass>) {
-    return BundleClass.getUnreadArticles(this._id);
-  }
-
-  /**
-   * Retrieve all articles in this bundle that the user has not reacted to yet.
-   * This includes articles from newsletters in the bundle.
-   */
-  public static async getUnreadArticles(bundleId: ObjectId) {
-
-    const pipeline = populateUnreadArticles(bundleId);
-    const results = await BundleModel.aggregate(pipeline).exec();
-
-    return results[0] || null;
+    const finalStage =
+      errorCount > 0 ? ProcessingStagesEnum.COMPLETED_WITH_ERRORS : ProcessingStagesEnum.CONTENT_PROCESSED;
+    await bundles.where({ _id: id }).update({ processingStage: finalStage });
+    errorCount && console.warn(`[Bundle.processContent] Completed with ${errorCount} errors in bundle ${id}`);
+    return errorCount;
+  } catch (error: any) {
+    await bundles.where({ _id: id }).update({ processingStage: ProcessingStagesEnum.ERROR });
+    console.error(`[Bundle.processContent] Error in bundle ${id}:`);
+    console.error(error.stack, '\n');
+    return -1;
   }
 }
 
-clearModelInDevelopment(getName(BundleClass));
-const BundleModel = getModelForClass(BundleClass, {
-  schemaOptions: { collection: 'bundles' },
+/**
+ * Unwrap all article ids in a populated bundle, including those from
+ * its newsletters.
+ * @note Requires `articles` and `newsletters` (with their `articles`) to be populated.
+ * @returns An array of article ids from the bundle and its newsletters.
+ */
+function unwrapArticleIds(bundle: {
+  articles?: readonly (string | { _id: string })[] | null;
+  newsletters?: readonly (string | INewsletter)[] | null;
+}): string[] {
+  if (!bundle.articles || !bundle.newsletters) {
+    throw new Error('Please populate both articles and newsletters before calling unwrapArticleIds()');
+  }
+  const nlArticles: (string | { _id: string })[] = (bundle.newsletters as readonly (string | INewsletter)[])
+    .flatMap((nl) => (typeof nl === 'string' ? [] : (nl.articles as readonly string[]) || []));
+  const all = nlArticles.concat(bundle.articles as readonly (string | { _id: string })[]);
+  return all.map((a) => (typeof a === 'string' ? a : a._id));
+}
+
+/**
+ * Retrieve all articles in a bundle that the user has not reacted to yet.
+ * This includes articles from newsletters in the bundle.
+ */
+async function getUnreadArticles(bundleId: string) {
+  const id = String(bundleId);
+  if (await Bundle.exists({ _id: id }) === null) {
+    return null;
+  }
+  const pipeline = populateUnreadArticles(id);
+  const plan = db().raw.collection('bundles').aggregate(pipeline).build();
+  const runtime = await db().runtime();
+  const [result] = await runtime.query(plan).toArray() as {
+    _id: ObjectId;
+    user: ObjectId;
+    allArticleIds: string[];
+    articles: IArticle[];
+    newsletters: (INewsletter & { articles: IArticle[] })[];
+  }[];
+  return result && {
+    ...result,
+    _id: result._id.toHexString(),
+    user: result.user?.toHexString(),
+  } || null;
+}
+
+export const Bundle = Object.assign(bundles, {
+  create,
+  exists,
+  findById,
+  addNewsletter,
+  addArticle,
+  findNextToSend,
+  unpackNewsletters,
+  processContent,
+  unwrapArticleIds,
+  getUnreadArticles,
+  ProcessingStages: ProcessingStagesEnum,
 });
-
-export { BundleModel as Bundle };
-export type Bundle = DocumentType<BundleClass>;
-export namespace Bundle {
-  export type ProcessingStages = ProcessingStagesEnum;
-}

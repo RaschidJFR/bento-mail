@@ -35,15 +35,15 @@ export default async function(req: NextRequest) {
     }
 
     // Check if reaction already exists
-    let existing = await Reaction.findOne({ user, article }).lean();
+    const existing = await Reaction.where({ user, article }).first();
     if (existing) {
       // Update reaction
-      await Reaction.updateOne({ user, article }, { reaction });
-      return Response.json({ result: { ...existing, reaction } }, { status: 200 });
+      const updated = await Reaction.where({ user, article }).update({ reaction });
+      return Response.json({ result: updated }, { status: 200 });
     }
 
     // Create new reaction
-    const newReaction = await Reaction.create({ user, article, reaction });
+    const newReaction = await Reaction.create({ user, article, reaction, date: new Date() });
     return Response.json({ result: newReaction }, { status: 201 });
   } catch (error: any) {
     console.error(error);

@@ -6,9 +6,9 @@ const devEnv = typeof process !== 'undefined' && process.env.NODE_ENV !== 'produ
 
 interface NewsletterHeaderProps {
   newsletter?: {
-    _id?: string;
-    name?: string;
-    date?: string;
+    _id?: string | null;
+    name?: string | null;
+    date?: string | null;
   };
 }
 

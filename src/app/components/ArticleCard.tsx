@@ -213,7 +213,7 @@ export const ArticleCard = ({
           {article.coverImg && (
             <div className="aspect-video w-full overflow-hidden bg-surface-secondary">
               <img
-                src={normalizeImageUrl(article.coverImg, article.url)}
+                src={normalizeImageUrl(article.coverImg, article.url || '')}
                 alt={article.header}
                 className="w-full h-full object-contain"
               />

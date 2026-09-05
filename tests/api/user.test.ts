@@ -23,7 +23,7 @@ describe('api/user POST', () => {
   });
 
   it('should return 409 if user already exists', async () => {
-    const user = await User.create({ email: 'test@example.com' });
+    const user = await User.create({ email: 'test@example.com', name: null , aliasEmail: null , image: null });
     const req = mockRequest({ email: 'test@example.com' });
     const res: any = await POST(req);
     const { result, error } = await res.json();
@@ -37,7 +37,7 @@ describe('api/user POST', () => {
     const res: any = await POST(req);
     expect(res.status).toBe(201);
     const { result } = await res.json();
-    const user = await User.findById(result._id);
+    const user = await User.where({ _id: result._id }).first();
     expect(user!.email).toBe('new@example.com');
   });
 });

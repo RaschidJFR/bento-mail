@@ -3,6 +3,7 @@ import { Article } from '@lib/models';
 import type { IArticle } from '@lib/models';
 import { ArticleCard } from '@components/ArticleCard';
 import type { Metadata, ResolvingMetadata } from 'next';
+import { db } from '@lib/prisma/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,14 +23,20 @@ Publishers now use AI to summarize articles, personalize content, and optimize d
       'With AI, publishers can analyze reader preferences, summarize lengthy articles, and deliver content at optimal times. This leads to higher engagement and more relevant information for subscribers, transforming the traditional newsletter experience.',
   },
   lastError: '',
+  linkedArticles: [],
 };
 
 async function getArticle(id: string) {
-  if (Article.db.readyState != 1) {
+  const dbReady = await db()
+      .runtime()
+      .then(() => true)
+      .catch(() => false);
+
+  if (!dbReady) {
     console.warn('Database not connected, using mock article');
     return mockArticle;
   }
-  const article = await Article.findById(id).lean();
+  const article = await Article.findById(id);
   if (!article) return null;
   return article as IArticle;
 }

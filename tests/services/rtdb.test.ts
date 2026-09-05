@@ -1,4 +1,4 @@
-import { Newsletter, Article, ITask, IArticle } from '@lib/models';
+import { Newsletter, Article, ITask, IArticle, INewsletter } from '@lib/models';
 import { JobNames, Task } from '@services/worker';
 import { Server } from 'socket.io';
 import { io, Socket } from 'socket.io-client';
@@ -87,18 +87,32 @@ describe('RTDB Service', () => {
   describe('Task ChangeStream', () => {
     interface TaskChange {
       _id: ObjectId;
-      data: Partial<ITask<{ id: string }>>;
+      data: Partial<ITask>;
     }
 
-    let article: Article;
-    let newsletter: Newsletter;
+    let article: IArticle;
+    let newsletter: INewsletter;
 
     beforeEach(async () => {
-      article = (await Article.create({ content: ' Article content' })) as Article;
-      newsletter = (await Newsletter.create({
+      article = await Article.create({
+        content: ' Article content',
+        sourceName: '',
+        header: '',
+        date: null,
+        url: null,
+        linkedArticles: null,
+        lastError: null,
+        coverImg: null,
+        summaries: null,
+      });
+      newsletter = await Newsletter.create({
         content: 'newsletter content',
-        articles: [article],
-      })) as Newsletter;
+        articles: [article._id],
+        error: null,
+        name: null,
+        url: null,
+        date: null,
+      });
     });
 
     it('Emit when a task is created', async () => {
@@ -114,11 +128,18 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update task to trigger the change stream
-      const taskData = { name: JobNames.Article.process, data: { id: article._id } };
-      const task = await Task.create(taskData);
+      const task = await Task.create({
+        name: JobNames.Article.process,
+        data: { id: article._id },
+        lockedAt: null,
+        nextRunAt: null,
+      });
       const { _id, data } = await taskChangePromise;
-      expect(_id).toBe(task.id);
-      expect(data).toMatchObject(taskData);
+      expect(_id).toBe(String(task._id));
+      expect(data).toMatchObject({
+        ...task,
+        _id: String(task._id),
+      });
       expect(onTaskChanged).toHaveBeenCalledOnce();
     });
 
@@ -127,8 +148,12 @@ describe('RTDB Service', () => {
       const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
 
       // Create a task for the article in the newsletter
-      const taskData = { name: JobNames.Article.process, data: { id: article._id } };
-      const task = await Task.create(taskData);
+      const task = await Task.create({
+        name: JobNames.Article.process,
+        data: { id: article._id },
+        lockedAt: null,
+        nextRunAt: null,
+      });
 
       // Connect client and join newsletter room
       client.connect();
@@ -139,10 +164,14 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update task to trigger the change stream
-      await task.set({ lockedAt: Date.now() }).save();
+      const updated = await Task.where({ _id: task._id }).update({ lockedAt: new Date() });
       const { _id, data } = await taskChangePromise;
-      expect(_id).toBe(task.id);
-      expect(data).toMatchObject({ ...taskData, lockedAt: task.lockedAt!.toISOString() });
+      expect(_id).toBe(String(task._id));
+      expect(data).toMatchObject({
+        ...task,
+        _id: String(task._id),
+        lockedAt: updated!.lockedAt!.toISOString(),
+      });
       expect(onTaskChanged).toHaveBeenCalledOnce();
     });
 
@@ -152,7 +181,12 @@ describe('RTDB Service', () => {
         let onTaskChanged!: (value: TaskChange) => void;
         const taskChangePromise = new Promise<TaskChange>((resolve) => (onTaskChanged = vi.fn(resolve)));
 
-        const task = await Task.create({ name: JobNames.Article.process, data: { id: article._id } });
+        const task = await Task.create({
+          name: JobNames.Article.process,
+          data: { id: article._id },
+          lockedAt: null,
+          nextRunAt: null,
+        });
 
         // Connect client and join newsletter room
         client.on('taskChanged', onTaskChanged);
@@ -161,23 +195,28 @@ describe('RTDB Service', () => {
         await new Promise((resolve: any) => client.once('connect', resolve));
 
         // Set up listener and delete task to trigger the change stream
-        await task.deleteOne();
+        await Task.where({ _id: task._id }).delete();
 
         // wait for 3 secs
         await new Promise((resolve) => setTimeout(resolve, 3000));
 
         // Wait for change to be processed
         const { _id, data } = await taskChangePromise;
-        expect(_id).toBe(task.id);
+        expect(_id).toBe(task._id);
         expect(data).toBeNull();
         expect(onTaskChanged).lastCalledWith({ _id: task._id, data: null });
       },
-      { todo: true }
+      { todo: true },
     ); // changeStreamPreAndPostImages is required for this test to work
 
     it('Emit only to clients in a newsletter rooms', async () => {
       // Create a task for the article in the newsletter
-      const task = await Task.create({ name: JobNames.Article.process, data: { id: article._id } });
+      const task = await Task.create({
+        name: JobNames.Article.process,
+        data: { id: article._id },
+        lockedAt: null,
+        nextRunAt: null,
+      });
 
       // Set up a mock to track calls
       let onTaskChanged!: (value: TaskChange) => void;
@@ -191,13 +230,13 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update task to trigger the change stream
-      await task.set({ lockedAt: Date.now() }).save();
+      await Task.where({ _id: task._id }).update({ lockedAt: new Date() });
       await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for change to be processed
       expect(onTaskChanged).not.toHaveBeenCalled();
 
       client.emit('joinNewsletter', newsletter._id);
       await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for join to be processed
-      await task.set({ lockedAt: Date.now() }).save();
+      await Task.where({ _id: task._id }).update({ lockedAt: new Date() });
       await taskChangePromise;
       expect(onTaskChanged).toHaveBeenCalledOnce();
     });
@@ -209,14 +248,28 @@ describe('RTDB Service', () => {
       data: IArticle | null;
     }
 
-    let article: Article;
-    let newsletter: Newsletter;
+    let article: IArticle;
+    let newsletter: INewsletter;
 
     beforeEach(async () => {
-      article = await Article.create({ content: ' Article content' });
+      article = await Article.create({
+        content: ' Article content',
+        sourceName: '',
+        header: '',
+        date: null,
+        url: null,
+        linkedArticles: null,
+        lastError: null,
+        coverImg: null,
+        summaries: null,
+      });
       newsletter = await Newsletter.create({
         content: 'newsletter content',
-        articles: [article],
+        articles: [article._id],
+        error: null,
+        name: null,
+        url: null,
+        date: null,
       });
     });
 
@@ -230,9 +283,18 @@ describe('RTDB Service', () => {
       await new Promise<void>((resolve: any) => client.once('connect', resolve));
 
       // Generate a new article and add it to the newsletter
-      const newArticle = await Article.create({ content: 'new article' });
-      newsletter.articles.push(newArticle);
-      await newsletter.save();
+      const newArticle = await Article.create({
+        content: 'new article',
+        sourceName: '',
+        header: '',
+        date: null,
+        url: null,
+        linkedArticles: null,
+        lastError: null,
+        coverImg: null,
+        summaries: null,
+      });
+      await Newsletter.addArticle(newsletter._id, newArticle._id);
 
       // Create the article with the pre-shared id to trigger the change stream
       client.on('articleChanged', onArticleChanged);
@@ -254,7 +316,7 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update article to trigger the change stream
-      await article.set({ content: 'updated content' }).save();
+      await Article.where({ _id: article._id }).update({ content: 'updated content' });
       const { _id, data } = await articleChangePromise;
       expect(_id).toBe(article._id);
       expect(data?.content).toBe('updated content');
@@ -274,7 +336,7 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Delete article to trigger the change stream
-      await article.deleteOne();
+      await Article.where({ _id: article._id }).delete();
 
       // Wait for change to be processed
       const { _id, data } = await articleChangePromise;
@@ -296,13 +358,13 @@ describe('RTDB Service', () => {
       await new Promise((resolve: any) => client.once('connect', resolve));
 
       // Update article to trigger the change stream
-      await article.set({ content: 'first update' }).save();
+      await Article.where({ _id: article._id }).update({ content: 'first update' });
       await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for change to be processed
       expect(onArticleChanged).not.toHaveBeenCalled();
 
       client.emit('joinNewsletter', newsletter._id);
       await new Promise((resolve: any) => setTimeout(resolve, 500)); // wait a bit for join to be processed
-      await article.set({ content: 'second update' }).save();
+      await Article.where({ _id: article._id }).update({ content: 'second update' });
       await articleChangePromise;
       expect(onArticleChanged).toHaveBeenCalledOnce();
     });

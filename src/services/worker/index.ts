@@ -37,6 +37,7 @@ export async function init(): Promise<Agenda> {
 
   if (process.env.MONGODB_URI) {
     const client = await new MongoClient(process.env.MONGODB_URI || '').connect();
+    // @ts-ignore
     await agenda.mongo(client!.db(DB_NAME), COLLECTION_NAME);
   } else if (process.env.NODE_ENV !== 'production') {
     // In non-production environments, allow running without DB for testing

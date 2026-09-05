@@ -1,7 +1,9 @@
 import { JobNames } from '@services/worker';
 import { Bundle, Newsletter } from '@lib/models';
 import { Chronos as Agenda, Job } from 'chronos-jobs';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, MockInstance, vi } from 'vitest';
+import { ProcessingStagesEnum } from '@lib/models/bundle';
+import { COLLECTION_NAMES } from '@lib/prisma/contract';
 
 describe('Worker', () => {
   let agenda: Agenda, worker: Agenda;
@@ -34,13 +36,12 @@ describe('Worker', () => {
   it('Agenda is using the designated db', async () => {
     vi.mock('@services/worker', async () => {
       vi.stubEnv('AGENDA_DB_NAME', 'pechuga');
-      vi.stubEnv('AGENDA_COLLECTION', 'de pollo');
       return await vi.importActual('@services/worker');
     });
     const { default: initWorker } = await import('@services/worker');
     const w = await initWorker();
     expect(w.db.collection.dbName).toBe('pechuga');
-    expect(w.db.collection.collectionName).toBe('de pollo');
+    expect(w.db.collection.collectionName).toBe(COLLECTION_NAMES.tasks);
 
     await w.db.collection.db.dropDatabase();
     await w.stop();
@@ -73,15 +74,15 @@ describe('Worker', () => {
   });
 
   describe('Bundle.process', () => {
-    let processContent: Mock;
+    let processContent: MockInstance;
 
     beforeEach(() => {
       // Mock the Bundle class that will be called by the job
-      processContent = vi.fn().mockResolvedValue(0);
+      processContent = vi.spyOn(Bundle, 'processContent').mockResolvedValue(0);
       vi.spyOn(Bundle, 'findById').mockResolvedValue({
-        processContent,
+        _id: 'bundle123',
         processingStage: Bundle.ProcessingStages.NOT_STARTED,
-      });
+      } as any);
     });
 
     it('process one bundle', async () => {
@@ -89,18 +90,17 @@ describe('Worker', () => {
 
       // Wait for the job to complete
       await new Promise((resolve) => setTimeout(resolve, 500));
-      expect(processContent).toHaveBeenCalled();
+      expect(Bundle.processContent).toHaveBeenCalled();
     });
 
     it('fail if bundle has already been processed', async () => {
       const id = 'bundleId';
 
-      function mockAndReset(stage: Bundle.ProcessingStages) {
+      function mockAndReset(stage: ProcessingStagesEnum) {
         processContent.mockClear();
         vi.spyOn(Bundle, 'findById').mockReturnValue({
           processingStage: stage,
-          processContent,
-        });
+        } as any);
       }
 
       // Should not process
@@ -169,12 +169,12 @@ describe('Worker', () => {
 
   describe('Newsletter.processArticles', () => {
     it('creates article processing jobs', async () => {
-      const extractArticles = vi.fn().mockResolvedValue(0);
+      vi.spyOn(Newsletter, 'extractArticles').mockResolvedValue(0);
       vi.spyOn(Newsletter, 'findById').mockResolvedValue({
-        extractArticles,
+        _id: 'someNewsletterId',
         articles: ['articleId1', 'articleId2'],
-      });
-
+      } as any);
+      
       // Stop the worker to prevent automatic processing of jobs
       worker.stop();
       const job = await agenda.create(JobNames.Newsletter.processArticles, { id: 'someNewsletterId' }).save();

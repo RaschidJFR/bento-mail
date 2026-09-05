@@ -1,20 +1,41 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { GET } from '@app/api/reaction/route';
-import { Bundle, User, Article, Reaction } from '@lib/models';
+import { Bundle, IBundle, ProcessingStagesEnum } from '@lib/models/bundle';
+import { User, IUser } from '@lib/models/user';
+import { Article, IArticle } from '@lib/models/article';
+import { Reaction } from '@lib/models/reaction';
 
 function mockReq(url: string) {
   return { url } as any;
 }
 
 describe('GET /api/reaction', () => {
-  let user: User;
-  let article: Article;
-  let bundle: Bundle;
+  let user: IUser;
+  let article: IArticle;
+  let bundle: IBundle;
 
   beforeEach(async () => {
-    user = await User.create({ email: 'foo@bar.com' });
-    article = await Article.create({ content: 'Test Article' });
-    bundle = await Bundle.create({ user: user._id, articles: [article._id], newsletters: [] });
+    user = await User.create({ email: 'foo@bar.com', aliasEmail: null, name: null, image: null });
+
+    article = await Article.create({
+      content: 'Test Article',
+      header: '',
+      sourceName: '',
+      date: null,
+      coverImg: null,
+      summaries: null,
+      linkedArticles: null,
+      lastError: null,
+      url: null,
+    });
+
+    bundle = await Bundle.create({
+      user: user._id,
+      articles: [article._id],
+      newsletters: [],
+      sendOn: null,
+      processingStage: ProcessingStagesEnum.NOT_STARTED,
+    });
   });
 
   it('returns 400 if user id missing (user+article)', async () => {
@@ -42,7 +63,9 @@ describe('GET /api/reaction', () => {
   });
 
   it('returns reactions for user+article', async () => {
-    const reactionData = { user: user.id, article: article.id, reaction: 1 };
+    // Prisma bug: _id must be parsed to string
+    // See https://github.com/prisma/prisma-next/issues/577
+    const reactionData = { user: String(user._id), article: article._id, reaction: 1, date: null };
     await Reaction.create(reactionData);
     const req = mockReq(`http://localhost/api/reaction?user=${user._id}&article=${article._id}`);
     const res = await GET(req);
@@ -58,12 +81,17 @@ describe('GET /api/reaction', () => {
   });
 
   it('returns reactions for bundle', async () => {
-    const reactionData = { user: user.id, article: article.id, reaction: 1 };
-    await Reaction.create(reactionData);
+    const reactionData = { user: String(user._id), article: article._id, reaction: 1, date: null };
+    const { _id } = await Reaction.create(reactionData);
+
+    // Prisma bug: _id must be parsed to string
+    // See https://github.com/prisma/prisma-next/issues/577
+    const expectedData = { ...reactionData, _id: String(_id) };
+
     const req = mockReq(`http://localhost/api/reaction?bundle=${bundle._id}`);
     const res = await GET(req);
     expect(res.status).toBe(200);
-    const data = await res.json();
-    expect(data.result).toMatchObject([reactionData]);
+    const { result }: { result: [IBundle] } = await res.json();
+    expect(result).toMatchObject([expectedData]);
   });
 });

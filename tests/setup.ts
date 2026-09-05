@@ -1,9 +1,18 @@
-import mongoose from 'mongoose';
-import { afterEach, vi } from 'vitest';
+import { MongoClient } from "mongodb";
+import { afterAll, afterEach } from "vitest";
+
+const client = new MongoClient(process.env.MONGODB_URI!);
 
 afterEach(async () => {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    await collections[key].deleteMany({});
-  }
+  const db = client.db();
+  const collections = await db
+    .listCollections({}, { nameOnly: true })
+    .toArray();
+  await Promise.all(
+    collections.map(({ name }) => db.collection(name).deleteMany({})),
+  );
+});
+
+afterAll(async () => {
+  await client.close();
 });

@@ -1,95 +1,123 @@
 import { describe, it, expect, vi } from 'vitest';
-import { Article, Newsletter } from '@lib/models';
+import { Article } from '@lib/models/article';
+import { INewsletter, Newsletter } from '@lib/models/newsletter';
 import { hash } from '@lib/utils';
-import type { BasicArticleProps, NewsletterDataProps, ArticleDetailsProps } from '@lib/ai-article-analyzer';
+
+function articleInput(data: { content: string; header?: string; sourceName?: string }) {
+  return {
+    content: data.content,
+    header: data.header ?? '',
+    sourceName: data.sourceName ?? '',
+    url: null,
+    date: null,
+    coverImg: null,
+    summaries: null,
+    linkedArticles: null,
+    lastError: null,
+  };
+}
+
+function newsletterInput(data: Partial<INewsletter> & { content: string }) {
+  return {
+    content: data.content,
+    articles: data.articles ?? [],
+    date: data.date ?? null,
+    name: data.name ?? null,
+    url: data.url ?? null,
+    error: data.error ?? null,
+  };
+}
+
+async function fetchNewsletter(id: string) {
+  return Newsletter.where({ _id: id }).first();
+}
+
+async function fetchArticlesOf(newsletterId: string) {
+  const nl = await Newsletter.where({ _id: newsletterId }).first();
+  if (!nl) return [];
+  return Promise.all(nl.articles.map((aid) => Article.where({ _id: aid }).first()));
+}
 
 describe('Newsletter', () => {
-  it('should link existing articles with identical content on creation', async () => {
-    // Create and save an article first
-    const existingArticle = new Article({ header: 'Existing Article', content: 'Unique Content', sourceName: 'N1' });
-    await existingArticle.save();
+  describe('create()', () => {
+    it('links to existing articles by _id', async () => {
+      const existing = await Article.create(
+        articleInput({ content: 'Unique Content', header: 'Existing Article', sourceName: 'N1' }),
+      );
 
-    // Add a similar article to the newsletter with the same content
-    const similarArticle = new Article({ header: 'Similar Article', content: 'Unique Content', sourceName: 'N2' });
-    const newsletter = await Newsletter.create({ content: 'Newsletter', articles: [similarArticle] });
+      const newsletter = await Newsletter.create(
+        newsletterInput({ content: 'Newsletter', articles: [existing._id] }),
+      );
 
-    // Compare only the properties
-    await newsletter.populate('articles');
-    const article = newsletter.articles[0] as Article;
-    expect(article._id).toBe(existingArticle._id);
-    expect(article.header).toBe('Existing Article'); // header updated from existing article
-    expect(article.sourceName).toBe('N1'); // sourceName updated from existing article
-    expect(article.isNew).toBe(false);
+      expect(newsletter.articles).toEqual([existing._id]);
+    });
+
+    it('rejects when a referenced article does not exist', async () => {
+      await expect(
+        Newsletter.create(newsletterInput({ content: 'Newsletter', articles: ['nonexistent-id'] })),
+      ).rejects.toThrow(/must be saved/i);
+    });
   });
 
   describe('_id generation', () => {
-    it('should not save two newsletters with the same content', async () => {
+    it('rejects creating two newsletters with the same content', async () => {
       const content = 'Unique Content';
-      const newsletter1 = new Newsletter({ content });
-      await newsletter1.save();
-
-      const newsletter2 = new Newsletter({ content });
-      await expect(newsletter2.save()).rejects.toThrow();
+      await Newsletter.create(newsletterInput({ content }));
+      await expect(Newsletter.create(newsletterInput({ content }))).rejects.toThrow();
     });
 
-    it('should not save if `content` is not provided', async () => {
-      const newsletter = new Newsletter();
-      await expect(newsletter.save()).rejects.toThrow(/content/i);
+    it('rejects when `content` is not provided', async () => {
+      await expect(Newsletter.create({ articles: [] } as any)).rejects.toThrow(/content/i);
     });
 
-    it('should not have _id without `content`', async () => {
-      const newsletter = new Newsletter();
-      expect(newsletter._id).toBeFalsy();
+    it('Newsletter.generateId throws without `content`', () => {
+      expect(() => Newsletter.generateId({} as any)).toThrow(/content/i);
     });
 
-    it('should generate _id from `content`', async () => {
-      const newsletter = new Newsletter({ content: 'Something' });
-      expect(newsletter._id).toBe(hash('Something'));
+    it('generates _id from `content`', () => {
+      expect(Newsletter.generateId({ content: 'Something' })).toBe(hash('Something'));
     });
   });
 
   describe('extractArticles()', () => {
-    it('should not alter content', async () => {
-      const mockArticles: BasicArticleProps[] = [
-        { header: 'Article 1', content: 'Content 1', sourceName: 'Newsletter Name' },
+    it('does not alter content', async () => {
+      const mockArticles = [
+        { header: 'Article 1', content: 'Content 1', sourceName: 'Newsletter Name', url: '', coverImg: '' },
       ];
-      const mockData: NewsletterDataProps = {
-        articles: mockArticles,
-        name: 'Newsletter Name',
-        date: '2023-10-10',
-      };
+      const mockData = { articles: mockArticles, name: 'Newsletter Name' };
 
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockData);
 
-      const newsletter = await Newsletter.create({
-        content: 'Original content',
-      });
+      const created = await Newsletter.create(newsletterInput({ content: 'Original content' }));
+      await Newsletter.extractArticles(created._id);
 
-      await newsletter.extractArticles();
-
-      const updated = await Newsletter.findById(newsletter._id).lean();
+      const updated = await fetchNewsletter(created._id);
       expect(updated?.content).toBe('Original content');
     });
 
-    it('should generate articles from `content` (multi-article newsletter)', async () => {
-      const mockArticles: BasicArticleProps[] = [
+    it('generates articles from `content` (multi-article newsletter)', async () => {
+      const mockArticles = [
         {
           header: 'Article 1',
           content: 'Content of article 1',
           sourceName: '', // To be defaulted to newsletter name
+          url: '',
+          coverImg: '',
           date: '2000-10-01',
         },
         {
           header: 'Article 2',
           content: 'Content of article 2',
           sourceName: 'Original Source',
+          url: '',
+          coverImg: '',
           date: '', // To be defaulted to newsletter date
         },
       ];
 
-      const mockData: NewsletterDataProps = {
+      const mockData = {
         articles: mockArticles,
         name: 'Newsletter Name',
         date: '2023-10-10',
@@ -99,25 +127,25 @@ describe('Newsletter', () => {
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockData);
 
-      const newsletter = await Newsletter.create({ content: 'The content in the newsletter' });
+      const created = await Newsletter.create(newsletterInput({ content: 'The content in the newsletter' }));
 
-      await newsletter.extractArticles();
+      await Newsletter.extractArticles(created._id);
       expect(analyzer.extractArticlesFromNewsletter).toHaveBeenCalledWith('The content in the newsletter');
 
-      const updated = (await Newsletter.findById(newsletter._id).populate('articles')) as Newsletter;
-      expect(updated.date).toBe('2023-10-10');
-      expect(updated.name).toBe('Newsletter Name');
+      const updated = await fetchNewsletter(created._id);
+      expect(updated?.date).toBe(mockData.date);
+      expect(updated?.name).toBe(mockData.name);
 
-      // Check that articles have sourceName and date set correctly
-      const article1 = updated.articles.find((a) => (a as Article).header === 'Article 1') as Article;
-      const article2 = updated.articles.find((a) => (a as Article).header === 'Article 2') as Article;
-      expect(article1.sourceName).toBe('Newsletter Name'); // defaulted to newsletter's
+      const articles = await fetchArticlesOf(created._id);
+      const article1 = articles.find((a) => a?.header === 'Article 1')!;
+      const article2 = articles.find((a) => a?.header === 'Article 2')!;
+      expect(article1.sourceName).toBe(mockData.name); // defaulted to newsletter's
       expect(article1.date).toBe('2000-10-01'); // preferred from article
       expect(article2.sourceName).toBe('Original Source'); // preferred from article
-      expect(article2.date).toBe('2023-10-10'); // defaulted to newsletter's
+      expect(article2.date).toBe(mockData.date); // defaulted to newsletter's
     });
 
-    it('should generate article from `content` (single-article)', async () => {
+    it('generates article from `content` (single-article)', async () => {
       const mockArticle = {
         coverImg: '',
         sourceName: 'Single Article Source',
@@ -127,24 +155,27 @@ describe('Newsletter', () => {
           overview: 'Overview summary',
           details: 'Supporting details',
         },
-      } as ArticleDetailsProps;
+        content: 'watever',
+        url: 'https://example.com/some-article',
+        linkedArticles: [],
+      };
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'article', reason: '' });
       vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockArticle);
 
-      const newsletter = await Newsletter.create({ content: 'Single article content' });
-      await newsletter.extractArticles();
+      const created = await Newsletter.create(newsletterInput({ content: 'Single article content' }));
+      await Newsletter.extractArticles(created._id);
       expect(analyzer.extractArticleDetails).toHaveBeenCalledWith('Single article content', { skipVerify: true });
 
-      const updated = (await Newsletter.findById(newsletter._id).populate('articles')) as Newsletter;
-      expect(updated.articles.length).toBe(1);
-      const article = updated.articles[0] as Article;
+      const updated = await fetchNewsletter(created._id);
+      expect(updated?.articles.length).toBe(1);
+      const article = await Article.where({ _id: updated!.articles[0] }).first();
       expect(article).toMatchObject(mockArticle);
-      expect(article.header).toBe('Single Article Title');
+      expect(article?.header).toBe('Single Article Title');
 
       // Newsletter properties updated from article
-      expect(updated.name).toBe('Single Article Source');
-      expect(updated.date).toBe('2025-10-20');
+      expect(updated?.name).toBe('Single Article Source');
+      expect(updated?.date).toBe('2025-10-20');
     });
 
     it('can re-process single-article newsletter', async () => {
@@ -157,57 +188,62 @@ describe('Newsletter', () => {
           overview: 'Overview summary',
           details: 'Supporting details',
         },
-      } as ArticleDetailsProps;
+        content: 'watever',
+        url: 'https://example.com/some-article',
+        linkedArticles: [],
+      };
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'article', reason: '' });
       vi.spyOn(analyzer, 'extractArticleDetails').mockResolvedValue(mockArticleData);
 
-      const newsletter = await Newsletter.create({ content: 'Single-article newsletter content' });
-      await newsletter.extractArticles();
-      await expect(newsletter.extractArticles({ force: true })).resolves.toBe(0);
+      const created = await Newsletter.create(newsletterInput({ content: 'Single-article newsletter content' }));
+      await Newsletter.extractArticles(created._id);
+      await expect(Newsletter.extractArticles(created._id, { force: true })).resolves.toBe(0);
       expect(analyzer.extractArticleDetails).toHaveBeenCalledTimes(2);
     });
 
     it('can re-process multi-article newsletter', async () => {
-      const articles: BasicArticleProps[] = [
+      const articles = [
         {
           header: 'Article 1',
           content: 'Content of article 1',
           sourceName: '', // To be defaulted to newsletter name
+          url: '',
+          coverImg: '',
           date: '2000-10-01',
         },
         {
           header: 'Article 2',
           content: 'Content of article 2',
           sourceName: 'Original Source',
+          url: '',
+          coverImg: '',
           date: '', // To be defaulted to newsletter date
         },
       ];
 
-      const mockNewsletterData: NewsletterDataProps = {
-        articles,
+      const mockNewsletterData = {
+        articles: articles,
         name: 'Newsletter Name',
-        date: '2023-10-10',
       };
 
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue(mockNewsletterData);
 
-      const newsletter = await Newsletter.create({ content: 'The content in the newsletter' });
-      await newsletter.extractArticles();
-      expect(newsletter.articles.length).toBe(2);
-      await expect(newsletter.extractArticles({ force: true })).resolves.toBe(0);
+      const created = await Newsletter.create(newsletterInput({ content: 'The content in the newsletter' }));
+      await Newsletter.extractArticles(created._id);
+      let updated = await fetchNewsletter(created._id);
+      expect(updated?.articles.length).toBe(2);
+
+      await expect(Newsletter.extractArticles(created._id, { force: true })).resolves.toBe(0);
+      updated = await fetchNewsletter(created._id);
       expect(analyzer.extractArticlesFromNewsletter).toHaveBeenCalledTimes(2);
-      expect(newsletter.articles.length).toBe(2);
+      expect(updated?.articles.length).toBe(2);
     });
 
-    it('should not re-process nor fail if `articles` is already populated', async () => {
-      const mockData = {
-        articles: [],
-        name: 'Newsletter Name',
-        date: '2023-10-10',
-      };
+    it('does not re-process if `articles` is already populated', async () => {
+      const mockData = { articles: [], name: 'Newsletter Name' };
 
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
@@ -215,62 +251,57 @@ describe('Newsletter', () => {
         .spyOn(analyzer, 'extractArticlesFromNewsletter')
         .mockResolvedValue(mockData);
 
-      const newsletter = await Newsletter.create({
-        content: 'Some content',
-        articles: [await Article.create({ content: 'content 1' }), await Article.create({ content: 'content 2' })],
-      });
+      const a1 = await Article.create(articleInput({ content: 'content 1', header: 'A1' }));
+      const a2 = await Article.create(articleInput({ content: 'content 2', header: 'A2' }));
 
-      await newsletter.extractArticles();
+      const created = await Newsletter.create(
+        newsletterInput({ content: 'Some content', articles: [a1._id, a2._id] }),
+      );
+
+      await Newsletter.extractArticles(created._id);
       expect(extractArticlesFromNewsletter).not.toHaveBeenCalled();
 
-      await newsletter.updateOne({ articles: [] });
-      await newsletter.extractArticles();
+      // Clear articles and try again
+      await Newsletter.where({ _id: created._id }).update({ articles: [] });
+      await Newsletter.extractArticles(created._id);
       expect(extractArticlesFromNewsletter).toHaveBeenCalled();
     });
 
-    it('reject if pending changes', async () => {
-      const newsletter = new Newsletter({ content: 'Initial content' });
-      await newsletter.save();
-
-      // Modify content
-      newsletter.content = 'Modified content';
-      await expect(newsletter.extractArticles()).rejects.toThrow(/save any changes/i);
+    it('throws if the newsletter does not exist', async () => {
+      await expect(Newsletter.extractArticles('nonexistent-id')).rejects.toThrow(/not found/i);
     });
 
-    it('update error property accordingly', async () => {
+    it('updates error property accordingly', async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
       vi.spyOn(analyzer, 'extractArticlesFromNewsletter')
         .mockRejectedValueOnce(new Error('AI service error'))
-        .mockResolvedValue({ articles: [], name: '', date: '' });
+        .mockResolvedValue({ articles: [], name: '' });
 
-      let newsletter = (await Newsletter.create({ content: 'Initial content' })) as Newsletter;
+      const created = await Newsletter.create(newsletterInput({ content: 'Initial content' }));
 
-      await expect(newsletter.extractArticles()).rejects.toThrow('AI service error');
-      newsletter = (await Newsletter.findById(newsletter._id)) as Newsletter;
-      expect(newsletter.error).toBe('AI service error');
+      await expect(Newsletter.extractArticles(created._id)).rejects.toThrow('AI service error');
+      let row = await fetchNewsletter(created._id);
+      expect(row?.error).toBe('AI service error');
 
-      // Delete error and retry
-      await newsletter.set({ error: '' }).save();
-      await newsletter.extractArticles();
-      newsletter = (await Newsletter.findById(newsletter._id)) as Newsletter;
-      expect(newsletter.error).toBeFalsy();
+      // Clear error and retry
+      await Newsletter.where({ _id: created._id }).update({ error: '' });
+      await Newsletter.extractArticles(created._id);
+      row = await fetchNewsletter(created._id);
+      expect(row?.error).toBeFalsy();
     });
 
-    it('skip if previous error exists', async () => {
+    it('skips if previous error exists', async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       vi.spyOn(analyzer, 'classifyContent').mockResolvedValue({ type: 'newsletter', reason: '' });
-      const extractArticlesFromNewsletter = vi.spyOn(analyzer, 'extractArticlesFromNewsletter').mockResolvedValue({
-        articles: [],
-        name: '',
-        date: '',
-      });
+      const extractArticlesFromNewsletter = vi
+        .spyOn(analyzer, 'extractArticlesFromNewsletter')
+        .mockResolvedValue({ articles: [], name: '' });
 
-      const newsletter = await Newsletter.create({
-        content: 'Previously Failed Newsletter',
-        error: 'Something terrible',
-      });
-      await newsletter.extractArticles();
+      const created = await Newsletter.create(
+        newsletterInput({ content: 'Previously Failed Newsletter', error: 'Something terrible' }),
+      );
+      await Newsletter.extractArticles(created._id);
       expect(extractArticlesFromNewsletter).not.toHaveBeenCalled();
     });
   });

@@ -1,50 +1,29 @@
-import { DocumentType, getModelForClass, prop, index, getName, types, queryMethod } from '@typegoose/typegoose';
-import { Types } from 'mongoose';
-import { clearModelInDevelopment } from './utils';
-import { Base } from '@typegoose/typegoose/lib/defaultClasses';
+import type { InferRootRow, MongoWhereFilter } from '@prisma/orm-mongo/orm';
+import { MongoFieldFilter, MongoOrExpr } from '@prisma/orm-mongo/query-ast/execution';
+import type { Contract } from '@lib/prisma/contract.d';
+import { db } from '@lib/prisma/db';
+import { ObjectId } from 'mongodb';
 
-export interface IUser extends Base {
-  email: string;
-  aliasEmail?: string;
-  name?: string;
-  image?: string;
+export type IUser = InferRootRow<Contract, 'User'>;
+
+const users = db().orm.users;
+
+/**
+ * Convenience method.
+ * Short for `users.where({ _id: String(id) }).select('_id').first()`
+ */
+async function exists(filter: MongoWhereFilter<Contract, 'User'>,): Promise<ObjectId | null> {
+  const result = await users.where(filter).select('_id').first();
+  return result?._id ?new ObjectId(result._id) : null;
 }
 
-interface QueryHelpers {
-  /**
-   * Find user by email or aliasEmail
-   */
-  findByEmail: types.AsQueryMethod<typeof findByEmail>;
+/**
+ * Match a user by `email` or `aliasEmail`.
+ */
+function findByEmail(email: string) {
+  return users.where(
+    MongoOrExpr.of([MongoFieldFilter.eq('email', email), MongoFieldFilter.eq('aliasEmail', email)]),
+  ).first();
 }
 
-function findByEmail(this: types.QueryHelperThis<typeof UserClass, QueryHelpers>, email: string) {
-  return this.findOne({ $or: [{ email }, { aliasEmail: email }] });
-}
-
-@queryMethod(findByEmail)
-@index({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } })
-@index({ aliasEmail: 1 }, { unique: true, partialFilterExpression: { aliasEmail: { $type: 'string' } } })
-export class UserClass implements IUser {
-  public _id!: Types.ObjectId;
-  public id!: string;
-
-  @prop({ required: true, type: String })
-  public email!: string;
-
-  @prop({ type: String })
-  public aliasEmail?: string;
-
-  @prop({ type: String })
-  public name?: string;
-
-  @prop({ type: String })
-  public image?: string;
-}
-
-clearModelInDevelopment(getName(UserClass));
-const UserModel = getModelForClass<typeof UserClass, QueryHelpers>(UserClass, {
-  schemaOptions: { collection: 'users' },
-});
-
-export { UserModel as User };
-export type User = DocumentType<UserClass>;
+export const User = Object.assign(users, { findByEmail, exists });

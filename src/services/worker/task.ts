@@ -1,76 +1,46 @@
 import 'dotenv/config';
-import type { IJobParameters } from 'chronos-jobs';
-import { ObjectId } from 'mongodb';
-import { DocumentType, getModelForClass, index, modelOptions, prop } from '@typegoose/typegoose';
-import { clearModelInDevelopment } from '@lib/models/utils';
-import mongoose from 'mongoose';
+import { db, client } from '@lib/prisma/db';
+import type { InferRootRow } from '@prisma/orm-mongo/orm';
+import type { Contract } from '@lib/prisma/contract.d';
+import { MongoFieldFilter, MongoOrExpr } from '@prisma/orm-mongo/query-ast/execution';
+import { ChangeStream, Collection } from 'mongodb';
+import type { ChangeStreamOptions, Document } from 'mongodb';
 import { COLLECTION_NAME, DB_NAME } from './vars';
 
-// Connect to the database when this module is imported
-const connection = process.env.MONGODB_URI
-  ? mongoose.createConnection(process.env.MONGODB_URI, { dbName: DB_NAME })
-  : undefined;
+export type ITask = InferRootRow<Contract, 'Task'>;
 
-@modelOptions({
-  existingConnection: connection,
-  schemaOptions: {
-    collection: COLLECTION_NAME,
-  },
-})
-@index({ name: 1, lockedAt: 1, 'data.id': 1 }, { sparse: true })
-class JobClass<T = any> implements IJobParameters<T> {
-  // Types without @prop are not persisted.
-  // Only a few selected fields are persisted to allow simple queries as the rest of the job data
-  // is managed by the task scheduler (Chronos/Agenda).
+const tasks = db(DB_NAME).orm.tasks;
 
-  public readonly _id!: ObjectId;
-  @prop({ type: String })
-  public readonly name!: string;
-
-  public readonly priority!: number;
-
-  public readonly nextRunAt!: Date | null;
-
-  public readonly type!: 'normal' | 'single';
-
-  @prop({ type: Date })
-  public readonly lockedAt?: Date;
-
-  public readonly lastFinishedAt?: Date;
-
-  public readonly failedAt?: Date;
-
-  public readonly failCount?: number;
-
-  public readonly failReason?: string;
-
-  public readonly repeatTimezone?: string;
-
-  public readonly lastRunAt?: Date;
-
-  public readonly repeatInterval?: string | number;
-
-  @prop({ type: Object })
-  public readonly data!: any;
-
-  public readonly repeatAt?: string;
-
-  public readonly disabled?: boolean;
-
-  public readonly progress?: number;
-
-  public readonly unique?: any;
-
-  public readonly uniqueOpts?: { insertOnly: boolean };
-
-  public readonly lastModifiedBy?: string;
-
-  public readonly fork?: boolean;
+async function findActiveArticleProcessTasks(articleIds: readonly string[], jobName: string) {
+  const idSet = new Set(articleIds);
+  const results = await tasks
+    .where({ name: jobName })
+    .where(MongoOrExpr.of([MongoFieldFilter.isNotNull('lockedAt'), MongoFieldFilter.isNotNull('nextRunAt')]))
+    .all()
+    .toArray();
+  return results.filter((row) => {
+    const articleId = row.data?.id;
+    return !!articleId && idSet.has(articleId);
+  });
 }
 
-clearModelInDevelopment('JobClass');
-const JobModel = getModelForClass(JobClass);
+let taskCollection: Collection<ITask> | null = null;
 
-export type ITask<DATA = any> = IJobParameters<DATA>;
-export { JobModel as Task };
-export type Task<DATA = any> = DocumentType<JobClass<DATA>>;
+async function getCollection(): Promise<Collection<ITask>> {
+  if (taskCollection) return taskCollection;
+  taskCollection = client.db(DB_NAME).collection<ITask>(COLLECTION_NAME);
+  return taskCollection;
+}
+
+async function watch<TSchema extends Document = ITask>(
+  pipeline: Document[] = [],
+  options?: ChangeStreamOptions,
+): Promise<ChangeStream<TSchema>> {
+  const collection = await getCollection();
+  return collection.watch<TSchema>(pipeline, options);
+}
+
+export const Task = Object.assign(tasks, {
+  findActiveArticleProcessTasks,
+  watch,
+});
