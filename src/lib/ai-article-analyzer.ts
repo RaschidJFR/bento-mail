@@ -27,6 +27,8 @@ type NewsLetterExtraction = Pick<INewsletter, 'name' | 'date'> & {
   articles: Pick<IArticle, 'header' | 'url' | 'coverImg' | 'content'>[];
 };
 
+type ArticleDetailsExtraction = Pick<IArticle, 'coverImg' | 'sourceName' | 'date' | 'summaries' | 'linkedArticles'>;
+
 const BasicArticleSchema = z.object({
   header: z.string().describe('The title of the article. 100 characters max.'),
   url: z.string().default('').describe('External link to the original article. Empty string if not found.'),
@@ -81,7 +83,7 @@ const ClassificationSchema = z.object({
  * Extracts newsletter articles from Markdown content using AI
  * @param textContent - The Markdown content of the newsletter
  * @returns The extracted newsletter information including articles
-*/
+ */
 export async function extractArticlesFromNewsletter(textContent: string): Promise<NewsLetterExtraction>;
 /**
  * Extracts newsletter articles from Markdown content using AI
@@ -89,8 +91,16 @@ export async function extractArticlesFromNewsletter(textContent: string): Promis
  * @param newsletterNames - An array of known newsletter names to match against
  * @returns The extracted newsletter information including articles
  */
-export async function extractArticlesFromNewsletter(textContent: string, newsletterNames: string[]): Promise<NewsLetterExtraction>
-export async function extractArticlesFromNewsletter(textContent: string, newsletterNames: string[] = []): Promise<NewsLetterExtraction> {
+export async function extractArticlesFromNewsletter(
+  textContent: string,
+  newsletterNames: string[],
+): Promise<NewsLetterExtraction>;
+export async function extractArticlesFromNewsletter(
+  textContent: string,
+  newsletterNames: string[] = [],
+): Promise<NewsLetterExtraction> {
+  let newsletterNameInstructions = '';
+
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -98,20 +108,17 @@ export async function extractArticlesFromNewsletter(textContent: string, newslet
     throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
 
-  let newsletterNameInstructions = '';
   if (newsletterNames.length > 0) {
     newsletterNameInstructions = `For the newsletter name, check if it matches any of the following known newsletter names. 
 If a match is found, use that name; otherwise, use what you find in the content (look for branding/header information).
 
 Newsletter names: 
 
-- ${newsletterNames.join('\n - ')}
-`;
+- ${newsletterNames.join('\n - ')}`;
   }
 
   const prompt = `
 Analyze the provided newsletter content and extract all articles. 
-${newsletterNameInstructions}
 
 For each article, identify:
 
@@ -119,6 +126,8 @@ For each article, identify:
 2. **url**: Any external links to the full article (look for markdown link syntax [text](url))
 3. **coverImg**: URLs to article cover images (look for markdown image syntax ![alt](url))
 4. **content**: Extract the article's full text or abstract based on available content
+
+${newsletterNameInstructions}
 
 Rules:
 - Only extract actual articles, not advertisements or footer content
@@ -136,13 +145,14 @@ ${textContent}
   return {
     name: data.name,
     date: data.date || null,
-    articles: data.articles?.map((a) => ({
-      content: a.content || '',
-      header: a.header || '',
-      sourceName: data.name, 
-      url: a.url || '', 
-      coverImg: a.coverImg || '' 
-    })) || [],
+    articles:
+      data.articles?.map((a) => ({
+        content: a.content || '',
+        header: a.header || '',
+        sourceName: data.name,
+        url: a.url || '',
+        coverImg: a.coverImg || '',
+      })) || [],
   };
 }
 
@@ -177,12 +187,28 @@ ${textContent}
   return `data:image/png;base64, ${b64str}`;
 }
 
+/** @deprecated */
+export async function extractArticleDetails(
+  textContent: string,
+  opts?: { skipVerify?: boolean },
+): Promise<ArticleDetailsExtraction>;
 /**
  * Extracts article details from Markdown content using AI
  * @param textContent - The Markdown content of a single article
- * @param skipVerify - If true, skip the content classification step
+ * @param opts.skipVerify - If true, skip the content classification step
+ * @param opts.sourceNames - An array of known newsletter names to match against
+ * @returns The extracted article details including summaries and linked articles
  */
-export async function extractArticleDetails(textContent: string, { skipVerify = false } = {}) {
+export async function extractArticleDetails(
+  textContent: string,
+  opts: { skipVerify?: boolean; sourceNames: string[] },
+): Promise<ArticleDetailsExtraction>;
+export async function extractArticleDetails(
+  textContent: string,
+  { skipVerify = false, sourceNames = [] as string[] } = {},
+): Promise<ArticleDetailsExtraction> {
+  let newsletterNameInstructions = '';
+
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -199,6 +225,15 @@ export async function extractArticleDetails(textContent: string, { skipVerify = 
     }
   }
 
+  if (sourceNames.length > 0) {
+    newsletterNameInstructions = `For the source name, check if it matches any of the following known newsletter names. 
+If a match is found, use that; otherwise, use what you find in the content.
+
+Newsletter names: 
+
+- ${sourceNames.join('\n - ')}`;
+  }
+
   const prompt = `
 Analyze the provided content extracted from a web article and extract the article information:
 
@@ -211,6 +246,8 @@ Create three different summaries
 1. **oneliner**: Create the most accurate and compelling header/title for this article in less than 100 characters
 2. **overview**: Write the most complete conclusion and key takeaways in less than 200 characters
 3. **details**: Add supporting details and evidence that complement the overview summary in less than 500 characters
+
+${newsletterNameInstructions}
 
 Rules:
 - The oneliner should be more accurate than the original title if needed
@@ -226,17 +263,18 @@ ${textContent}
 \`\`\`
 `;
 
-  // @ts-ignore
-  const result = await model
-    .withStructuredOutput(FullArticleSchema)
-    .invoke([new SystemMessage(prompt)]);
+  const result = await model.withStructuredOutput(FullArticleSchema).invoke([new SystemMessage(prompt)]);
   return {
-    ...result,
-    linkedArticles: result.linkedArticles?.map((a) => ({
-      ...a,
-      url: a.url || '',
-      coverImg: a.coverImg || '',
-    })) || [],
+    summaries: result.summaries,
+    date: result.date || null,
+    coverImg: result.coverImg || '',
+    sourceName: result.sourceName || '',
+    linkedArticles:
+      result.linkedArticles?.map((a) => ({
+        ...a,
+        url: a.url || '',
+        coverImg: a.coverImg || '',
+      })) || [],
   };
 }
 

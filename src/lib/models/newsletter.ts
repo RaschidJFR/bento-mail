@@ -7,7 +7,8 @@ import { hash, applyInBatches } from '@lib/utils';
 
 export type INewsletter = InferRootRow<Contract, 'Newsletter'>;
 
-const newsletters = db().orm.newsletters;
+const client = db();
+const newsletters = client.orm.newsletters;
 const ormCreate = newsletters.create.bind(newsletters);
 
 type NewsletterCreateInput = Parameters<typeof newsletters.create>[0];
@@ -106,16 +107,17 @@ async function extractArticles(id: string, { force = false } = {}): Promise<numb
     let name = existing.name || '';
     let date = existing.date || '';
     let dArticles: Partial<IArticle>[] = [];
+    const newsletterNameCatalog = await getNewsletterNameCatalog();
 
     // If the content is classified as an article, we treat it as a single article newsletter.
     if (contentType === 'article') {
-      const data = await extractArticleDetails(content, { skipVerify: true });
+      const data = await extractArticleDetails(content, { skipVerify: true, sourceNames: newsletterNameCatalog });
       name = data.sourceName || name;
       date = data.date || date;
       dArticles = [data];
       console.log(`Identified 1 article in newsletter %o.`, id);
     } else if (contentType === 'newsletter') {
-      const data = await extractArticlesFromNewsletter(content);
+      const data = await extractArticlesFromNewsletter(content, newsletterNameCatalog);
       // Use the newsletter's name and date if available, otherwise use the extracted values
       name = data.name || name;
       date = data.date || date;
@@ -207,6 +209,18 @@ async function extractArticlesBatch(
 
 function addArticle(newsletterId: string, articleId: string) {
   return newsletters.where({ _id: newsletterId }).update((n) => [n.articles.addToSet(articleId)]);
+}
+
+async function getNewsletterNameCatalog(): Promise<string[]> {
+  const runtime = await client.runtime();
+  const pipeline = client.query
+    .from('newsletters')
+    .match((fields) => fields.name.type('string') && fields.name.nin(['', null]))
+    .group((fields) => ({ _id: fields.name }))
+    .build();
+
+  const results = await runtime.query(pipeline);
+  return results.filter((r) => r._id).map(({ _id }) => _id as string);
 }
 
 export const Newsletter = Object.assign(newsletters, {
