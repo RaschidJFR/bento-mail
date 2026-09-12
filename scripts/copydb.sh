@@ -1,5 +1,6 @@
 #!/bin/bash
 # Copies the production database to the development database
+# Usage: SOURCE=<source_uri> DESTINATION=<destination_uri> ./copydb.sh
 
 # Fail if any var is missing
 if [ -z "$SOURCE" ] || [ -z "$DESTINATION" ]; then
