@@ -17,7 +17,14 @@ export async function setup() {
     console.log('Using test database %o', process.env.TEST_MONGODB_URI);
     process.env.MONGODB_URI = process.env.TEST_MONGODB_URI;
   } else {
-    cluster = await spinUpMongoCluster();
+    // This has been causing the tests to hang. 
+    // TODO: investigate and fix
+    // cluster = await spinUpMongoCluster();
+  }
+
+  if (!process.env.MONGODB_URI) {
+    throw new Error(
+      'MONGODB_URI and TEST_MONGODB_URI are not set. Please set one of them to run the tests. ');
   }
 
   // Set test databases
@@ -30,13 +37,15 @@ export async function setup() {
 }
 
 function applyContractToTestDb(url: string) {
-  const args = ['prisma@next', 'db', 'init', '--db', url, '--yes'];
+  console.log(`Applying Prisma contract to test database...`);
+  const args = [`prisma`, 'db', 'init', '--db', url, '--yes'];
   const result = spawnSync('npx', args, { encoding: 'utf8' });
   if (result.status !== 0) {
     throw new Error(
-      `\`prisma ${args.join(' ')}\` failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`,
+      `\`npx ${args.join(' ')}\` failed (exit ${result.status}):\n${result.stdout}\n${result.stderr}`,
     );
   }
+  console.log('Prisma contract applied to test database successfully.');
 }
 
 export async function teardown() {

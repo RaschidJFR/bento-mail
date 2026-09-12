@@ -219,6 +219,7 @@
               },
               "userRef": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "user"
@@ -352,6 +353,7 @@
             "relations": {
               "articleRef": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "article"
@@ -367,6 +369,7 @@
               },
               "userRef": {
                 "cardinality": "N:1",
+                "nullable": false,
                 "on": {
                   "localFields": [
                     "user"
