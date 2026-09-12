@@ -7,6 +7,7 @@ import type {
   MongoCollection,
   MongoContractWithTypeMaps,
   MongoTypeMaps,
+  RelationKeys,
 } from '@prisma/orm-mongo/family-contract';
 import type {
   Contract as ContractType,
@@ -180,6 +181,98 @@ export type FieldInputTypes = {
     readonly Verification: { readonly _id: CodecTypes['mongo/string@1']['input'] };
   };
 };
+
+export namespace Models {
+  export type unbound_User = {
+    _id: CodecTypes['mongo/objectId@1']['output'];
+    email: CodecTypes['mongo/string@1']['output'];
+    aliasEmail: CodecTypes['mongo/string@1']['output'] | null;
+    name: CodecTypes['mongo/string@1']['output'] | null;
+    image: CodecTypes['mongo/string@1']['output'] | null;
+    readonly [RelationKeys]?: never;
+  };
+  export type unbound_Article = {
+    _id: CodecTypes['mongo/string@1']['output'];
+    content: CodecTypes['mongo/string@1']['output'] | null;
+    header: CodecTypes['mongo/string@1']['output'];
+    url: CodecTypes['mongo/string@1']['output'] | null;
+    date: CodecTypes['mongo/string@1']['output'] | null;
+    coverImg: CodecTypes['mongo/string@1']['output'] | null;
+    sourceName: CodecTypes['mongo/string@1']['output'];
+    summaries: SummariesOutput | null;
+    linkedArticles: ReadonlyArray<LinkedArticleOutput> | null;
+    lastError: CodecTypes['mongo/string@1']['output'] | null;
+    readonly [RelationKeys]?: never;
+  };
+  export type unbound_Newsletter = {
+    _id: CodecTypes['mongo/string@1']['output'];
+    content: CodecTypes['mongo/string@1']['output'];
+    articles: ReadonlyArray<CodecTypes['mongo/string@1']['output']>;
+    date: CodecTypes['mongo/string@1']['output'] | null;
+    name: CodecTypes['mongo/string@1']['output'] | null;
+    url: CodecTypes['mongo/string@1']['output'] | null;
+    error: CodecTypes['mongo/string@1']['output'] | null;
+    articleRefs: unbound_Article[];
+    readonly [RelationKeys]?: 'articleRefs';
+  };
+  export type unbound_Bundle = {
+    _id: CodecTypes['mongo/objectId@1']['output'];
+    sendOn: CodecTypes['mongo/date@1']['output'] | null;
+    user: CodecTypes['mongo/objectId@1']['output'];
+    newsletters: ReadonlyArray<CodecTypes['mongo/string@1']['output']> | null;
+    articles: ReadonlyArray<CodecTypes['mongo/string@1']['output']> | null;
+    processingStage: CodecTypes['mongo/int32@1']['output'];
+    userRef: unbound_User;
+    newsletterRefs: unbound_Newsletter[];
+    articleRefs: unbound_Article[];
+    readonly [RelationKeys]?: 'userRef' | 'newsletterRefs' | 'articleRefs';
+  };
+  export type unbound_Reaction = {
+    _id: CodecTypes['mongo/objectId@1']['output'];
+    user: CodecTypes['mongo/objectId@1']['output'];
+    article: CodecTypes['mongo/string@1']['output'];
+    reaction: CodecTypes['mongo/int32@1']['output'];
+    date: CodecTypes['mongo/date@1']['output'] | null;
+    userRef: unbound_User;
+    articleRef: unbound_Article;
+    readonly [RelationKeys]?: 'userRef' | 'articleRef';
+  };
+  export type unbound_Task = {
+    _id: CodecTypes['mongo/objectId@1']['output'];
+    name: CodecTypes['mongo/string@1']['output'];
+    lockedAt: CodecTypes['mongo/date@1']['output'] | null;
+    data: TaskPayloadOutput | null;
+    nextRunAt: CodecTypes['mongo/date@1']['output'] | null;
+    readonly [RelationKeys]?: never;
+  };
+  export type unbound_Session = {
+    _id: CodecTypes['mongo/string@1']['output'];
+    readonly [RelationKeys]?: never;
+  };
+  export type unbound_Account = {
+    _id: CodecTypes['mongo/string@1']['output'];
+    readonly [RelationKeys]?: never;
+  };
+  export type unbound_Verification = {
+    _id: CodecTypes['mongo/string@1']['output'];
+    readonly [RelationKeys]?: never;
+  };
+}
+
+export declare const models: {
+  __unbound__: {
+    User: Models.unbound_User;
+    Article: Models.unbound_Article;
+    Newsletter: Models.unbound_Newsletter;
+    Bundle: Models.unbound_Bundle;
+    Reaction: Models.unbound_Reaction;
+    Task: Models.unbound_Task;
+    Session: Models.unbound_Session;
+    Account: Models.unbound_Account;
+    Verification: Models.unbound_Verification;
+  };
+};
+
 export type TypeMaps = MongoTypeMaps<CodecTypes, FieldOutputTypes, FieldInputTypes>;
 
 type ContractBase = Omit<
@@ -420,6 +513,7 @@ type ContractBase = Omit<
                   readonly model: 'User';
                 };
                 readonly cardinality: 'N:1';
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['user'];
                   readonly targetFields: readonly ['_id'];
@@ -527,6 +621,7 @@ type ContractBase = Omit<
                   readonly model: 'User';
                 };
                 readonly cardinality: 'N:1';
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['user'];
                   readonly targetFields: readonly ['_id'];
@@ -538,6 +633,7 @@ type ContractBase = Omit<
                   readonly model: 'Article';
                 };
                 readonly cardinality: 'N:1';
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['article'];
                   readonly targetFields: readonly ['_id'];
