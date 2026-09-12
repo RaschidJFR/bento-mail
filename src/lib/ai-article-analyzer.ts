@@ -2,6 +2,7 @@ import { ChatOpenAI, DallEAPIWrapper } from '@langchain/openai';
 import { SystemMessage } from '@langchain/core/messages';
 import { z } from 'zod';
 import 'dotenv/config';
+import type { IArticle, INewsletter } from './models';
 
 const model = new ChatOpenAI({
   modelName: 'gpt-5-mini',
@@ -20,6 +21,10 @@ export type ClassificationResponse = {
   type: 'article' | 'newsletter' | 'link' | 'unknown';
   reason: string;
   data?: string;
+};
+
+type NewsLetterExtraction = Pick<INewsletter, 'name' | 'date'> & {
+  articles: Pick<IArticle, 'header' | 'url' | 'coverImg' | 'content'>[];
 };
 
 const BasicArticleSchema = z.object({
@@ -72,11 +77,20 @@ const ClassificationSchema = z.object({
 });
 
 /**
+ * @deprecated
  * Extracts newsletter articles from Markdown content using AI
  * @param textContent - The Markdown content of the newsletter
- * @returns Array of article objects
+ * @returns The extracted newsletter information including articles
+*/
+export async function extractArticlesFromNewsletter(textContent: string): Promise<NewsLetterExtraction>;
+/**
+ * Extracts newsletter articles from Markdown content using AI
+ * @param textContent - The Markdown content of the newsletter
+ * @param newsletterNames - An array of known newsletter names to match against
+ * @returns The extracted newsletter information including articles
  */
-export async function extractArticlesFromNewsletter(textContent: string) {
+export async function extractArticlesFromNewsletter(textContent: string, newsletterNames: string[]): Promise<NewsLetterExtraction>
+export async function extractArticlesFromNewsletter(textContent: string, newsletterNames: string[] = []): Promise<NewsLetterExtraction> {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
@@ -84,14 +98,27 @@ export async function extractArticlesFromNewsletter(textContent: string) {
     throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
 
+  let newsletterNameInstructions = '';
+  if (newsletterNames.length > 0) {
+    newsletterNameInstructions = `For the newsletter name, check if it matches any of the following known newsletter names. 
+If a match is found, use that name; otherwise, use what you find in the content (look for branding/header information).
+
+Newsletter names: 
+
+- ${newsletterNames.join('\n - ')}
+`;
+  }
+
   const prompt = `
-Analyze the provided newsletter content and extract all articles. For each article, identify:
+Analyze the provided newsletter content and extract all articles. 
+${newsletterNameInstructions}
+
+For each article, identify:
 
 1. **header**: The main title/headline of the article
 2. **url**: Any external links to the full article (look for markdown link syntax [text](url))
 3. **coverImg**: URLs to article cover images (look for markdown image syntax ![alt](url))
 4. **content**: Extract the article's full text or abstract based on available content
-5. **sourceName**: The newsletter name (look for branding/header information)
 
 Rules:
 - Only extract actual articles, not advertisements or footer content
@@ -107,9 +134,11 @@ ${textContent}
   // @ts-ignore
   const data = await model.withStructuredOutput(NewsletterSchema).invoke([new SystemMessage(prompt)]);
   return {
-    ...data,
+    name: data.name,
+    date: data.date || null,
     articles: data.articles?.map((a) => ({
-      ...a,
+      content: a.content || '',
+      header: a.header || '',
       sourceName: data.name, 
       url: a.url || '', 
       coverImg: a.coverImg || '' 
