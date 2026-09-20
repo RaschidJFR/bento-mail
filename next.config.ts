@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import withMongooseStudio from '@mongoosejs/studio/next';
 
 const config: NextConfig = {
   productionBrowserSourceMaps: true,
@@ -11,12 +12,5 @@ const config: NextConfig = {
   },
 };
 
-export default config;
-
-import withMongooseStudio from '@mongoosejs/studio/next';
-
 // Mount Mongoose Studio frontend on /studio
-export default withMongooseStudio({
-  // Your Next.js config here
-  reactStrictMode: true,
-});
+export default withMongooseStudio(config);
