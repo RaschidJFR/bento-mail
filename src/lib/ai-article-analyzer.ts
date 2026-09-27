@@ -89,15 +89,18 @@ export async function extractArticlesFromNewsletter(textContent: string): Promis
  * Extracts newsletter articles from Markdown content using AI
  * @param textContent - The Markdown content of the newsletter
  * @param newsletterNames - An array of known newsletter names to match against
+ * @param options.ignoreWithoutAbstract - Whether to ignore articles without an abstract (default: true)
  * @returns The extracted newsletter information including articles
  */
 export async function extractArticlesFromNewsletter(
   textContent: string,
   newsletterNames: string[],
+  options?: { ignoreWithoutAbstract?: boolean },
 ): Promise<NewsLetterExtraction>;
 export async function extractArticlesFromNewsletter(
   textContent: string,
   newsletterNames: string[] = [],
+  { ignoreWithoutAbstract = true } = {},
 ): Promise<NewsLetterExtraction> {
   let newsletterNameInstructions = '';
 
@@ -118,7 +121,8 @@ Newsletter names:
   }
 
   const prompt = `
-Analyze the provided newsletter content and extract all articles. 
+Analyze the provided newsletter content and extract all articles.
+${ignoreWithoutAbstract ? 'Ignore any articles that do not have an abstract or summary.' : ''}
 
 For each article, identify:
 
