@@ -64,6 +64,7 @@ export function defineJobs(agenda: Agenda) {
           .save();
       });
 
+      console.log(`Queued ${newsletter.articles?.length || 0} article processing jobs for newsletter ${newsletterId}`);
       return { errors };
     } catch (err) {
       console.error(`[worker] Error extracting articles in newsletter ${newsletterId}:`, err);
