@@ -1,5 +1,5 @@
 import { JobNames } from '@services/worker';
-import { Bundle, Newsletter } from '@lib/models';
+import { Article, Bundle, Newsletter } from '@lib/models';
 import { Chronos as Agenda, Job } from 'chronos-jobs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, Mock, MockInstance, vi } from 'vitest';
 import { ProcessingStagesEnum } from '@lib/models/bundle';
@@ -169,15 +169,20 @@ describe('Worker', () => {
 
   describe('Newsletter.processArticles', () => {
     it('creates article processing jobs', async () => {
-      vi.spyOn(Newsletter, 'extractArticles').mockResolvedValue(0);
-      vi.spyOn(Newsletter, 'findById').mockResolvedValue({
-        _id: 'someNewsletterId',
-        articles: ['articleId1', 'articleId2'],
-      } as any);
+      const article1 = await Article.create({ content: 'Worker test article 1' } as any);
+      const article2 = await Article.create({ content: 'Worker test article 2' } as any);
+      const newsletter = await Newsletter.create({ content: 'Worker test newsletter', articles: [] } as any);
+      
+      vi.spyOn(Newsletter, 'extractArticles').mockImplementation(async (id) => {
+        // The Job calls Newsletter.extractArticles(), which is mocked here to simulate 
+        // extracting articles and updating the newsletter with the article IDs
+        await Newsletter.where({ _id: id }).update({ articles: [article1._id, article2._id] });
+        return 0;
+      });
       
       // Stop the worker to prevent automatic processing of jobs
-      worker.stop();
-      const job = await agenda.create(JobNames.Newsletter.processArticles, { id: 'someNewsletterId' }).save();
+      await worker.stop();
+      const job = await agenda.create(JobNames.Newsletter.processArticles, { id: newsletter._id }).save();
       await job.run();
       // Wait for this job to create the sub-jobs
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -186,7 +191,7 @@ describe('Worker', () => {
       const jobs = await worker.jobs({ name: JobNames.Article.process });
       const idsInJobs = jobs.map((job: Job<any>) => job.attrs.data.id).sort();
       expect(jobs.length).toBe(2);
-      expect(idsInJobs).toEqual(['articleId1', 'articleId2'].sort());
+      expect(idsInJobs).toEqual([article1._id, article2._id].sort());
     });
   });
 });

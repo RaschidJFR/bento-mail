@@ -46,16 +46,19 @@ export function defineJobs(agenda: Agenda) {
     if (!newsletterId) {
       throw new Error('Missing id');
     }
-    const newsletter = await Newsletter.findById(newsletterId);
+    let newsletter = await Newsletter.findById(newsletterId);
     if (!newsletter) {
       throw new Error(`Newsletter not found: ${newsletterId}`);
     }
 
     try {
       const errors = await Newsletter.extractArticles(newsletter._id, { force });
+      
+      // Get an updated version of the newsletter after extracting articles
+      newsletter = await Newsletter.findById(newsletter._id);
 
       // Queue article processing jobs
-      await applyInBatches(Array.from(newsletter.articles || []), (articleId) => {
+      await applyInBatches(Array.from(newsletter?.articles || []), (articleId) => {
         articleId = String(articleId); // Ensure articleId is a string
         return agenda
           .create(JobNames.Article.process, { id: articleId, force })
@@ -64,7 +67,9 @@ export function defineJobs(agenda: Agenda) {
           .save();
       });
 
-      console.log(`Queued ${newsletter.articles?.length || 0} article processing jobs for newsletter ${newsletterId}`);
+      console.log(
+        `Queued ${newsletter?.articles?.length || 0} article processing jobs for newsletter ${newsletterId}`,
+      );
       return { errors };
     } catch (err) {
       console.error(`[worker] Error extracting articles in newsletter ${newsletterId}:`, err);

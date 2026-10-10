@@ -20,12 +20,11 @@ export async function setup() {
     // This has been causing the tests to hang. 
     // TODO: investigate and fix
     // cluster = await spinUpMongoCluster();
+
+    // Meanwhile:
+    throw new Error('TEST_MONGODB_URI is not set. Please set it to run the tests. ');
   }
 
-  if (!process.env.MONGODB_URI) {
-    throw new Error(
-      'MONGODB_URI and TEST_MONGODB_URI are not set. Please set one of them to run the tests. ');
-  }
 
   // Set test databases
   const cs = new ConnectionString(cluster?.connectionString || process.env.MONGODB_URI!);
