@@ -30,7 +30,7 @@
 
 - Node.js 24+
 - MongoDB (local or cloud)
-- OpenAI API key with access to GPT-4-mini
+- OpenRouter API key (access to `openai/gpt-5-mini` and `openai/gpt-image-1`)
 - Google OAuth credentials (see [Google OAuth Setup](#google-oauth-setup))
 - [Optional] Account on [ForwardEmail.net](https://forwardemail.net/) (required if deploying to a cloud server)
 - [Optional] Docker (for containerized setup)
@@ -75,7 +75,7 @@ To enable Google login, you need to set up Google OAuth credentials:
   ```sh
   npm test
   ```
-- **Testing LLM prompts (ignored in unit tests)**. The [AI Analyzer](./src/lib/ai-article-analyzer.ts) module is responsible for analyzing, classifying, and processing newsletter content. To tests the result of the prompts you need to provide `OPENAI_API_KEY` in the [.env](./.env.example) file and run:
+- **Testing LLM prompts (ignored in unit tests)**. The [AI Analyzer](./src/lib/ai-article-analyzer.ts) module is responsible for analyzing, classifying, and processing newsletter content. To tests the result of the prompts you need to provide `OPENROUTER_API_KEY` in the [.env](./.env.example) file and run:
   ```sh
   npx vitest tests/ai-article-analyzer
   ```

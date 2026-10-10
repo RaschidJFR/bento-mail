@@ -1,16 +1,37 @@
-import { ChatOpenAI, DallEAPIWrapper } from '@langchain/openai';
-import { SystemMessage } from '@langchain/core/messages';
-import { z } from 'zod';
+import { OpenRouter } from '@openrouter/sdk';
+import type { ChatResult, ImageGenerationResponse } from '@openrouter/sdk/models';
+import { z } from 'zod/v4';
 import 'dotenv/config';
 import type { IArticle, INewsletter } from './models';
 
-const model = new ChatOpenAI({
-  modelName: 'gpt-5-mini',
-  apiKey: process.env.OPENAI_API_KEY || 'mock-api-key',
+const MODEL = 'openai/gpt-5-mini';
+
+const openRouter = new OpenRouter({
+  apiKey: process.env.OPENROUTER_API_KEY || 'mock-api-key',
 });
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('Warning: OPENAI_API_KEY environment variable is not set. Using mock API key.');
+if (!process.env.OPENROUTER_API_KEY) {
+  console.warn('Warning: OPENROUTER_API_KEY environment variable is not set. Using mock API key.');
+}
+
+async function completeStructured<T extends z.ZodType>(
+  prompt: string,
+  schema: T,
+  name: string,
+  model = MODEL,
+): Promise<z.output<T>> {
+  const response = (await openRouter.chat.send({
+    chatRequest: {
+      model,
+      messages: [{ role: 'system', content: prompt }],
+      responseFormat: { type: 'json_schema', jsonSchema: { name, schema: z.toJSONSchema(schema) } },
+    },
+  })) as ChatResult;
+  const content = response.choices[0]?.message.content;
+  if (typeof content !== 'string') {
+    throw new Error(`OpenRouter returned no text content for ${name}`);
+  }
+  return schema.parse(JSON.parse(content));
 }
 
 export type ArticleOrNewsletterResponse = {
@@ -107,8 +128,8 @@ export async function extractArticlesFromNewsletter(
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
 
   if (newsletterNames.length > 0) {
@@ -144,8 +165,7 @@ Content:
 ${textContent}
 \`\`\`
 `;
-  // @ts-ignore
-  const data = await model.withStructuredOutput(NewsletterSchema).invoke([new SystemMessage(prompt)]);
+  const data = await completeStructured(prompt, NewsletterSchema, 'newsletter_extraction');
   return {
     name: data.name,
     date: data.date || null,
@@ -161,7 +181,7 @@ ${textContent}
 }
 
 /**
- * Generates a cover image for an article using DALL·E
+ * Generates a cover image for an article using OpenRouter's image API
  * @param textContent - The Markdown content of a single article
  * @returns Base64-encoded cover image URL
  */
@@ -182,13 +202,16 @@ Article:
 ${textContent}
 \`\`\``;
 
-  const dalle = new DallEAPIWrapper({
-    size: '1792x1024',
-    dallEResponseFormat: 'b64_json',
-    apiKey: process.env.OPENAI_API_KEY,
-  });
-  const b64str = await dalle.invoke(prompt);
-  return `data:image/png;base64, ${b64str}`;
+  const response = (await openRouter.images.generate({
+    imageGenerationRequest: {
+      model: 'openai/gpt-image-1',
+      prompt,
+      aspectRatio: '16:9',
+      outputFormat: 'png',
+    },
+  })) as ImageGenerationResponse;
+  const [image] = response.data;
+  return `data:${image.mediaType ?? 'image/png'};base64,${image.b64Json}`;
 }
 
 /** @deprecated */
@@ -216,8 +239,8 @@ export async function extractArticleDetails(
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
 
   // First ensure this is an article
@@ -267,7 +290,7 @@ ${textContent}
 \`\`\`
 `;
 
-  const result = await model.withStructuredOutput(FullArticleSchema).invoke([new SystemMessage(prompt)]);
+  const result = await completeStructured(prompt, FullArticleSchema, 'article_details');
   return {
     summaries: result.summaries,
     date: result.date || null,
@@ -289,8 +312,8 @@ export async function isArticleOrNewsletter(textContent: string): Promise<Articl
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
 
   const prompt = `
@@ -308,10 +331,7 @@ ${textContent}
 `;
 
   try {
-    // @ts-ignore
-    const result: ArticleOrNewsletterResponse = await model
-      .withStructuredOutput(ArticleOrNewsletterSchema)
-      .invoke([new SystemMessage(prompt)]);
+    const result = await completeStructured(prompt, ArticleOrNewsletterSchema, 'article_or_newsletter');
     return result.type;
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
@@ -324,8 +344,8 @@ export async function classifyContent(textContent: string): Promise<Classificati
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
 
   const prompt = `
@@ -348,10 +368,7 @@ ${textContent}
 `;
 
   try {
-    // @ts-ignore
-    const result: ClassificationResponse = await model
-      .withStructuredOutput(ClassificationSchema)
-      .invoke([new SystemMessage(prompt)]);
+    const result = await completeStructured(prompt, ClassificationSchema, 'classification', 'typesafe/jev-router');
     return result;
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
