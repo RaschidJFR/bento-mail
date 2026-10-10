@@ -21,4 +21,4 @@ jobs:
       - run: npm ci
 
       - name: Run tests against a MongoDB replica set
-        run: npx mongodb-runner -t replset exec -- sh -c 'export TEST_MONGODB_URI="$MONGODB_URI"; npm test'
+        run: npx mongodb-runner -t replset exec -- sh -c 'export TEST_MONGODB_URI="$MONGODB_URI"; npm test -- --run'
