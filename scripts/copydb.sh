@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copies the production database to the development database
+# Copies a 'production' database to a 'development' database in a MongoDB cluster.
 # Usage: SOURCE=<source_uri> DESTINATION=<destination_uri> ./copydb.sh
 
 # Fail if any var is missing
