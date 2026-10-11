@@ -8,7 +8,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - ALLOWED_EMAIL_HOSTS=${ALLOWED_EMAIL_HOSTS}
       - APP_URL=${APP_URL}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
@@ -23,7 +23,7 @@ services:
       - NODE_ENV=${NODE_ENV}
       - MONGODB_URI=${MONGODB_URI}
       - WORKER_PROCESSING_INTERVAL=${WORKER_PROCESSING_INTERVAL}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
   rtdb:
     build: .
     command: node scripts/start-rtdb.mjs
