@@ -1,6 +1,30 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { POST as POST_CHAT } from '@app/api/article/[id]/chat/route';
 import { Article } from '@lib/models/article';
+
+vi.mock('@openrouter/sdk', () => ({
+  OpenRouter: vi.fn().mockImplementation(() => ({
+    chat: {
+      send: vi.fn().mockResolvedValue({
+        id: 'chatcmpl-123',
+        created: Date.now(),
+        model: 'openai/gpt-5-mini',
+        object: 'chat.completion',
+        system_fingerprint: 'fp_123',
+        choices: [
+          {
+            index: 0,
+            finish_reason: 'stop',
+            message: {
+              role: 'assistant',
+              content: 'This is a test response about the article.',
+            },
+          },
+        ],
+      }),
+    },
+  })),
+}));
 
 function mockReq(body: any) {
   return {
@@ -27,31 +51,10 @@ describe('POST /api/article/[id]/chat', () => {
       linkedArticles: null,
       lastError: null,
     });
+  });
 
-    const openRouter = await import('@openrouter/sdk');
-    vi.mock('@openrouter/sdk', () => ({
-      OpenRouter: vi.fn().mockImplementation(() => ({
-        chat: {
-          send: vi.fn().mockResolvedValue({
-            id: 'chatcmpl-123',
-            created: Date.now(),
-            model: 'openai/gpt-5-mini',
-            object: 'chat.completion',
-            system_fingerprint: 'fp_123',
-            choices: [
-              {
-                index: 0,
-                finish_reason: 'stop',
-                message: {
-                  role: 'assistant',
-                  content: 'This is a test response about the article.',
-                },
-              },
-            ],
-          }),
-        },
-      })),
-    }));
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   it('returns 404 if article not found', async () => {
