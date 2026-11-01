@@ -10,14 +10,12 @@ import { MongoClient } from 'mongodb';
 let cluster: MongoCluster | null = null;
 
 export async function setup() {
-  // Clear API keys to prevent accidental usage during tests
-  process.env.OPENAI_API_KEY = '';
 
   if (process.env.TEST_MONGODB_URI) {
-    console.log('Using test database %o', process.env.TEST_MONGODB_URI);
+    console.log('Using test database from $TEST_MONGODB_URI');
     process.env.MONGODB_URI = process.env.TEST_MONGODB_URI;
   } else {
-    // This has been causing the tests to hang. 
+    // This has been causing the tests to hang.
     // TODO: investigate and fix
     // cluster = await spinUpMongoCluster();
 

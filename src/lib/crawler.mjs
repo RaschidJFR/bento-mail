@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-import { openai } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
 import LLMScraper from 'llm-scraper';
 
 /**
@@ -28,7 +28,11 @@ Rules:
   const browser = await chromium.launch();
 
   // Initialize LLM provider
-  const llm = openai.chat('gpt-5');
+  const openrouter = createOpenAI({
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey: process.env.OPENROUTER_API_KEY,
+  });
+  const llm = openrouter.chat('openai/gpt-5');
 
   // Create a new LLMScraper
   const scraper = new LLMScraper(llm);

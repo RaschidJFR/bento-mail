@@ -1,16 +1,38 @@
-import { ChatOpenAI, DallEAPIWrapper } from '@langchain/openai';
-import { SystemMessage } from '@langchain/core/messages';
-import { z } from 'zod';
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { choice, TypeSafeClient } from '@typesafe-ai/sdk';
+import LinkifyIt from 'linkify-it';
+import { z } from 'zod/v4';
 import 'dotenv/config';
 import type { IArticle, INewsletter } from './models';
 
-const model = new ChatOpenAI({
-  modelName: 'gpt-5-mini',
-  apiKey: process.env.OPENAI_API_KEY || 'mock-api-key',
+const MODEL = 'openai/gpt-5-mini';
+const IMAGE_MODEL = 'openai/gpt-image-1';
+const JEV_MODEL = 'typesafe/jev-1.14';
+
+const linkify = new LinkifyIt();
+
+const openrouter = createOpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('Warning: OPENAI_API_KEY environment variable is not set. Using mock API key.');
+if (!process.env.OPENROUTER_API_KEY) {
+  console.warn('Warning: OPENROUTER_API_KEY environment variable is not set.');
+}
+
+async function completeStructured<T extends z.ZodType>(
+  prompt: string,
+  schema: T,
+  _name: string,
+  model = MODEL,
+): Promise<z.output<T>> {
+  const { object } = await generateObject({
+    model: openrouter(model),
+    schema,
+    prompt,
+  });
+  return object as z.output<T>;
 }
 
 export type ArticleOrNewsletterResponse = {
@@ -70,14 +92,6 @@ const ArticleOrNewsletterSchema = z.object({
   reason: z.string().describe('Brief explanation of the classification decision'),
 });
 
-const ClassificationSchema = z.object({
-  type: z
-    .enum(['article', 'newsletter', 'link', 'unknown'])
-    .describe('Whether the text is a single article, a newsletter, or unknown'),
-  reason: z.string().describe('Brief explanation of the classification decision'),
-  data: z.string().optional().default('').describe('The extracted URL if type is link, else empty'),
-});
-
 /**
  * @deprecated
  * Extracts newsletter articles from Markdown content using AI
@@ -107,8 +121,10 @@ export async function extractArticlesFromNewsletter(
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
   if (newsletterNames.length > 0) {
@@ -144,8 +160,7 @@ Content:
 ${textContent}
 \`\`\`
 `;
-  // @ts-ignore
-  const data = await model.withStructuredOutput(NewsletterSchema).invoke([new SystemMessage(prompt)]);
+  const data = await completeStructured(prompt, NewsletterSchema, 'newsletter_extraction');
   return {
     name: data.name,
     date: data.date || null,
@@ -161,9 +176,11 @@ ${textContent}
 }
 
 /**
- * Generates a cover image for an article using DALL·E
+ * Generates a cover image for an article using OpenRouter's image API
+ * Uses direct fetch since @ai-sdk/openai doesn't provide image generation support.
+ * OpenRouter proxies to OpenAI's DALL-E via their API.
  * @param textContent - The Markdown content of a single article
- * @returns Base64-encoded cover image URL
+ * @returns Base64-encoded or URL cover image
  */
 export async function generateCoverImage(textContent: string) {
   const prompt = `
@@ -182,13 +199,34 @@ Article:
 ${textContent}
 \`\`\``;
 
-  const dalle = new DallEAPIWrapper({
-    size: '1792x1024',
-    dallEResponseFormat: 'b64_json',
-    apiKey: process.env.OPENAI_API_KEY,
+  const response = await fetch('https://openrouter.ai/api/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: IMAGE_MODEL,
+      prompt,
+      size: '1536x1024',
+      n: 1,
+    }),
   });
-  const b64str = await dalle.invoke(prompt);
-  return `data:image/png;base64, ${b64str}`;
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate image: ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as { data: Array<{ b64_json?: string; url?: string }> };
+  const image = data.data[0];
+
+  if (image.b64_json) {
+    return `data:image/png;base64,${image.b64_json}`;
+  } else if (image.url) {
+    return image.url;
+  } else {
+    throw new Error('No image data returned from OpenRouter');
+  }
 }
 
 /** @deprecated */
@@ -216,8 +254,10 @@ export async function extractArticleDetails(
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
   // First ensure this is an article
@@ -267,7 +307,7 @@ ${textContent}
 \`\`\`
 `;
 
-  const result = await model.withStructuredOutput(FullArticleSchema).invoke([new SystemMessage(prompt)]);
+  const result = await completeStructured(prompt, FullArticleSchema, 'article_details');
   return {
     summaries: result.summaries,
     date: result.date || null,
@@ -289,8 +329,10 @@ export async function isArticleOrNewsletter(textContent: string): Promise<Articl
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
   const prompt = `
@@ -308,10 +350,7 @@ ${textContent}
 `;
 
   try {
-    // @ts-ignore
-    const result: ArticleOrNewsletterResponse = await model
-      .withStructuredOutput(ArticleOrNewsletterSchema)
-      .invoke([new SystemMessage(prompt)]);
+    const result = await completeStructured(prompt, ArticleOrNewsletterSchema, 'article_or_newsletter');
     return result.type;
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
@@ -320,39 +359,51 @@ ${textContent}
   }
 }
 
+/**
+ * Classifies content using the JEV model through OpenRouter's Decisions API.
+ * Determines whether content is an article, newsletter, link, or unknown.
+ */
 export async function classifyContent(textContent: string): Promise<ClassificationResponse> {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
   }
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error('OPENAI_API_KEY environment variable is required. Please set it in your .env file or environment.');
+  if (!process.env.OPENROUTER_API_KEY) {
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
-  const prompt = `
-Given the following newsletter text, determine if there is a main article/featured story or not.
-- if there is one **main** article (even if there are other recommended articles), classify it as "article".
-- If there are multiple articles with no main featured story, classify it as "newsletter".
-- If there is no article content, only a link or url, classify it as "link".
-- if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown".
-
-- Notes: 
-  - A main article must have more than one paragraph.
-  - A main article must be at least twice as long compared to the other articles.
-  - Beware of false positives from headers like "The Big Story" or "Breaking News" that do not indicate a main article.
-
-Text:
-
-\`\`\`markdown
-${textContent}
-\`\`\`
-`;
+  const client = new TypeSafeClient({
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: 'https://openrouter.ai/api',
+  });
 
   try {
-    // @ts-ignore
-    const result: ClassificationResponse = await model
-      .withStructuredOutput(ClassificationSchema)
-      .invoke([new SystemMessage(prompt)]);
-    return result;
+    const { answers } = await client.systemOne({
+      model: JEV_MODEL,
+      state: textContent,
+      questions: {
+        classification: choice('Given the text, determine if there is a main article/featured story or not.', {
+          article:
+            'One **main** article, even if there are other recommended articles.' +
+            ' A main article has more than one paragraph and is at least twice as long as the other articles.' +
+            ' Beware of false positives from headers like "The Big Story" or "Breaking News".',
+          newsletter: 'Multiple articles with no main featured story.',
+          link: 'No article content, only a link or url.',
+          unknown:
+            'Neither, or unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content).',
+        }),
+      },
+    });
+
+    const { choice: type, confidence } = answers.classification;
+    const reason = `confidence: ${confidence.toFixed(2)}`;
+    if (type === 'link') {
+      const matches = linkify.match(textContent);
+      const url = matches?.[0]?.url ?? '';
+      return { type, reason, data: url };
+    }
+    return { type, reason };
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
     console.error(error.stack, '\n');

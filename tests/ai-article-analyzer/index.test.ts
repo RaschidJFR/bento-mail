@@ -1,17 +1,16 @@
 /**
- * This file is excluded from regular test runs.
- * To run these tests, use:
+ * AI analyzer tests that require a real OPENROUTER_API_KEY.
+ * Skipped by default when OPENROUTER_API_KEY is not set.
  *
- *    npx vitest tests/ai-article-analyzer
+ * To run these tests:
+ *    OPENROUTER_API_KEY=your_key npx vitest tests/ai-article-analyzer
  */
 
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env', override: true }); // Override globalSetup.ts settings
 
-describe.concurrent('AI Article Analyzer', () => {
+describe.skipIf(!process.env.OPENROUTER_API_KEY).concurrent('AI Article Analyzer', () => {
   describe('multi-article newsletters', () => {
     it('identify multi-article newsletter from Wired', { timeout: 60e3 }, async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
@@ -48,13 +47,30 @@ describe.concurrent('AI Article Analyzer', () => {
     const analyzer = await import('@lib/ai-article-analyzer');
     const content = await fs.readFile(path.resolve(__dirname, './assets/newsletter_single_article-wired.md'), 'utf-8');
 
-    // Run three parallel classification calls and expect each to be 'article'
+    // Run five parallel classification calls and expect each to be 'article'
     const tasks = Array.from({ length: 5 }, () => analyzer.classifyContent(content));
     const results = await Promise.all(tasks);
 
     for (const classification of results) {
       console.log('Single-article newsletter result for Wired:\n', classification);
       expect(classification.type).toBe('article');
+    }
+  });
+
+  it('classify link-only content as link', { timeout: 60e3 }, async () => {
+    const analyzer = await import('@lib/ai-article-analyzer');
+    const linkContent = 'Check this out: https://example.com/article';
+
+    // Run five parallel classification calls and expect each to be 'link'
+    const tasks = Array.from({ length: 5 }, () => analyzer.classifyContent(linkContent));
+    const results = await Promise.all(tasks);
+
+    for (const classification of results) {
+      console.log('Link classification result:\n', classification);
+      expect(classification.type).toBe('link');
+      expect(classification).toHaveProperty('reason');
+      expect(classification).toHaveProperty('data');
+      expect(typeof classification.data).toBe('string');
     }
   });
 });
