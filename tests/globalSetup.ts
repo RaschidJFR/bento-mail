@@ -10,8 +10,6 @@ import { MongoClient } from 'mongodb';
 let cluster: MongoCluster | null = null;
 
 export async function setup() {
-  // Clear API keys to prevent accidental usage during tests
-  process.env.OPENROUTER_API_KEY = '';
 
   if (process.env.TEST_MONGODB_URI) {
     console.log('Using test database from $TEST_MONGODB_URI');

@@ -9,8 +9,6 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import dotenv from 'dotenv';
-dotenv.config({ path: '.env', override: true }); // Override globalSetup.ts settings
 
 describe.skipIf(!process.env.OPENROUTER_API_KEY).concurrent('AI Article Analyzer', () => {
   describe('multi-article newsletters', () => {
@@ -57,5 +55,41 @@ describe.skipIf(!process.env.OPENROUTER_API_KEY).concurrent('AI Article Analyzer
       console.log('Single-article newsletter result for Wired:\n', classification);
       expect(classification.type).toBe('article');
     }
+  });
+
+  describe('JEV router classification (typesafe/jev-router)', () => {
+    it('classifies single-article document as article', { timeout: 60e3 }, async () => {
+      const analyzer = await import('@lib/ai-article-analyzer');
+      const content = await fs.readFile(path.resolve(__dirname, './assets/newsletter_single_article-wired.md'), 'utf-8');
+
+      const result = await analyzer.classifyContent(content);
+
+      expect(result.type).toBe('article');
+      expect(result).toHaveProperty('reason');
+      expect(typeof result.reason).toBe('string');
+    });
+
+    it('classifies multi-article document as newsletter', { timeout: 60e3 }, async () => {
+      const analyzer = await import('@lib/ai-article-analyzer');
+      const content = await fs.readFile(path.resolve(__dirname, './assets/newsletter_multi_article-wired.md'), 'utf-8');
+
+      const result = await analyzer.classifyContent(content);
+
+      expect(result.type).toBe('newsletter');
+      expect(result).toHaveProperty('reason');
+      expect(typeof result.reason).toBe('string');
+    });
+
+    it('classifies link-only content as link', { timeout: 60e3 }, async () => {
+      const analyzer = await import('@lib/ai-article-analyzer');
+      const linkContent = 'Check this out: https://example.com/article';
+
+      const result = await analyzer.classifyContent(linkContent);
+
+      expect(result.type).toBe('link');
+      expect(result).toHaveProperty('reason');
+      expect(result).toHaveProperty('data');
+      expect(typeof result.data).toBe('string');
+    });
   });
 });

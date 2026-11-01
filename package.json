@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^2.0.30",
-    "@openrouter/sdk": "^1.4.25",
+    "ai": "^5.0.44",
     "@prisma/orm-mongo": "^8.0.0-rc.10",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",

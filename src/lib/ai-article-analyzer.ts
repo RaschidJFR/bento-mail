@@ -1,38 +1,34 @@
-import { OpenRouter } from '@openrouter/sdk';
-import type { ChatResult, ImageGenerationResponse } from '@openrouter/sdk/models';
+import { createOpenAI } from '@ai-sdk/openai';
+import { generateObject, generateText } from 'ai';
 import { z } from 'zod/v4';
 import 'dotenv/config';
 import type { IArticle, INewsletter } from './models';
 
 const MODEL = 'openai/gpt-5-mini';
+const IMAGE_MODEL = 'openai/gpt-image-1';
 
-const openRouter = new OpenRouter({
-  apiKey: process.env.OPENROUTER_API_KEY || 'mock-api-key',
+const openrouter = createOpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPENROUTER_API_KEY,
 });
 
 if (!process.env.OPENROUTER_API_KEY) {
-  console.warn('Warning: OPENROUTER_API_KEY environment variable is not set. Using mock API key.');
+  console.warn('Warning: OPENROUTER_API_KEY environment variable is not set.');
 }
 
 async function completeStructured<T extends z.ZodType>(
   prompt: string,
   schema: T,
-  name: string,
+  _name: string,
   model = MODEL,
 ): Promise<z.output<T>> {
-  const response = (await openRouter.chat.send({
-    chatRequest: {
-      model,
-      messages: [{ role: 'system', content: prompt }],
-      responseFormat: { type: 'json_schema', jsonSchema: { name, schema: z.toJSONSchema(schema) } },
-    },
-  })) as ChatResult;
-  const content = response.choices[0]?.message.content;
-  if (typeof content !== 'string') {
-    console.error(`[ai-analyzer] OpenRouter returned no text content for ${name}:`, response.choices[0]?.message);
-    throw new Error(`OpenRouter returned no text content for ${name}`);
-  }
-  return schema.parse(JSON.parse(content));
+  const { object } = await generateObject({
+    model: openrouter(model),
+    schema,
+    system: prompt,
+    prompt: '',
+  });
+  return object as z.output<T>;
 }
 
 export type ArticleOrNewsletterResponse = {
@@ -183,8 +179,10 @@ ${textContent}
 
 /**
  * Generates a cover image for an article using OpenRouter's image API
+ * Uses direct fetch since @ai-sdk/openai doesn't provide image generation support.
+ * OpenRouter proxies to OpenAI's DALL-E via their API.
  * @param textContent - The Markdown content of a single article
- * @returns Base64-encoded cover image URL
+ * @returns Base64-encoded or URL cover image
  */
 export async function generateCoverImage(textContent: string) {
   const prompt = `
@@ -203,16 +201,34 @@ Article:
 ${textContent}
 \`\`\``;
 
-  const response = (await openRouter.images.generate({
-    imageGenerationRequest: {
-      model: 'openai/gpt-image-1',
-      prompt,
-      aspectRatio: '16:9',
-      outputFormat: 'png',
+  const response = await fetch('https://openrouter.ai/api/v1/images/generations', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
     },
-  })) as ImageGenerationResponse;
-  const [image] = response.data;
-  return `data:${image.mediaType ?? 'image/png'};base64,${image.b64Json}`;
+    body: JSON.stringify({
+      model: IMAGE_MODEL,
+      prompt,
+      size: '1920x1080',
+      n: 1,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate image: ${response.statusText}`);
+  }
+
+  const data = await response.json() as { data: Array<{ b64_json?: string; url?: string }> };
+  const image = data.data[0];
+
+  if (image.b64_json) {
+    return `data:image/png;base64,${image.b64_json}`;
+  } else if (image.url) {
+    return image.url;
+  } else {
+    throw new Error('No image data returned from OpenRouter');
+  }
 }
 
 /** @deprecated */
@@ -341,6 +357,10 @@ ${textContent}
   }
 }
 
+/**
+ * Classifies content using the JEV router model.
+ * Determines whether content is an article, newsletter, link, or unknown.
+ */
 export async function classifyContent(textContent: string): Promise<ClassificationResponse> {
   if (!textContent || textContent.trim().length === 0) {
     throw new Error('Text content is empty or invalid.');
