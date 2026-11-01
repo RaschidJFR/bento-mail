@@ -34,12 +34,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       );
     }
 
-    const messages: ChatMessage[] = body.messages.map((msg) => {
+    for (const msg of body.messages) {
       if (msg.role !== 'assistant' && msg.role !== 'user') {
-        throw new Error(`Unsupported message role: ${msg.role}`);
+        return Response.json(
+          { error: `Invalid request: unsupported message role "${msg.role}"` },
+          { status: 400 }
+        );
       }
-      return { role: msg.role, content: msg.content };
-    });
+    }
+
+    const messages: ChatMessage[] = body.messages.map((msg) => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+    }));
 
     const articleSummary =
       article.summaries?.oneliner + '\n' + article.summaries?.overview + '\n' + article.summaries?.details;

@@ -120,7 +120,9 @@ export async function extractArticlesFromNewsletter(
     throw new Error('Text content is empty or invalid.');
   }
   if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
   if (newsletterNames.length > 0) {
@@ -198,7 +200,7 @@ ${textContent}
   const response = await fetch('https://openrouter.ai/api/v1/images/generations', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -213,7 +215,7 @@ ${textContent}
     throw new Error(`Failed to generate image: ${response.statusText}`);
   }
 
-  const data = await response.json() as { data: Array<{ b64_json?: string; url?: string }> };
+  const data = (await response.json()) as { data: Array<{ b64_json?: string; url?: string }> };
   const image = data.data[0];
 
   if (image.b64_json) {
@@ -251,7 +253,9 @@ export async function extractArticleDetails(
     throw new Error('Text content is empty or invalid.');
   }
   if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
   // First ensure this is an article
@@ -324,7 +328,9 @@ export async function isArticleOrNewsletter(textContent: string): Promise<Articl
     throw new Error('Text content is empty or invalid.');
   }
   if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
   const prompt = `
@@ -360,7 +366,9 @@ export async function classifyContent(textContent: string): Promise<Classificati
     throw new Error('Text content is empty or invalid.');
   }
   if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
+    throw new Error(
+      'OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.',
+    );
   }
 
   const client = new TypeSafeClient({
@@ -375,10 +383,13 @@ export async function classifyContent(textContent: string): Promise<Classificati
       questions: {
         classification: choice('Given the text, determine if there is a main article/featured story or not.', {
           article:
-            'One **main** article, even if there are other recommended articles. A main article has more than one paragraph and is at least twice as long as the other articles. Beware of false positives from headers like "The Big Story" or "Breaking News".',
+            'One **main** article, even if there are other recommended articles.' +
+            ' A main article has more than one paragraph and is at least twice as long as the other articles.' +
+            ' Beware of false positives from headers like "The Big Story" or "Breaking News".',
           newsletter: 'Multiple articles with no main featured story.',
           link: 'No article content, only a link or url.',
-          unknown: 'Neither, or unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content).',
+          unknown:
+            'Neither, or unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content).',
         }),
       },
     });

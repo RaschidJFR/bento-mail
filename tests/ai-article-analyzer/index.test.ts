@@ -47,7 +47,7 @@ describe.skipIf(!process.env.OPENROUTER_API_KEY).concurrent('AI Article Analyzer
     const analyzer = await import('@lib/ai-article-analyzer');
     const content = await fs.readFile(path.resolve(__dirname, './assets/newsletter_single_article-wired.md'), 'utf-8');
 
-    // Run three parallel classification calls and expect each to be 'article'
+    // Run five parallel classification calls and expect each to be 'article'
     const tasks = Array.from({ length: 5 }, () => analyzer.classifyContent(content));
     const results = await Promise.all(tasks);
 
@@ -57,39 +57,20 @@ describe.skipIf(!process.env.OPENROUTER_API_KEY).concurrent('AI Article Analyzer
     }
   });
 
-  describe('JEV classification (typesafe/jev-1.14)', () => {
-    it('classifies single-article document as article', { timeout: 60e3 }, async () => {
-      const analyzer = await import('@lib/ai-article-analyzer');
-      const content = await fs.readFile(path.resolve(__dirname, './assets/newsletter_single_article-wired.md'), 'utf-8');
+  it('classify link-only content as link', { timeout: 60e3 }, async () => {
+    const analyzer = await import('@lib/ai-article-analyzer');
+    const linkContent = 'Check this out: https://example.com/article';
 
-      const result = await analyzer.classifyContent(content);
+    // Run five parallel classification calls and expect each to be 'link'
+    const tasks = Array.from({ length: 5 }, () => analyzer.classifyContent(linkContent));
+    const results = await Promise.all(tasks);
 
-      expect(result.type).toBe('article');
-      expect(result).toHaveProperty('reason');
-      expect(typeof result.reason).toBe('string');
-    });
-
-    it('classifies multi-article document as newsletter', { timeout: 60e3 }, async () => {
-      const analyzer = await import('@lib/ai-article-analyzer');
-      const content = await fs.readFile(path.resolve(__dirname, './assets/newsletter_multi_article-wired.md'), 'utf-8');
-
-      const result = await analyzer.classifyContent(content);
-
-      expect(result.type).toBe('newsletter');
-      expect(result).toHaveProperty('reason');
-      expect(typeof result.reason).toBe('string');
-    });
-
-    it('classifies link-only content as link', { timeout: 60e3 }, async () => {
-      const analyzer = await import('@lib/ai-article-analyzer');
-      const linkContent = 'Check this out: https://example.com/article';
-
-      const result = await analyzer.classifyContent(linkContent);
-
-      expect(result.type).toBe('link');
-      expect(result).toHaveProperty('reason');
-      expect(result).toHaveProperty('data');
-      expect(typeof result.data).toBe('string');
-    });
+    for (const classification of results) {
+      console.log('Link classification result:\n', classification);
+      expect(classification.type).toBe('link');
+      expect(classification).toHaveProperty('reason');
+      expect(classification).toHaveProperty('data');
+      expect(typeof classification.data).toBe('string');
+    }
   });
 });

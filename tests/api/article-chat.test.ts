@@ -51,13 +51,13 @@ describe('POST /api/article/[id]/chat', () => {
     expect(res.status).toBe(400);
   });
 
-  it('handles invalid message role', async () => {
+  it('returns 400 for invalid message role', async () => {
     const req = mockReq({
       messages: [
         { role: 'invalid_role', content: 'Some message' },
       ],
     });
     const res = await POST_CHAT(req, { params: Promise.resolve({ id: article._id }) });
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
   });
 });
