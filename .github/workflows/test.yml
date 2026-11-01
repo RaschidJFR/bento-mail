@@ -22,3 +22,5 @@ jobs:
 
       - name: Run tests
         run: npm test
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}

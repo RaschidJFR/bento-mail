@@ -1,8 +1,9 @@
 /**
- * This file is excluded from regular test runs.
- * To run these tests, use:
+ * AI analyzer tests that require a real OPENROUTER_API_KEY.
+ * Skipped by default when OPENROUTER_API_KEY is not set.
  *
- *    npx vitest tests/ai-article-analyzer
+ * To run these tests:
+ *    OPENROUTER_API_KEY=your_key npx vitest tests/ai-article-analyzer
  */
 
 import { describe, expect, it } from 'vitest';
@@ -11,7 +12,7 @@ import path from 'node:path';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env', override: true }); // Override globalSetup.ts settings
 
-describe.concurrent('AI Article Analyzer', () => {
+describe.skipIf(!process.env.OPENROUTER_API_KEY).concurrent('AI Article Analyzer', () => {
   describe('multi-article newsletters', () => {
     it('identify multi-article newsletter from Wired', { timeout: 60e3 }, async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
