@@ -14,7 +14,7 @@ export async function setup() {
   process.env.OPENROUTER_API_KEY = '';
 
   if (process.env.TEST_MONGODB_URI) {
-    console.log('Using test database %o', process.env.TEST_MONGODB_URI);
+    console.log('Using test database from $TEST_MONGODB_URI');
     process.env.MONGODB_URI = process.env.TEST_MONGODB_URI;
   } else {
     // This has been causing the tests to hang.

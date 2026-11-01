@@ -29,6 +29,7 @@ async function completeStructured<T extends z.ZodType>(
   })) as ChatResult;
   const content = response.choices[0]?.message.content;
   if (typeof content !== 'string') {
+    console.error(`[ai-analyzer] OpenRouter returned no text content for ${name}:`, response.choices[0]?.message);
     throw new Error(`OpenRouter returned no text content for ${name}`);
   }
   return schema.parse(JSON.parse(content));
