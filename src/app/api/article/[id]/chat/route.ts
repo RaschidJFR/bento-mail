@@ -66,15 +66,10 @@ FULL CONTENT (May content other articles)
 ${articleContent}
 `;
 
-    const userMessage = messages[messages.length - 1].content;
-
     const result = await generateText({
       model: openrouter('openai/gpt-5-mini'),
       system: systemPrompt,
-      messages: messages.map(msg => ({
-        role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content,
-      })).slice(0, -1).concat({ role: 'user', content: userMessage }),
+      messages,
     });
 
     if (!result.text || typeof result.text !== 'string') {
@@ -89,13 +84,12 @@ ${articleContent}
     // Handle Vercel AI SDK error shapes from OpenRouter API
     // See: https://sdk.vercel.ai/docs/reference/generate-text
     const status = error.status || error.statusCode;
-    const message = error.message || '';
 
-    if (status === 401 || message.includes('Unauthorized') || message.includes('invalid API')) {
+    if (status === 401) {
       return Response.json({ error: 'Unauthorized: Invalid API key' }, { status: 401 });
     }
 
-    if (status === 429 || message.includes('Rate limit') || message.includes('Too many requests')) {
+    if (status === 429) {
       return Response.json({ error: 'Rate limit exceeded' }, { status: 429 });
     }
 

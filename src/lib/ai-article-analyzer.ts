@@ -1,11 +1,14 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateObject, generateText } from 'ai';
+import { generateObject } from 'ai';
+import { choice, TypeSafeClient } from '@typesafe-ai/sdk';
 import { z } from 'zod/v4';
 import 'dotenv/config';
 import type { IArticle, INewsletter } from './models';
 
 const MODEL = 'openai/gpt-5-mini';
 const IMAGE_MODEL = 'openai/gpt-image-1';
+const JEV_MODEL = 'typesafe/jev-1.14';
+const URL_PATTERN = /https?:\/\/[^\s<>"')\]]+/;
 
 const openrouter = createOpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -25,8 +28,7 @@ async function completeStructured<T extends z.ZodType>(
   const { object } = await generateObject({
     model: openrouter(model),
     schema,
-    system: prompt,
-    prompt: '',
+    prompt,
   });
   return object as z.output<T>;
 }
@@ -86,14 +88,6 @@ const ArticleOrNewsletterSchema = z.object({
     .enum(['article', 'newsletter', 'unknown'])
     .describe('Whether the text is a single article, a newsletter, or unknown'),
   reason: z.string().describe('Brief explanation of the classification decision'),
-});
-
-const ClassificationSchema = z.object({
-  type: z
-    .enum(['article', 'newsletter', 'link', 'unknown'])
-    .describe('Whether the text is a single article, a newsletter, or unknown'),
-  reason: z.string().describe('Brief explanation of the classification decision'),
-  data: z.string().optional().default('').describe('The extracted URL if type is link, else empty'),
 });
 
 /**
@@ -210,7 +204,7 @@ ${textContent}
     body: JSON.stringify({
       model: IMAGE_MODEL,
       prompt,
-      size: '1920x1080',
+      size: '1536x1024',
       n: 1,
     }),
   });
@@ -358,7 +352,7 @@ ${textContent}
 }
 
 /**
- * Classifies content using the JEV router model.
+ * Classifies content using the JEV model through OpenRouter's Decisions API.
  * Determines whether content is an article, newsletter, link, or unknown.
  */
 export async function classifyContent(textContent: string): Promise<ClassificationResponse> {
@@ -369,28 +363,32 @@ export async function classifyContent(textContent: string): Promise<Classificati
     throw new Error('OPENROUTER_API_KEY environment variable is required. Please set it in your .env file or environment.');
   }
 
-  const prompt = `
-Given the following newsletter text, determine if there is a main article/featured story or not.
-- if there is one **main** article (even if there are other recommended articles), classify it as "article".
-- If there are multiple articles with no main featured story, classify it as "newsletter".
-- If there is no article content, only a link or url, classify it as "link".
-- if it is neither, unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content), classify it as "unknown".
-
-- Notes: 
-  - A main article must have more than one paragraph.
-  - A main article must be at least twice as long compared to the other articles.
-  - Beware of false positives from headers like "The Big Story" or "Breaking News" that do not indicate a main article.
-
-Text:
-
-\`\`\`markdown
-${textContent}
-\`\`\`
-`;
+  const client = new TypeSafeClient({
+    apiKey: process.env.OPENROUTER_API_KEY,
+    baseURL: 'https://openrouter.ai/api',
+  });
 
   try {
-    const result = await completeStructured(prompt, ClassificationSchema, 'classification', 'typesafe/jev-router');
-    return result;
+    const { answers } = await client.systemOne({
+      model: JEV_MODEL,
+      state: textContent,
+      questions: {
+        classification: choice('Given the text, determine if there is a main article/featured story or not.', {
+          article:
+            'One **main** article, even if there are other recommended articles. A main article has more than one paragraph and is at least twice as long as the other articles. Beware of false positives from headers like "The Big Story" or "Breaking News".',
+          newsletter: 'Multiple articles with no main featured story.',
+          link: 'No article content, only a link or url.',
+          unknown: 'Neither, or unclear, incomplete, too short, or unrelated (spam, error messages, captchas, or unrelated content).',
+        }),
+      },
+    });
+
+    const { choice: type, confidence } = answers.classification;
+    const reason = `confidence: ${confidence.toFixed(2)}`;
+    if (type === 'link') {
+      return { type, reason, data: textContent.match(URL_PATTERN)?.[0] ?? '' };
+    }
+    return { type, reason };
   } catch (error: any) {
     console.error('[ai-article-analyzer] Error classifying text:');
     console.error(error.stack, '\n');

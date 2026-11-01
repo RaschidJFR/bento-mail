@@ -57,7 +57,7 @@ describe.skipIf(!process.env.OPENROUTER_API_KEY).concurrent('AI Article Analyzer
     }
   });
 
-  describe('JEV router classification (typesafe/jev-router)', () => {
+  describe('JEV classification (typesafe/jev-1.14)', () => {
     it('classifies single-article document as article', { timeout: 60e3 }, async () => {
       const analyzer = await import('@lib/ai-article-analyzer');
       const content = await fs.readFile(path.resolve(__dirname, './assets/newsletter_single_article-wired.md'), 'utf-8');
