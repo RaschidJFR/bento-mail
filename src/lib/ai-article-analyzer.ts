@@ -1,6 +1,7 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { generateObject } from 'ai';
 import { choice, TypeSafeClient } from '@typesafe-ai/sdk';
+import LinkifyIt from 'linkify-it';
 import { z } from 'zod/v4';
 import 'dotenv/config';
 import type { IArticle, INewsletter } from './models';
@@ -8,7 +9,8 @@ import type { IArticle, INewsletter } from './models';
 const MODEL = 'openai/gpt-5-mini';
 const IMAGE_MODEL = 'openai/gpt-image-1';
 const JEV_MODEL = 'typesafe/jev-1.14';
-const URL_PATTERN = /https?:\/\/[^\s<>"')\]]+/;
+
+const linkify = new LinkifyIt();
 
 const openrouter = createOpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -397,7 +399,9 @@ export async function classifyContent(textContent: string): Promise<Classificati
     const { choice: type, confidence } = answers.classification;
     const reason = `confidence: ${confidence.toFixed(2)}`;
     if (type === 'link') {
-      return { type, reason, data: textContent.match(URL_PATTERN)?.[0] ?? '' };
+      const matches = linkify.match(textContent);
+      const url = matches?.[0]?.url ?? '';
+      return { type, reason, data: url };
     }
     return { type, reason };
   } catch (error: any) {
